@@ -290,42 +290,80 @@ const project = { sections: [makeSection("Section 1")] };
 let activeSectionId = project.sections[0].id;
 let lastFocusedSectionId = project.sections[0].id;
 
-// ---------- Local persistence ----------
+// ---------- Persistence schema ----------
+// The persisted document is intentionally decoupled from the runtime project
+// model. View/runtime state (selectedNoteId, partsPanelOpen, activeSectionId,
+// playingSectionId, etc.) is never written. Bump SCHEMA_VERSION on breaking
+// changes and add a migration branch in deserializeProject.
+const SCHEMA_VERSION = 1;
 const STORAGE_KEY = "midi-editor:state";
+
+function serializeProject(p) {
+  return {
+    version: SCHEMA_VERSION,
+    sections: p.sections.map(s => ({
+      id: s.id,
+      title: s.title,
+      notes: s.notes,
+      bpm: s.bpm,
+      scale: { root: s.scale.root, mode: s.scale.mode },
+      parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi })),
+      bars: s.bars.map(b => ({
+        id: b.id,
+        notes: b.notes.map(n => ({
+          id: n.id, partId: n.partId, pitch: n.pitch,
+          start: n.start, length: n.length, vel: n.vel,
+        })),
+        partNotes: { ...(b.partNotes || {}) },
+      })),
+    })),
+  };
+}
+
+function deserializeProject(doc) {
+  if (!doc || !Array.isArray(doc.sections) || doc.sections.length === 0) return null;
+  const sections = doc.sections.map(s => ({
+    id: s.id || uid(),
+    title: typeof s.title === "string" ? s.title : "Section",
+    notes: typeof s.notes === "string" ? s.notes : "",
+    bpm: Number.isFinite(s.bpm) ? s.bpm : 120,
+    scale: {
+      root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
+      mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
+    },
+    parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
+      .map(pt => ({ id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72 })),
+    bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
+      id: b.id || uid(),
+      notes: Array.isArray(b.notes) ? b.notes : [],
+      partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
+    })),
+    // runtime/view state — never persisted, always defaulted
+    selectedNoteId: null,
+    partsPanelOpen: false,
+  }));
+  return { sections };
+}
+
 let persistTimer = null;
 function persist() {
   if (persistTimer) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ project, activeSectionId }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeProject(project)));
     } catch {}
   }, 300);
 }
-function normalizeProject(obj) {
-  if (!obj || !Array.isArray(obj.sections) || obj.sections.length === 0) return null;
-  obj.sections.forEach(s => {
-    s.bpm = s.bpm ?? 120;
-    s.scale = s.scale ?? { root: 0, mode: "major" };
-    s.parts = Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")];
-    s.bars = Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()];
-    s.bars.forEach(b => { b.notes = Array.isArray(b.notes) ? b.notes : []; b.partNotes = b.partNotes || {}; });
-    s.selectedNoteId = null;
-    s.partsPanelOpen = false;
-  });
-  return obj;
-}
+
 (function restoreFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const saved = JSON.parse(raw);
-    const proj = normalizeProject(saved && saved.project);
-    if (!proj) return;
-    project.sections = proj.sections;
-    activeSectionId = saved.activeSectionId && project.sections.some(s => s.id === saved.activeSectionId)
-      ? saved.activeSectionId
-      : project.sections[0].id;
+    const restored = deserializeProject(JSON.parse(raw));
+    if (!restored) return;
+    project.sections = restored.sections;
+    activeSectionId = project.sections[0].id;
     lastFocusedSectionId = activeSectionId;
   } catch {}
 })();
@@ -848,7 +886,7 @@ sectionsEl.addEventListener("pointerdown", (ev) => {
 
 // ---------- Save / Load JSON ----------
 document.getElementById("btn-save").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(serializeProject(project), null, 2)], { type: "application/json" });
   triggerDownload(blob, "score.json");
 });
 document.getElementById("btn-load").addEventListener("click", () => document.getElementById("file-load").click());
@@ -858,7 +896,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   const fr = new FileReader();
   fr.onload = () => {
     try {
-      const obj = normalizeProject(JSON.parse(fr.result));
+      const obj = deserializeProject(JSON.parse(fr.result));
       if (!obj) throw new Error("Invalid format");
       project.sections = obj.sections;
       activeSectionId = project.sections[0]?.id ?? null;
