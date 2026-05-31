@@ -273,7 +273,7 @@ const SCALE_OPTIONS = [
 let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
-function makePart(name = "Part 1", lo = 48, hi = 71) { return { id: uid(), name, lo, hi }; }
+function makePart(name = "Part 1", lo = 60, hi = 72) { return { id: uid(), name, lo, hi }; }
 function makeBar() { return { id: uid(), notes: [], partNotes: {} }; }
 function makeSection(title = "Section") {
   return {
