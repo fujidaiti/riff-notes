@@ -115,7 +115,7 @@
   .range-controls .range-sep { color: #888; padding: 0 4px; }
 
   /* Bands of bars */
-  .bands { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
+  .bands { display: flex; flex-direction: column; gap: 100px; margin-top: 10px; }
   .band {
     display: grid;
     grid-template-columns: 22px auto;
@@ -136,10 +136,24 @@
     grid-template-columns: 22px auto;
     gap: 4px;
     align-items: center;
-    margin-top: 48px;
   }
-  .band-row:first-of-type { margin-top: 0; }
+  .band-row + .band-row { margin-top: 4px; }
   .bars-strip { display: grid; gap: 12px; }
+  .bar-cell { display: flex; flex-direction: column; gap: 2px; }
+  .bar-note-input {
+    width: 100%;
+    font: inherit;
+    font-size: 11px;
+    color: #555;
+    padding: 1px 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 3px;
+    box-sizing: border-box;
+  }
+  .bar-note-input::placeholder { color: #c8c8c0; }
+  .bar-note-input:hover { border-color: var(--line); }
+  .bar-note-input:focus { border-color: var(--line); background: #fff; outline: none; }
   .part-side {
     grid-column: 1;
     display: flex;
@@ -260,7 +274,7 @@ let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
 function makePart(name = "Part 1", lo = 48, hi = 71) { return { id: uid(), name, lo, hi }; }
-function makeBar() { return { id: uid(), notes: [] }; }
+function makeBar() { return { id: uid(), notes: [], partNotes: {} }; }
 function makeSection(title = "Section") {
   return {
     id: uid(), title, notes: "", bpm: 120,
@@ -580,6 +594,18 @@ function renderBand(section, bandStart, bandBars) {
     const numRows = part.hi - part.lo + 1;
 
     bandBars.forEach((bar, bi) => {
+      const cell = el("div", { class: "bar-cell" });
+      const noteInput = el("input", {
+        class: "bar-note-input",
+        type: "text",
+        placeholder: "",
+        value: (bar.partNotes && bar.partNotes[part.id]) || "",
+      });
+      noteInput.addEventListener("input", (e) => {
+        if (!bar.partNotes) bar.partNotes = {};
+        bar.partNotes[part.id] = e.target.value;
+      });
+      cell.appendChild(noteInput);
       const wrap = el("div", { class: "grid-wrap" });
       wrap.dataset.partId = part.id;
       wrap.dataset.barIndex = String(bandStart + bi);
@@ -609,7 +635,8 @@ function renderBand(section, bandStart, bandBars) {
       });
 
       wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bar));
-      strip.appendChild(wrap);
+      cell.appendChild(wrap);
+      strip.appendChild(cell);
     });
 
     partRow.appendChild(side);
