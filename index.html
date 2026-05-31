@@ -40,6 +40,9 @@
     border-radius: 4px; padding: 4px 6px; min-width: 160px;
   }
   .project-name:hover, .project-name:focus { border-color: var(--line); background: #fff; outline: none; }
+  .volume-control { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .volume-control input[type=range] { width: 100px; padding: 0; }
+  .volume-value { font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
   .spacer { flex: 1; }
   .hint { font-size: 11px; color: #666; padding: 6px 12px; }
 
@@ -333,6 +336,11 @@
   <button id="btn-load">Load JSON</button>
   <input type="file" id="file-load" accept="application/json,.json" class="hidden">
   <span class="spacer"></span>
+  <label class="volume-control" title="Master volume">
+    <span aria-hidden="true">🔊</span>
+    <input id="volume-slider" type="range" min="0" max="100" value="100">
+    <span class="volume-value" id="volume-value">100%</span>
+  </label>
   <span class="hint" id="saved-indicator">Not saved yet</span>
 </div>
 <div class="tabstrip" id="tabstrip"></div>
@@ -1575,6 +1583,20 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   }
 });
 
+// ---------- Master volume ----------
+{
+  const slider = document.getElementById("volume-slider");
+  const label = document.getElementById("volume-value");
+  slider.addEventListener("input", (e) => {
+    const pct = parseInt(e.target.value, 10);
+    masterVolume = Math.max(0, Math.min(1, pct / 100));
+    label.textContent = pct + "%";
+    if (masterGain && audioCtx) {
+      masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
+    }
+  });
+}
+
 // ---------- Project name ----------
 syncProjectNameInput();
 document.getElementById("project-name").addEventListener("input", (e) => {
@@ -1626,8 +1648,15 @@ function triggerDownload(blob, filename) {
 }
 
 // ---------- Playback (per sheet, exclusive) ----------
+let masterGain = null;
+let masterVolume = 1.0; // 0..1, runtime-only (not persisted)
 function ensureAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!masterGain) {
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = masterVolume;
+    masterGain.connect(audioCtx.destination);
+  }
   if (audioCtx.state === "suspended") audioCtx.resume();
 }
 
@@ -1679,7 +1708,7 @@ function scheduleNote(when, durSec, midi, vel) {
   gain.gain.linearRampToValueAtTime(peak, when + 0.005);
   gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
   gain.gain.linearRampToValueAtTime(0, when + durSec);
-  osc.connect(gain).connect(audioCtx.destination);
+  osc.connect(gain).connect(masterGain || audioCtx.destination);
   osc.start(when);
   osc.stop(when + durSec + 0.02);
   activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
