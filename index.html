@@ -336,6 +336,14 @@
   dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; }
   dialog::backdrop { background: rgba(0,0,0,0.25); }
   .hidden { display: none; }
+  #help-dialog { max-width: 520px; }
+  #help-dialog h3 { margin: 0 0 10px; font-size: 14px; }
+  #help-dialog table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  #help-dialog td { padding: 4px 8px; vertical-align: top; }
+  #help-dialog td.key { white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #333; }
+  #help-dialog tr + tr td { border-top: 1px dashed var(--line); }
+  #help-dialog .actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .btn-icon { padding: 4px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -351,9 +359,17 @@
     <span class="volume-value" id="volume-value">100%</span>
   </label>
   <span class="hint" id="saved-indicator">Not saved yet</span>
+  <button id="btn-help" class="btn-icon" title="Keyboard shortcuts">?</button>
 </div>
 <div class="tabstrip" id="tabstrip"></div>
 <div class="sheets" id="sheets"></div>
+<dialog id="help-dialog">
+  <h3>Keyboard & mouse shortcuts</h3>
+  <table id="help-table"></table>
+  <div class="actions">
+    <button id="help-close">Close</button>
+  </div>
+</dialog>
 <dialog id="confirm-dialog">
   <p id="confirm-message"></p>
   <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -1800,6 +1816,32 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   if (s.selectedCell) { s.selectedCell = null; changed = true; }
   if (changed) renderAll();
 });
+
+// ---------- Help dialog ----------
+{
+  const MOD = IS_MAC ? "⌘" : "Ctrl";
+  const ROWS = [
+    [`${MOD} + C`, "Copy selected notes"],
+    [`${MOD} + X`, "Cut selected notes"],
+    [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
+    ["Backspace / Delete", "Delete selected notes"],
+    ["Click empty cell", "Select that cell (paste target; clears note selection)"],
+    [`${MOD} + Click empty cell`, "Create a new note"],
+    ["Drag empty cell", "Rubber-band select notes in the same part"],
+    ["Shift + Drag empty cell", "Add to current selection via rubber-band"],
+    ["Click note", "Select the note (cycles velocity if it's the sole selection)"],
+    ["Click a selected note (in multi-selection)", "Cycle every selected note's velocity"],
+    ["Shift + Click note", "Toggle that note in the selection"],
+    ["Drag note", "Move (group-aware if multi-selected); vertical drag changes pitch"],
+    ["Drag note edge", "Resize (group-aware if multi-selected)"],
+  ];
+  const table = document.getElementById("help-table");
+  table.innerHTML = ROWS.map(([k, d]) =>
+    `<tr><td class="key">${k}</td><td>${d}</td></tr>`).join("");
+  const dlg = document.getElementById("help-dialog");
+  document.getElementById("btn-help").addEventListener("click", () => dlg.showModal());
+  document.getElementById("help-close").addEventListener("click", () => dlg.close());
+}
 
 // ---------- Master volume ----------
 {
