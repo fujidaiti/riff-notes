@@ -1299,12 +1299,16 @@ function playSection(section, fromStep) {
 
   const tick = () => {
     if (playingSectionId !== section.id || !audioCtx) return;
-    const elapsed = audioCtx.currentTime - playbackT0;
-    const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
-    if (cur >= playbackTotalSteps) {
-      updatePlaybackPlayhead(playbackTotalSteps - 0.0001, section);
-    } else {
-      updatePlaybackPlayhead(cur, section);
+    // Only animate DOM when the playing section is the visible tab; the
+    // other tab's DOM has the same selectors and would otherwise animate too.
+    if (activeSectionId === section.id) {
+      const elapsed = audioCtx.currentTime - playbackT0;
+      const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+      if (cur >= playbackTotalSteps) {
+        updatePlaybackPlayhead(playbackTotalSteps - 0.0001, section);
+      } else {
+        updatePlaybackPlayhead(cur, section);
+      }
     }
     playbackRaf = requestAnimationFrame(tick);
   };
