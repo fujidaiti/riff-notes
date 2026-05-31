@@ -1236,7 +1236,7 @@ document.addEventListener("pointermove", (ev) => {
   if (!wrap) { hideCellTooltip(); return; }
   showCellTooltipAt(ev, wrap);
 });
-document.addEventListener("pointerleave", hideCellTooltip, true);
+document.documentElement.addEventListener("pointerleave", hideCellTooltip);
 window.addEventListener("blur", hideCellTooltip);
 
 // ---------- Keyboard ----------
