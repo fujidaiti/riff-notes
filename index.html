@@ -306,6 +306,15 @@
     background: rgba(10, 163, 155, 0.12);
     z-index: 3;
   }
+  .cell-selected {
+    position: absolute;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid var(--note-sel);
+    border-radius: 2px;
+    background: rgba(43, 108, 176, 0.10);
+    z-index: 1;
+  }
 
   .cell-tooltip {
     position: fixed;
@@ -406,13 +415,18 @@ function makeSheet(title = "Sheet") {
     parts: [makePart("Part 1")],
     bars: [makeBar()],
     selectedNoteIds: new Set(),
+    selectedCell: null,
     partsPanelOpen: false,
     playStart: 0,
   };
 }
 function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId); }
-function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); }
+function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); sheet.selectedCell = null; }
 function clearSelection(sheet) { sheet.selectedNoteIds = new Set(); }
+function setCellSelection(sheet, sel) { sheet.selectedCell = sel; sheet.selectedNoteIds = new Set(); }
+function clearCellSelection(sheet) { sheet.selectedCell = null; }
+const IS_MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+function isCreateModifier(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey; }
 
 const project = { name: "", sheets: [makeSheet("Sheet 1")] };
 let activeSheetId = project.sheets[0].id;
@@ -472,6 +486,7 @@ function deserializeProject(doc) {
     })),
     // runtime/view state — never persisted, always defaulted
     selectedNoteIds: new Set(),
+    selectedCell: null,
     partsPanelOpen: false,
     playStart: 0,
   }));
@@ -1087,6 +1102,19 @@ function renderBand(sheet, bandStart, bandBars) {
         wrap.appendChild(noteEl);
       });
 
+      if (sheet.selectedCell &&
+          sheet.selectedCell.barId === bar.id &&
+          sheet.selectedCell.partId === part.id &&
+          sheet.selectedCell.pitch >= part.lo &&
+          sheet.selectedCell.pitch <= part.hi) {
+        const selEl = el("div", { class: "cell-selected" });
+        selEl.style.left = (sheet.selectedCell.step * cellW) + "px";
+        selEl.style.top = ((part.hi - sheet.selectedCell.pitch) * cellH) + "px";
+        selEl.style.width = (cellW - 1) + "px";
+        selEl.style.height = (cellH - 1) + "px";
+        wrap.appendChild(selEl);
+      }
+
       const playLine = el("div", { class: "playhead-line" });
       wrap.appendChild(playLine);
 
@@ -1140,6 +1168,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       // Toggle membership; no drag.
       if (wasInSelection) sheet.selectedNoteIds.delete(note.id);
       else sheet.selectedNoteIds.add(note.id);
+      sheet.selectedCell = null;
       renderAll();
       ev.preventDefault();
       return;
@@ -1147,6 +1176,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
 
     // Plain click on a note.
     const wasSoleSelection = wasInSelection && prevSize === 1;
+    sheet.selectedCell = null;
     if (!wasInSelection) {
       const sheetEl = wrap.closest(".sheet");
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
@@ -1178,11 +1208,47 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     return;
   }
 
-  // Empty cell: shift-drag starts rubber-band immediately; plain
-  // pointerdown creates a 1-step note that becomes a rubber-band if
-  // the pointer moves before pointerup.
+  // Empty cell behavior:
+  //   - Cmd (mac) / Ctrl (other): create a new 1-step note and start moving it.
+  //   - Shift-drag: rubber-band (additive).
+  //   - Plain pointerdown: pending — on click → select cell; on drag → rubber-band (replace).
   const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
   if (existing) return;
+
+  if (isCreateModifier(ev)) {
+    if (sheet.selectedNoteIds.size > 0) {
+      const sheetEl = wrap.closest(".sheet");
+      if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+    }
+    const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
+    bar.notes.push(note);
+    setSingleSelection(sheet, note.id);
+
+    const noteEl = document.createElement("div");
+    noteEl.className = "note selected";
+    noteEl.dataset.noteId = note.id;
+    noteEl.dataset.len = "1";
+    noteEl.dataset.vel = String(note.vel);
+    noteEl.style.left = (note.start * cellW) + "px";
+    noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
+    noteEl.style.width = (note.length * cellW - 1) + "px";
+    noteEl.style.opacity = VEL_OPACITY[note.vel];
+    wrap.appendChild(noteEl);
+
+    drag = {
+      mode: "move",
+      primaryNote: note,
+      group: [{ note, origStart: note.start, origLength: note.length, origPitch: note.pitch }],
+      bar, part, sheet, wrap,
+      startX: ev.clientX, startY: ev.clientY,
+      moved: false,
+      isExisting: false,
+      wasSoleSelection: false,
+    };
+    try { wrap.setPointerCapture(ev.pointerId); } catch {}
+    ev.preventDefault();
+    return;
+  }
 
   if (ev.shiftKey) {
     drag = {
@@ -1199,31 +1265,13 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     return;
   }
 
-  // clear existing selection visuals within this sheet
-  if (sheet.selectedNoteIds.size > 0) {
-    const sheetEl = wrap.closest(".sheet");
-    if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
-  }
-  const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
-  bar.notes.push(note);
-  setSingleSelection(sheet, note.id);
-
-  const noteEl = document.createElement("div");
-  noteEl.className = "note selected";
-  noteEl.dataset.noteId = note.id;
-  noteEl.dataset.len = "1";
-  noteEl.style.left = (note.start * cellW) + "px";
-  noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-  noteEl.style.width = (note.length * cellW - 1) + "px";
-  noteEl.style.opacity = VEL_OPACITY[note.vel];
-  wrap.appendChild(noteEl);
-
+  // Plain pointerdown on empty cell — defer to pointermove / pointerup.
   drag = {
-    mode: "create-or-band",
-    newNote: note, newNoteEl: noteEl,
+    mode: "empty-pending",
     bar, part, sheet, wrap,
     startX: ev.clientX, startY: ev.clientY,
     anchorX: x, anchorY: y,
+    pendingCell: { barId: bar.id, partId: part.id, step: stepInBar, pitch },
     moved: false,
     additive: false,
     bandEl: null,
@@ -1299,13 +1347,8 @@ document.addEventListener("pointermove", (ev) => {
   const overThreshold = Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE;
   if (overThreshold) drag.moved = true;
 
-  // create-or-band: morph into rubber-band on first real movement.
-  if (drag.mode === "create-or-band" && overThreshold) {
-    // cancel the candidate note
-    const idx = drag.bar.notes.indexOf(drag.newNote);
-    if (idx >= 0) drag.bar.notes.splice(idx, 1);
-    if (drag.newNoteEl && drag.newNoteEl.parentNode) drag.newNoteEl.parentNode.removeChild(drag.newNoteEl);
-    drag.sheet.selectedNoteIds.delete(drag.newNote.id);
+  // empty-pending: morph into rubber-band on first real movement.
+  if (drag.mode === "empty-pending" && overThreshold) {
     drag.mode = "rubber-band";
   }
 
@@ -1391,14 +1434,16 @@ document.addEventListener("pointerup", () => {
     } else {
       d.sheet.selectedNoteIds = hits;
     }
+    if (hits.size > 0) d.sheet.selectedCell = null;
     if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
     renderAll();
     refreshCellTooltipAtLastPointer();
     return;
   }
 
-  if (d.mode === "create-or-band") {
-    // No movement → the candidate note stays; behave like a single click on empty cell.
+  if (d.mode === "empty-pending") {
+    // No drag → select the empty cell; clears note selection.
+    setCellSelection(d.sheet, d.pendingCell);
     renderAll();
     refreshCellTooltipAtLastPointer();
     return;
@@ -1565,6 +1610,7 @@ document.addEventListener("keydown", (ev) => {
   }
   if (removed > 0) {
     clearSelection(sec);
+    sec.selectedCell = null;
     renderAll();
     ev.preventDefault();
   }
@@ -1577,10 +1623,11 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   if (!sec) return;
   const id = sec.dataset.sheetId;
   const s = project.sheets.find(x => x.id === id);
-  if (s && s.selectedNoteIds.size > 0) {
-    clearSelection(s);
-    renderAll();
-  }
+  if (!s) return;
+  let changed = false;
+  if (s.selectedNoteIds.size > 0) { clearSelection(s); changed = true; }
+  if (s.selectedCell) { s.selectedCell = null; changed = true; }
+  if (changed) renderAll();
 });
 
 // ---------- Master volume ----------
