@@ -279,6 +279,23 @@
   }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 2; }
 
+  .cell-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    padding: 3px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #333;
+    z-index: 9999;
+    white-space: nowrap;
+    display: none;
+  }
+  .cell-tooltip .pitch { font-weight: 600; }
+  .cell-tooltip .vel { color: #888; margin-left: 6px; }
   dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; }
   dialog::backdrop { background: rgba(0,0,0,0.25); }
   .hidden { display: none; }
@@ -984,6 +1001,8 @@ function renderBand(section, bandStart, bandBars) {
       const labelCol = el("div", { class: "label-col" });
       const wrap = el("div", { class: "grid-wrap" });
       wrap.dataset.partId = part.id;
+      wrap.dataset.partHi = String(part.hi);
+      wrap.dataset.partLo = String(part.lo);
       wrap.dataset.barIndex = String(bandStart + bi);
       wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
       wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
@@ -1012,6 +1031,7 @@ function renderBand(section, bandStart, bandBars) {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
         const noteEl = el("div", { class: "note" + (n.id === section.selectedNoteId ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
+        noteEl.dataset.vel = String(n.vel);
         const top = (part.hi - n.pitch) * cellH;
         noteEl.style.left = (n.start * cellW) + "px";
         noteEl.style.top = top + "px";
@@ -1159,6 +1179,65 @@ function updateNoteDom(d) {
   noteEl.style.left = (d.note.start * cellW) + "px";
   noteEl.style.width = (d.note.length * cellW - 1) + "px";
 }
+
+// ---------- Hover tooltip ----------
+let cellTooltipEl = null;
+function getCellTooltip() {
+  if (!cellTooltipEl) {
+    cellTooltipEl = el("div", { class: "cell-tooltip" });
+    document.body.appendChild(cellTooltipEl);
+  }
+  return cellTooltipEl;
+}
+function hideCellTooltip() {
+  if (cellTooltipEl) cellTooltipEl.style.display = "none";
+}
+function showCellTooltipAt(ev, wrap) {
+  const rect = wrap.getBoundingClientRect();
+  const cellH = getCellH();
+  const y = ev.clientY - rect.top;
+  const partHi = parseInt(wrap.dataset.partHi, 10);
+  const partLo = parseInt(wrap.dataset.partLo, 10);
+  const numRows = partHi - partLo + 1;
+  const rowIdx = Math.floor(y / cellH);
+  if (rowIdx < 0 || rowIdx >= numRows) { hideCellTooltip(); return; }
+  const pitch = partHi - rowIdx;
+  let velLabel = null;
+  if (drag && drag.note) {
+    velLabel = VEL_LABELS[drag.note.vel];
+  } else {
+    const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+    if (noteTarget && wrap.contains(noteTarget)) {
+      const v = parseInt(noteTarget.dataset.vel, 10);
+      if (Number.isFinite(v)) velLabel = VEL_LABELS[v];
+    }
+  }
+  const tip = getCellTooltip();
+  const pitchHtml = `<span class="pitch">${escapeHtml(pitchName(pitch))}</span>`;
+  const velHtml = velLabel ? `<span class="vel">${escapeHtml(velLabel)}</span>` : "";
+  tip.innerHTML = pitchHtml + velHtml;
+  tip.style.display = "block";
+  const offX = 12, offY = 14;
+  let left = ev.clientX + offX;
+  let top = ev.clientY + offY;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (left + tw > window.innerWidth - 4) left = ev.clientX - tw - offX;
+  if (top + th > window.innerHeight - 4) top = ev.clientY - th - offY;
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+}
+document.addEventListener("pointermove", (ev) => {
+  let wrap;
+  if (drag && drag.wrap) {
+    wrap = drag.wrap;
+  } else {
+    wrap = ev.target && ev.target.closest && ev.target.closest(".grid-wrap");
+  }
+  if (!wrap) { hideCellTooltip(); return; }
+  showCellTooltipAt(ev, wrap);
+});
+document.addEventListener("pointerleave", hideCellTooltip, true);
+window.addEventListener("blur", hideCellTooltip);
 
 // ---------- Keyboard ----------
 document.addEventListener("keydown", (ev) => {
