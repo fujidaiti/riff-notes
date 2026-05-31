@@ -7,12 +7,11 @@
   :root {
     --cell-w: 22px;
     --cell-h: 14px;
-    --bar-pad: 6px;
     --bg: #fafaf7;
     --ink: #222;
-    --line: #cfcfc8;
-    --line-strong: #888;
-    --scale-tint: #e6f3da;
+    --line: #d2d2cc;
+    --line-strong: #555;
+    --scale-tint: #e7f2dc;
     --scale-root-tint: #cfe8b8;
     --note: #c97a4a;
     --note-sel: #2b6cb0;
@@ -23,29 +22,20 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; }
   body { padding-bottom: 80px; }
-  /* Toolbar */
+
+  /* Global toolbar */
   .toolbar {
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 20;
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     padding: 8px 12px; background: var(--panel-bg);
     border-bottom: 1px solid var(--line);
   }
-  .toolbar label { display: inline-flex; align-items: center; gap: 4px; }
-  .toolbar input[type=number] { width: 64px; }
-  .toolbar select, .toolbar input, .toolbar button { font-size: 13px; padding: 4px 8px; }
+  .toolbar button, .toolbar input, .toolbar select { font-size: 13px; padding: 4px 8px; }
   .toolbar button { cursor: pointer; }
   .spacer { flex: 1; }
-  /* Parts panel */
-  .parts-panel {
-    background: var(--panel-bg); border-bottom: 1px solid var(--line);
-    padding: 8px 12px;
-  }
-  .parts-panel.hidden { display: none; }
-  .parts-panel h3 { margin: 0 0 6px; font-size: 13px; }
-  .part-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
-  .part-row input[type=text] { flex: 0 0 180px; }
-  .part-row .meta { color: #666; font-size: 12px; }
-  /* Sections */
+  .hint { font-size: 11px; color: #666; padding: 6px 12px; }
+
+  /* Section */
   .sections { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
   .section {
     background: var(--section-bg);
@@ -54,54 +44,77 @@
     padding: 10px;
   }
   .section-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-  .section-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; }
+  .section-meta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .section-meta-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #555; }
+  .section-meta-row input[type=number] { width: 60px; }
+  .section-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 220px; min-width: 160px; }
   .section-title:focus, .section-title:hover { border-color: var(--line); background: #fff; }
   .section-notes { width: 100%; min-height: 36px; resize: vertical; padding: 4px 6px; font-family: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; }
-  .section-actions { display: flex; gap: 6px; }
-  .section-actions button { font-size: 12px; padding: 3px 8px; cursor: pointer; }
-  /* Bar grid (2 cols) */
-  .bars {
+  .section-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .section-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .section-actions button.play.playing { background: #ffe6c2; }
+
+  /* Parts panel (per-section) */
+  .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
+  .parts-panel.hidden { display: none; }
+  .parts-panel h4 { margin: 0 0 6px; font-size: 12px; color: #444; }
+  .part-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+  .part-row input[type=text] { flex: 0 0 160px; }
+  .part-row .range-info { color: #555; font-size: 12px; min-width: 100px; }
+  .part-row button { font-size: 11px; padding: 2px 6px; cursor: pointer; }
+
+  /* Bands of bars */
+  .bands { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
+  .band {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
+    grid-template-columns: 22px auto;
+    gap: 4px;
+    align-items: stretch;
   }
-  .bar {
-    position: relative;
-    border-left: 2px solid var(--line-strong);
-    padding-left: 8px;
-  }
-  .bar-num { font-size: 11px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-  .bar-num button { font-size: 11px; padding: 1px 6px; cursor: pointer; background: transparent; border: 1px solid var(--line); border-radius: 3px; color: #666; }
-  .bar-num button:hover { background: #fff; }
-  /* Part block inside bar */
-  .part {
+  .band-bar-numbers {
+    grid-column: 2;
     display: grid;
-    grid-template-columns: 18px 1fr 18px;
-    grid-template-rows: 14px 1fr 14px;
-    margin-bottom: 6px;
+    font-size: 10px;
+    color: #888;
+    padding-left: 2px;
   }
-  .part-label {
-    grid-column: 1 / 2; grid-row: 2 / 3;
-    writing-mode: vertical-rl; transform: rotate(180deg);
-    font-size: 10px; color: #777; text-align: center;
-    padding: 2px 0;
-    overflow: hidden;
+  .band-bar-numbers > span { padding: 1px 4px; border-left: 2px solid var(--line-strong); }
+  .band-bar-numbers > span:first-child { border-left: none; padding-left: 0; }
+  .band-row {
+    grid-column: 1 / span 2;
+    display: grid;
+    grid-template-columns: 22px auto;
+    gap: 4px;
+    align-items: center;
   }
-  .range-btn {
-    background: #fff; border: 1px solid var(--line); border-radius: 3px;
-    cursor: pointer; font-size: 10px; line-height: 1; padding: 0;
+  .part-side {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
     color: #555;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 4px 0;
+    line-height: 1.1;
+    user-select: none;
   }
-  .range-btn:hover { background: var(--panel-bg); }
-  .range-top-minus { grid-column: 2 / 3; grid-row: 1 / 2; justify-self: start; height: 12px; padding: 0 6px; }
-  .range-top-plus  { grid-column: 2 / 3; grid-row: 1 / 2; justify-self: end;   height: 12px; padding: 0 6px; }
-  .range-bot-plus  { grid-column: 2 / 3; grid-row: 3 / 4; justify-self: start; height: 12px; padding: 0 6px; }
-  .range-bot-minus { grid-column: 2 / 3; grid-row: 3 / 4; justify-self: end;   height: 12px; padding: 0 6px; }
   .grid-wrap {
-    grid-column: 2 / 3; grid-row: 2 / 3;
+    grid-column: 2;
     position: relative;
     background: #fff;
     border: 1px solid var(--line);
+    background-image:
+      linear-gradient(to right, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to right, #cdcdc4 1px, transparent 1px),
+      linear-gradient(to right, #ececea 1px, transparent 1px);
+    background-size:
+      calc(var(--cell-w) * 16) 100%,
+      calc(var(--cell-w) * 4) 100%,
+      var(--cell-w) 100%;
+    background-position: 0 0, 0 0, 0 0;
   }
   .grid-row {
     position: relative;
@@ -111,16 +124,11 @@
   .grid-row:last-child { border-bottom: none; }
   .grid-row.in-scale { background: var(--scale-tint); }
   .grid-row.in-scale-root { background: var(--scale-root-tint); }
-  .grid-row::before, .grid-row::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: #ececec; pointer-events: none; }
-  /* vertical step dividers via background gradient on wrap */
-  .grid-wrap {
-    background-image:
-      linear-gradient(to right, #d5d5cf 1px, transparent 1px),
-      linear-gradient(to right, #ebebe5 1px, transparent 1px);
-    background-size:
-      calc(var(--cell-w) * 4) 100%,
-      var(--cell-w) 100%;
-    background-position: 0 0, 0 0;
+  .row-label {
+    position: absolute; left: 2px; top: -1px;
+    font-size: 9px; color: #999;
+    pointer-events: none;
+    line-height: var(--cell-h);
   }
   .note {
     position: absolute;
@@ -133,62 +141,21 @@
     touch-action: none;
   }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 2; }
-  .note.dragging { cursor: grabbing; }
-  .row-label {
-    position: absolute; left: 2px; top: -1px;
-    font-size: 9px; color: #aaa;
-    pointer-events: none;
-    line-height: var(--cell-h);
-  }
-  .hint { font-size: 11px; color: #666; padding: 6px 12px; }
-  .hidden { display: none; }
-  dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
+
+  dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; }
   dialog::backdrop { background: rgba(0,0,0,0.25); }
+  .hidden { display: none; }
 </style>
 </head>
 <body>
 <div class="toolbar">
-  <label>BPM <input type="number" id="bpm" min="20" max="300" value="100"></label>
-  <label>Root
-    <select id="scale-root">
-      <option value="0">C</option><option value="1">C#</option><option value="2">D</option>
-      <option value="3">D#</option><option value="4">E</option><option value="5">F</option>
-      <option value="6">F#</option><option value="7">G</option><option value="8">G#</option>
-      <option value="9">A</option><option value="10">A#</option><option value="11">B</option>
-    </select>
-  </label>
-  <label>Mode
-    <select id="scale-mode">
-      <option value="major">Major</option>
-      <option value="minor">Natural Minor</option>
-      <option value="harmonicMinor">Harmonic Minor</option>
-      <option value="melodicMinor">Melodic Minor</option>
-      <option value="dorian">Dorian</option>
-      <option value="phrygian">Phrygian</option>
-      <option value="lydian">Lydian</option>
-      <option value="mixolydian">Mixolydian</option>
-      <option value="locrian">Locrian</option>
-      <option value="pentMajor">Pentatonic Major</option>
-      <option value="pentMinor">Pentatonic Minor</option>
-      <option value="blues">Blues</option>
-      <option value="chromatic">Chromatic (all)</option>
-    </select>
-  </label>
-  <button id="btn-play">▶ Play</button>
-  <button id="btn-stop" disabled>■ Stop</button>
-  <button id="btn-export">Export MIDI</button>
+  <strong>Sheet Grid MIDI Editor</strong>
   <button id="btn-save">Save JSON</button>
   <button id="btn-load">Load JSON</button>
   <input type="file" id="file-load" accept="application/json,.json" class="hidden">
-  <button id="btn-parts">Parts…</button>
   <button id="btn-add-section">+ Section</button>
   <span class="spacer"></span>
   <span class="hint">click empty cell = add · click note = select · click selected note = cycle velocity · drag = move/resize · backspace = delete</span>
-</div>
-<div class="parts-panel hidden" id="parts-panel">
-  <h3>Parts (apply to all sections)</h3>
-  <div id="parts-list"></div>
-  <button id="btn-add-part">+ Add Part</button>
 </div>
 <div class="sections" id="sections"></div>
 <dialog id="confirm-dialog">
@@ -206,14 +173,13 @@
 // ---------- Constants ----------
 const STEPS_PER_BAR = 16;
 const TICKS_PER_QUARTER = 480;
-const TICKS_PER_STEP = TICKS_PER_QUARTER / 4; // 16th note = 120
+const TICKS_PER_STEP = TICKS_PER_QUARTER / 4;
 const VEL_LABELS = ["pp", "p", "mf", "f", "ff"];
 const VEL_MIDI   = [25, 50, 75, 100, 120];
-const VEL_OPACITY = [0.25, 0.4, 0.6, 0.8, 1.0];
+const VEL_OPACITY = [0.25, 0.45, 0.65, 0.85, 1.0];
 const VEL_GAIN   = [0.08, 0.16, 0.30, 0.50, 0.75];
 const DEFAULT_VEL = 2;
 const PITCH_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-
 const SCALES = {
   major: [0,2,4,5,7,9,11],
   minor: [0,2,3,5,7,8,10],
@@ -229,37 +195,46 @@ const SCALES = {
   blues: [0,3,5,6,7,10],
   chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
 };
+const SCALE_OPTIONS = [
+  ["major", "Major"], ["minor", "Natural Minor"], ["harmonicMinor", "Harmonic Minor"],
+  ["melodicMinor", "Melodic Minor"], ["dorian", "Dorian"], ["phrygian", "Phrygian"],
+  ["lydian", "Lydian"], ["mixolydian", "Mixolydian"], ["locrian", "Locrian"],
+  ["pentMajor", "Pent Major"], ["pentMinor", "Pent Minor"], ["blues", "Blues"],
+  ["chromatic", "Chromatic"],
+];
 
 // ---------- State ----------
 let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
+function makePart(name = "Part 1", lo = 48, hi = 71) { return { id: uid(), name, lo, hi }; }
 function makeBar() { return { id: uid(), notes: [] }; }
 function makeSection(title = "Section") {
-  return { id: uid(), title, notes: "", bars: [makeBar()] };
+  return {
+    id: uid(), title, notes: "", bpm: 120,
+    scale: { root: 0, mode: "major" },
+    parts: [makePart("Part 1")],
+    bars: [makeBar()],
+    selectedNoteId: null,
+    partsPanelOpen: false,
+  };
 }
-function makePart(name, lo = 48, hi = 71) { return { id: uid(), name, lo, hi }; }
 
-const project = {
-  bpm: 100,
-  scale: { root: 0, mode: "major" },
-  parts: [makePart("Part 1")],
-  sections: [makeSection("Section 1")],
-};
-
-let selectedNoteId = null;
+const project = { sections: [makeSection("Section 1")] };
+let lastFocusedSectionId = project.sections[0].id;
+let playingSectionId = null;
+let audioCtx = null;
+let activeOscillators = [];
+let playStopTimer = null;
 
 // ---------- Pitch helpers ----------
 function pitchName(midi) {
   const n = ((midi % 12) + 12) % 12;
-  const octave = Math.floor(midi / 12) - 1;
-  return PITCH_NAMES[n] + octave;
+  return PITCH_NAMES[n] + (Math.floor(midi / 12) - 1);
 }
-function inScaleSet() {
-  const intervals = SCALES[project.scale.mode] || SCALES.major;
-  const root = project.scale.root;
-  const set = new Set(intervals.map(i => (i + root) % 12));
-  return set;
+function inScaleSet(section) {
+  const intervals = SCALES[section.scale.mode] || SCALES.major;
+  return new Set(intervals.map(i => (i + section.scale.root) % 12));
 }
 
 // ---------- DOM helpers ----------
@@ -273,13 +248,13 @@ function el(tag, attrs = {}, ...children) {
     else e.setAttribute(k, attrs[k]);
   }
   for (const c of children) {
-    if (c == null) continue;
+    if (c == null || c === false) continue;
     e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
   }
   return e;
 }
 
-// ---------- Confirm dialog ----------
+// ---------- Confirm ----------
 const confirmDialog = document.getElementById("confirm-dialog");
 const confirmMessage = document.getElementById("confirm-message");
 const confirmYes = document.getElementById("confirm-yes");
@@ -300,149 +275,236 @@ function confirmAsync(msg) {
   });
 }
 
+// ---------- Responsive bar grouping (N bars per band) ----------
+function barsPerBand() {
+  const w = window.innerWidth;
+  if (w < 720) return 1;
+  if (w < 1080) return 2;
+  if (w < 1480) return 3;
+  return 4;
+}
+
 // ---------- Rendering ----------
 const sectionsEl = document.getElementById("sections");
-const partsListEl = document.getElementById("parts-list");
-const partsPanel = document.getElementById("parts-panel");
+
+function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
+function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
 
 function renderAll() {
-  renderPartsPanel();
-  renderSections();
-}
-
-function renderPartsPanel() {
-  partsListEl.innerHTML = "";
-  project.parts.forEach((p, idx) => {
-    const row = el("div", { class: "part-row" },
-      el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartLabels(p.id); } }),
-      el("span", { class: "meta" }, `${pitchName(p.lo)} – ${pitchName(p.hi)}`),
-      el("button", { onclick: () => movePart(idx, -1) }, "▲"),
-      el("button", { onclick: () => movePart(idx, +1) }, "▼"),
-      el("button", { onclick: () => deletePart(idx), disabled: project.parts.length <= 1 }, "✕"),
-    );
-    partsListEl.appendChild(row);
-  });
-}
-
-function updatePartLabels(partId) {
-  document.querySelectorAll(`[data-part-id="${partId}"] .part-label`).forEach(elx => {
-    const p = project.parts.find(p => p.id === partId);
-    if (p) elx.textContent = p.name;
-  });
-}
-
-function renderSections() {
   sectionsEl.innerHTML = "";
-  project.sections.forEach((s, si) => sectionsEl.appendChild(renderSection(s, si)));
+  project.sections.forEach((s, i) => sectionsEl.appendChild(renderSection(s, i)));
 }
 
 function renderSection(section, idx) {
-  const header = el("div", { class: "section-header" },
-    el("input", { class: "section-title", type: "text", value: section.title,
-      oninput: (e) => { section.title = e.target.value; } }),
-    el("textarea", { class: "section-notes", placeholder: "Notes for this section…",
-      oninput: (e) => { section.notes = e.target.value; } }, section.notes || ""),
-    el("div", { class: "section-actions" },
-      el("button", { onclick: () => { section.bars.push(makeBar()); renderSections(); } }, "+ Bar"),
-      el("button", { onclick: async () => {
-        if (project.sections.length <= 1) return;
-        if (await confirmAsync("Delete this section and all its bars?")) {
-          project.sections.splice(idx, 1);
-          renderSections();
-        }
-      } }, "✕ Section"),
-    ),
-  );
-  const barsWrap = el("div", { class: "bars" });
-  section.bars.forEach((bar, bi) => barsWrap.appendChild(renderBar(bar, bi, section)));
-  return el("div", { class: "section" }, header, barsWrap);
-}
+  const sectionEl = el("div", { class: "section" });
+  sectionEl.dataset.sectionId = section.id;
+  sectionEl.addEventListener("pointerdown", () => { lastFocusedSectionId = section.id; }, true);
 
-function renderBar(bar, idx, section) {
-  const barEl = el("div", { class: "bar" });
-  const numRow = el("div", { class: "bar-num" },
-    el("span", {}, `Bar ${idx + 1}`),
+  // Header
+  const titleInput = el("input", {
+    class: "section-title", type: "text", value: section.title,
+    oninput: (e) => { section.title = e.target.value; },
+  });
+  const bpmInput = el("input", {
+    type: "number", min: 20, max: 300, value: section.bpm,
+    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) section.bpm = v; },
+  });
+  const rootSelect = el("select", { onchange: (e) => { section.scale.root = parseInt(e.target.value, 10); renderAll(); } });
+  PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === section.scale.root }, n)));
+  const modeSelect = el("select", { onchange: (e) => { section.scale.mode = e.target.value; renderAll(); } });
+  SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === section.scale.mode }, label)));
+
+  const metaRow = el("div", { class: "section-meta-row" },
+    titleInput,
+    el("label", {}, "BPM ", bpmInput),
+    el("label", {}, "Root ", rootSelect),
+    el("label", {}, "Mode ", modeSelect),
+  );
+
+  const notesArea = el("textarea", {
+    class: "section-notes", placeholder: "Notes for this section…",
+    oninput: (e) => { section.notes = e.target.value; },
+  }, section.notes || "");
+
+  const playBtn = el("button", { class: "play" + (playingSectionId === section.id ? " playing" : "") }, "▶ Play");
+  playBtn.addEventListener("click", () => playSection(section));
+  const stopBtn = el("button", { disabled: playingSectionId !== section.id }, "■ Stop");
+  stopBtn.addEventListener("click", () => { if (playingSectionId === section.id) stopPlayback(); });
+
+  const actions = el("div", { class: "section-actions" },
+    el("button", { onclick: () => { section.partsPanelOpen = !section.partsPanelOpen; renderAll(); } }, "Parts…"),
+    el("button", { onclick: () => { section.bars.push(makeBar()); renderAll(); } }, "+ Bar"),
+    playBtn, stopBtn,
+    el("button", { onclick: () => exportSectionMidi(section) }, "Export MIDI"),
     el("button", {
-      title: "Delete bar",
       onclick: async () => {
-        if (section.bars.length <= 1) return;
-        if (await confirmAsync("Delete this bar?")) {
-          section.bars.splice(idx, 1);
-          renderSections();
+        if (project.sections.length <= 1) { alert("At least one section is required."); return; }
+        if (await confirmAsync("Delete this section and all its bars?")) {
+          if (playingSectionId === section.id) stopPlayback();
+          project.sections.splice(idx, 1);
+          renderAll();
         }
       },
-    }, "✕"),
+    }, "✕ Section"),
   );
-  barEl.appendChild(numRow);
-  project.parts.forEach(p => barEl.appendChild(renderPartBlock(bar, p)));
-  return barEl;
+
+  const header = el("div", { class: "section-header" }, metaRow, notesArea, actions);
+  sectionEl.appendChild(header);
+
+  // Parts panel
+  if (section.partsPanelOpen) sectionEl.appendChild(renderPartsPanel(section));
+
+  // Bands
+  sectionEl.appendChild(renderBands(section));
+  return sectionEl;
 }
 
-function renderPartBlock(bar, part) {
-  const block = el("div", { class: "part" });
-  block.dataset.partId = part.id;
-  block.dataset.barId = bar.id;
-  const numRows = part.hi - part.lo + 1;
-
-  const wrap = el("div", { class: "grid-wrap" });
-  wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
-  wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
-
-  const scale = inScaleSet();
-  for (let i = 0; i < numRows; i++) {
-    const pitch = part.hi - i;
-    const row = el("div", { class: "grid-row" });
-    row.dataset.pitch = pitch;
-    const pc = ((pitch % 12) + 12) % 12;
-    if (pc === project.scale.root) row.classList.add("in-scale-root");
-    else if (scale.has(pc)) row.classList.add("in-scale");
-    if (pc === 0) { // C marker
-      row.appendChild(el("span", { class: "row-label" }, pitchName(pitch)));
-    }
-    wrap.appendChild(row);
-  }
-
-  // Notes overlay
-  bar.notes.filter(n => n.partId === part.id).forEach(n => {
-    if (n.pitch < part.lo || n.pitch > part.hi) return;
-    const noteEl = el("div", { class: "note" });
-    noteEl.dataset.noteId = n.id;
-    if (n.id === selectedNoteId) noteEl.classList.add("selected");
-    const top = (part.hi - n.pitch) * parseFloat(getCellH());
-    noteEl.style.left = `calc(var(--cell-w) * ${n.start})`;
-    noteEl.style.top = top + "px";
-    noteEl.style.width = `calc(var(--cell-w) * ${n.length} - 1px)`;
-    noteEl.style.opacity = VEL_OPACITY[n.vel];
-    wrap.appendChild(noteEl);
+function renderPartsPanel(section) {
+  const panel = el("div", { class: "parts-panel" });
+  panel.appendChild(el("h4", {}, "Parts for this section"));
+  section.parts.forEach((p, idx) => {
+    const row = el("div", { class: "part-row" },
+      el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(section.id, p.id, p.name); } }),
+      el("span", { class: "range-info" }, `${pitchName(p.lo)} – ${pitchName(p.hi)}`),
+      el("button", { title: "Extend up",   onclick: () => adjustRange(section, p, "hi", +1) }, "Top +"),
+      el("button", { title: "Shrink top",  onclick: () => adjustRange(section, p, "hi", -1) }, "Top −"),
+      el("button", { title: "Extend down", onclick: () => adjustRange(section, p, "lo", -1) }, "Bot +"),
+      el("button", { title: "Shrink bot",  onclick: () => adjustRange(section, p, "lo", +1) }, "Bot −"),
+      el("button", { onclick: () => movePart(section, idx, -1) }, "▲"),
+      el("button", { onclick: () => movePart(section, idx, +1) }, "▼"),
+      el("button", { disabled: section.parts.length <= 1, onclick: () => deletePart(section, idx) }, "✕"),
+    );
+    panel.appendChild(row);
   });
-
-  // Pointer handler on wrap
-  wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, bar, part, wrap));
-
-  const label = el("div", { class: "part-label" }, part.name);
-  const topPlus = el("button", { class: "range-btn range-top-plus", title: "Extend upward",
-    onclick: () => { part.hi = Math.min(127, part.hi + 1); renderAll(); } }, "+");
-  const topMinus = el("button", { class: "range-btn range-top-minus", title: "Shrink top",
-    onclick: () => { if (part.hi > part.lo) { part.hi -= 1; renderAll(); } } }, "−");
-  const botPlus = el("button", { class: "range-btn range-bot-plus", title: "Extend downward",
-    onclick: () => { part.lo = Math.max(0, part.lo - 1); renderAll(); } }, "+");
-  const botMinus = el("button", { class: "range-btn range-bot-minus", title: "Shrink bottom",
-    onclick: () => { if (part.lo < part.hi) { part.lo += 1; renderAll(); } } }, "−");
-
-  block.appendChild(label);
-  block.appendChild(topMinus);
-  block.appendChild(topPlus);
-  block.appendChild(wrap);
-  block.appendChild(botPlus);
-  block.appendChild(botMinus);
-  return block;
+  panel.appendChild(el("button", {
+    onclick: () => { section.parts.push(makePart(`Part ${section.parts.length + 1}`)); renderAll(); },
+  }, "+ Add Part"));
+  return panel;
 }
 
-function getCellW() {
-  return getComputedStyle(document.documentElement).getPropertyValue("--cell-w").trim().replace("px","");
+function updatePartSideLabels(sectionId, partId, name) {
+  document.querySelectorAll(`[data-section-id="${sectionId}"] [data-part-id="${partId}"] .part-side`).forEach(e => e.textContent = name);
 }
-function getCellH() {
-  return getComputedStyle(document.documentElement).getPropertyValue("--cell-h").trim().replace("px","");
+
+function adjustRange(section, part, which, delta) {
+  if (which === "hi") {
+    const next = part.hi + delta;
+    if (next < part.lo) return;
+    if (next > 127) return;
+    part.hi = next;
+  } else {
+    const next = part.lo + delta;
+    if (next > part.hi) return;
+    if (next < 0) return;
+    part.lo = next;
+  }
+  renderAll();
+}
+
+function movePart(section, idx, dir) {
+  const j = idx + dir;
+  if (j < 0 || j >= section.parts.length) return;
+  const [p] = section.parts.splice(idx, 1);
+  section.parts.splice(j, 0, p);
+  renderAll();
+}
+
+async function deletePart(section, idx) {
+  if (section.parts.length <= 1) return;
+  const part = section.parts[idx];
+  let count = 0;
+  for (const b of section.bars) for (const n of b.notes) if (n.partId === part.id) count++;
+  if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
+  section.parts.splice(idx, 1);
+  for (const b of section.bars) b.notes = b.notes.filter(n => n.partId !== part.id);
+  renderAll();
+}
+
+function renderBands(section) {
+  const bandsEl = el("div", { class: "bands" });
+  const N = Math.max(1, Math.min(barsPerBand(), section.bars.length));
+  for (let bandStart = 0; bandStart < section.bars.length; bandStart += N) {
+    const bandBars = section.bars.slice(bandStart, bandStart + N);
+    bandsEl.appendChild(renderBand(section, bandStart, bandBars));
+  }
+  return bandsEl;
+}
+
+function renderBand(section, bandStart, bandBars) {
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const totalSteps = bandBars.length * STEPS_PER_BAR;
+  const bandEl = el("div", { class: "band" });
+
+  // Bar number row
+  const numRow = el("div", { class: "band-bar-numbers" });
+  numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
+  bandBars.forEach((bar, i) => {
+    const span = el("span", {}, `Bar ${bandStart + i + 1}`);
+    if (section.bars.length > 1) {
+      const delBtn = el("button", {
+        style: "margin-left:6px; font-size:10px; padding:0 4px; cursor:pointer;",
+        onclick: async () => {
+          if (await confirmAsync("Delete this bar?")) {
+            const idx = bandStart + i;
+            section.bars.splice(idx, 1);
+            if (section.bars.length === 0) section.bars.push(makeBar());
+            renderAll();
+          }
+        },
+      }, "✕");
+      span.appendChild(delBtn);
+    }
+    numRow.appendChild(span);
+  });
+  bandEl.appendChild(numRow);
+
+  // Rows: one per part
+  const scaleSet = inScaleSet(section);
+  section.parts.forEach(part => {
+    const partRow = el("div", { class: "band-row" });
+    partRow.dataset.partId = part.id;
+    const side = el("div", { class: "part-side" }, part.name);
+    const wrap = el("div", { class: "grid-wrap" });
+    wrap.dataset.partId = part.id;
+    wrap.dataset.bandStart = String(bandStart);
+    wrap.style.width = `calc(var(--cell-w) * ${totalSteps})`;
+    const numRows = part.hi - part.lo + 1;
+    wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
+
+    for (let i = 0; i < numRows; i++) {
+      const pitch = part.hi - i;
+      const rowEl = el("div", { class: "grid-row" });
+      const pc = ((pitch % 12) + 12) % 12;
+      if (pc === section.scale.root) rowEl.classList.add("in-scale-root");
+      else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
+      if (pc === 0) rowEl.appendChild(el("span", { class: "row-label" }, pitchName(pitch)));
+      wrap.appendChild(rowEl);
+    }
+
+    // Notes
+    bandBars.forEach((bar, bi) => {
+      bar.notes.filter(n => n.partId === part.id).forEach(n => {
+        if (n.pitch < part.lo || n.pitch > part.hi) return;
+        const noteEl = el("div", { class: "note" + (n.id === section.selectedNoteId ? " selected" : "") });
+        noteEl.dataset.noteId = n.id;
+        noteEl.dataset.barIndex = String(bandStart + bi);
+        const left = (bi * STEPS_PER_BAR + n.start) * cellW;
+        const top = (part.hi - n.pitch) * cellH;
+        noteEl.style.left = left + "px";
+        noteEl.style.top = top + "px";
+        noteEl.style.width = (n.length * cellW - 1) + "px";
+        noteEl.style.opacity = VEL_OPACITY[n.vel];
+        wrap.appendChild(noteEl);
+      });
+    });
+
+    wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bandStart, bandBars));
+    partRow.appendChild(side);
+    partRow.appendChild(wrap);
+    bandEl.appendChild(partRow);
+  });
+  return bandEl;
 }
 
 // ---------- Pointer interactions ----------
@@ -450,83 +512,89 @@ const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
 let drag = null;
 
-function handlePointerDown(ev, bar, part, wrap) {
+function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
   if (ev.button !== 0) return;
+  lastFocusedSectionId = section.id;
   const rect = wrap.getBoundingClientRect();
-  const cellW = parseFloat(getCellW());
-  const cellH = parseFloat(getCellH());
+  const cellW = getCellW();
+  const cellH = getCellH();
   const x = ev.clientX - rect.left;
   const y = ev.clientY - rect.top;
-  const step = Math.floor(x / cellW);
+  const totalStep = Math.floor(x / cellW);
   const rowIdx = Math.floor(y / cellH);
-  if (step < 0 || step >= STEPS_PER_BAR) return;
-  if (rowIdx < 0 || rowIdx >= (part.hi - part.lo + 1)) return;
+  const numRows = part.hi - part.lo + 1;
+  if (totalStep < 0 || rowIdx < 0 || rowIdx >= numRows) return;
+  if (totalStep >= bandBars.length * STEPS_PER_BAR) return;
+  const barIdxInBand = Math.floor(totalStep / STEPS_PER_BAR);
+  const stepInBar = totalStep % STEPS_PER_BAR;
+  const bar = bandBars[barIdxInBand];
   const pitch = part.hi - rowIdx;
 
   const target = ev.target.closest(".note");
   if (target) {
     const noteId = target.dataset.noteId;
-    const note = bar.notes.find(n => n.id === noteId);
+    let note = null, noteBar = null;
+    for (const b of bandBars) {
+      const f = b.notes.find(n => n.id === noteId);
+      if (f) { note = f; noteBar = b; break; }
+    }
     if (!note) return;
     const noteRect = target.getBoundingClientRect();
-    const relX = ev.clientX - noteRect.left;
+    const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
     let mode = "move";
-    if (relX <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
+    if (relLeft <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
     else if (relRight <= RESIZE_EDGE) mode = "resize-right";
     drag = {
-      mode,
-      note,
-      bar,
-      part,
-      wrap,
+      mode, note, bar: noteBar, part, section, wrap,
       startX: ev.clientX,
       origStart: note.start,
       origLength: note.length,
       moved: false,
       isExisting: true,
-      wasSelected: selectedNoteId === note.id,
-    };
-    ev.preventDefault();
-    wrap.setPointerCapture(ev.pointerId);
-  } else {
-    // create note
-    const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === step);
-    if (existing) return;
-    // deselect any previous note visually before we create
-    if (selectedNoteId) {
-      document.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
-    }
-    const note = { id: uid(), partId: part.id, pitch, start: step, length: 1, vel: DEFAULT_VEL };
-    bar.notes.push(note);
-    selectedNoteId = note.id;
-    // append element directly so the drag has a live target
-    const noteEl = document.createElement("div");
-    noteEl.className = "note selected";
-    noteEl.dataset.noteId = note.id;
-    noteEl.style.left = `calc(var(--cell-w) * ${note.start})`;
-    noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-    noteEl.style.width = `calc(var(--cell-w) * ${note.length} - 1px)`;
-    noteEl.style.opacity = VEL_OPACITY[note.vel];
-    wrap.appendChild(noteEl);
-    drag = {
-      mode: "move",
-      note, bar, part, wrap,
-      startX: ev.clientX,
-      origStart: note.start,
-      origLength: note.length,
-      moved: false,
-      isExisting: false,
-      wasSelected: false,
+      wasSelected: section.selectedNoteId === note.id,
     };
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
+    return;
   }
+
+  // Create note
+  const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
+  if (existing) return;
+  // clear other-section selection visuals
+  if (section.selectedNoteId) {
+    wrap.parentElement.parentElement.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+  }
+  const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
+  bar.notes.push(note);
+  section.selectedNoteId = note.id;
+
+  const noteEl = document.createElement("div");
+  noteEl.className = "note selected";
+  noteEl.dataset.noteId = note.id;
+  noteEl.dataset.barIndex = String(bandStart + barIdxInBand);
+  noteEl.style.left = ((barIdxInBand * STEPS_PER_BAR + note.start) * cellW) + "px";
+  noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
+  noteEl.style.width = (note.length * cellW - 1) + "px";
+  noteEl.style.opacity = VEL_OPACITY[note.vel];
+  wrap.appendChild(noteEl);
+
+  drag = {
+    mode: "move", note, bar, part, section, wrap,
+    startX: ev.clientX,
+    origStart: note.start,
+    origLength: note.length,
+    moved: false, isExisting: false, wasSelected: false,
+    barIdxInBand,
+  };
+  try { wrap.setPointerCapture(ev.pointerId); } catch {}
+  ev.preventDefault();
 }
 
 document.addEventListener("pointermove", (ev) => {
   if (!drag) return;
-  const cellW = parseFloat(getCellW());
+  const cellW = getCellW();
   const dx = ev.clientX - drag.startX;
   const dSteps = Math.round(dx / cellW);
   if (Math.abs(dx) > CLICK_MAX_MOVE) drag.moved = true;
@@ -546,32 +614,31 @@ document.addEventListener("pointermove", (ev) => {
       drag.note.start = newStart; drag.note.length = newLen; changed = true;
     }
   }
-  if (changed) updateNoteEl(drag);
+  if (changed) updateNoteDom(drag);
 });
 
-document.addEventListener("pointerup", (ev) => {
+document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null;
   if (!d.moved && d.isExisting) {
-    // click: select-then-cycle
     if (d.wasSelected) {
       d.note.vel = (d.note.vel + 1) % VEL_LABELS.length;
     } else {
-      selectedNoteId = d.note.id;
+      d.section.selectedNoteId = d.note.id;
     }
-    renderSections();
+    renderAll();
   } else if (d.moved) {
-    // ensure rendered position matches
-    renderSections();
+    renderAll();
   }
 });
 
-function updateNoteEl(d) {
-  const wrap = d.wrap;
-  const noteEl = wrap.querySelector(`[data-note-id="${d.note.id}"]`);
+function updateNoteDom(d) {
+  const noteEl = d.wrap.querySelector(`[data-note-id="${d.note.id}"]`);
   if (!noteEl) return;
-  noteEl.style.left = `calc(var(--cell-w) * ${d.note.start})`;
-  noteEl.style.width = `calc(var(--cell-w) * ${d.note.length} - 1px)`;
+  const cellW = getCellW();
+  const barIdxInBand = parseInt(noteEl.dataset.barIndex, 10) - parseInt(d.wrap.dataset.bandStart, 10);
+  noteEl.style.left = ((barIdxInBand * STEPS_PER_BAR + d.note.start) * cellW) + "px";
+  noteEl.style.width = (d.note.length * cellW - 1) + "px";
 }
 
 // ---------- Keyboard ----------
@@ -579,90 +646,39 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-  if (!selectedNoteId) return;
-  // find and remove
-  for (const s of project.sections) {
-    for (const b of s.bars) {
-      const i = b.notes.findIndex(n => n.id === selectedNoteId);
-      if (i >= 0) {
-        b.notes.splice(i, 1);
-        selectedNoteId = null;
-        renderSections();
-        ev.preventDefault();
-        return;
-      }
+  const sec = project.sections.find(s => s.id === lastFocusedSectionId) || project.sections[0];
+  if (!sec || !sec.selectedNoteId) return;
+  for (const b of sec.bars) {
+    const i = b.notes.findIndex(n => n.id === sec.selectedNoteId);
+    if (i >= 0) {
+      b.notes.splice(i, 1);
+      sec.selectedNoteId = null;
+      renderAll();
+      ev.preventDefault();
+      return;
     }
   }
 });
 
-// click on empty space deselects
+// click empty area within a section deselects that section's note
 sectionsEl.addEventListener("pointerdown", (ev) => {
-  if (ev.target === sectionsEl || ev.target.classList.contains("section")) {
-    if (selectedNoteId) {
-      selectedNoteId = null;
-      renderSections();
-    }
+  if (ev.target.closest(".note") || ev.target.closest(".grid-wrap")) return;
+  const sec = ev.target.closest(".section");
+  if (!sec) return;
+  const id = sec.dataset.sectionId;
+  const s = project.sections.find(x => x.id === id);
+  if (s && s.selectedNoteId) {
+    s.selectedNoteId = null;
+    renderAll();
   }
 });
-
-// ---------- Toolbar bindings ----------
-document.getElementById("bpm").addEventListener("input", (e) => {
-  const v = parseInt(e.target.value, 10);
-  if (!Number.isFinite(v) || v < 20 || v > 300) return;
-  project.bpm = v;
-});
-document.getElementById("scale-root").addEventListener("change", (e) => {
-  project.scale.root = parseInt(e.target.value, 10);
-  renderSections();
-});
-document.getElementById("scale-mode").addEventListener("change", (e) => {
-  project.scale.mode = e.target.value;
-  renderSections();
-});
-document.getElementById("btn-add-section").addEventListener("click", () => {
-  project.sections.push(makeSection(`Section ${project.sections.length + 1}`));
-  renderSections();
-});
-document.getElementById("btn-parts").addEventListener("click", () => {
-  partsPanel.classList.toggle("hidden");
-});
-document.getElementById("btn-add-part").addEventListener("click", () => {
-  project.parts.push(makePart(`Part ${project.parts.length + 1}`));
-  renderAll();
-});
-
-function movePart(idx, dir) {
-  const j = idx + dir;
-  if (j < 0 || j >= project.parts.length) return;
-  const [p] = project.parts.splice(idx, 1);
-  project.parts.splice(j, 0, p);
-  renderAll();
-}
-async function deletePart(idx) {
-  if (project.parts.length <= 1) return;
-  const part = project.parts[idx];
-  let count = 0;
-  for (const s of project.sections) for (const b of s.bars) for (const n of b.notes) if (n.partId === part.id) count++;
-  if (count > 0) {
-    const ok = await confirmAsync(`Delete part "${part.name}" and remove ${count} note(s)?`);
-    if (!ok) return;
-  }
-  project.parts.splice(idx, 1);
-  for (const s of project.sections) for (const b of s.bars) {
-    b.notes = b.notes.filter(n => n.partId !== part.id);
-  }
-  renderAll();
-}
 
 // ---------- Save / Load JSON ----------
 document.getElementById("btn-save").addEventListener("click", () => {
-  const data = JSON.stringify(project, null, 2);
-  const blob = new Blob([data], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
   triggerDownload(blob, "score.json");
 });
-document.getElementById("btn-load").addEventListener("click", () => {
-  document.getElementById("file-load").click();
-});
+document.getElementById("btn-load").addEventListener("click", () => document.getElementById("file-load").click());
 document.getElementById("file-load").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -670,17 +686,18 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const obj = JSON.parse(fr.result);
-      if (!obj || !Array.isArray(obj.sections) || !Array.isArray(obj.parts)) throw new Error("Invalid format");
-      Object.assign(project, {
-        bpm: obj.bpm ?? 100,
-        scale: obj.scale ?? { root: 0, mode: "major" },
-        parts: obj.parts,
-        sections: obj.sections,
+      if (!obj || !Array.isArray(obj.sections)) throw new Error("Invalid format");
+      // basic shape normalization for older saves
+      obj.sections.forEach(s => {
+        s.bpm = s.bpm ?? 120;
+        s.scale = s.scale ?? { root: 0, mode: "major" };
+        s.parts = Array.isArray(s.parts) ? s.parts : [makePart("Part 1")];
+        s.bars = Array.isArray(s.bars) ? s.bars : [makeBar()];
+        s.selectedNoteId = null;
+        s.partsPanelOpen = false;
       });
-      selectedNoteId = null;
-      document.getElementById("bpm").value = project.bpm;
-      document.getElementById("scale-root").value = String(project.scale.root);
-      document.getElementById("scale-mode").value = project.scale.mode;
+      project.sections = obj.sections;
+      lastFocusedSectionId = project.sections[0]?.id ?? null;
       renderAll();
     } catch (err) {
       alert("Failed to load JSON: " + err.message);
@@ -688,6 +705,11 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   };
   fr.readAsText(file);
   e.target.value = "";
+});
+
+document.getElementById("btn-add-section").addEventListener("click", () => {
+  project.sections.push(makeSection(`Section ${project.sections.length + 1}`));
+  renderAll();
 });
 
 function triggerDownload(blob, filename) {
@@ -698,17 +720,24 @@ function triggerDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ---------- Playback (Web Audio) ----------
-let audioCtx = null;
-let activeStops = [];
-let playStopTimer = null;
-const btnPlay = document.getElementById("btn-play");
-const btnStop = document.getElementById("btn-stop");
+// ---------- Playback (per section, exclusive) ----------
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
 
-function scheduleNote(ctx, when, durSec, midi, vel) {
+function stopPlayback() {
+  for (const fn of activeOscillators) fn();
+  activeOscillators = [];
+  if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+  playingSectionId = null;
+  renderAll();
+}
+
+function scheduleNote(when, durSec, midi, vel) {
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
   osc.type = "triangle";
   osc.frequency.setValueAtTime(freq, when);
   const peak = VEL_GAIN[vel];
@@ -716,48 +745,39 @@ function scheduleNote(ctx, when, durSec, midi, vel) {
   gain.gain.linearRampToValueAtTime(peak, when + 0.005);
   gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
   gain.gain.linearRampToValueAtTime(0, when + durSec);
-  osc.connect(gain).connect(ctx.destination);
+  osc.connect(gain).connect(audioCtx.destination);
   osc.start(when);
   osc.stop(when + durSec + 0.02);
-  activeStops.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
+  activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
 }
 
-function stopPlayback() {
-  for (const fn of activeStops) fn();
-  activeStops = [];
-  if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
-  btnPlay.disabled = false;
-  btnStop.disabled = true;
-}
-
-btnPlay.addEventListener("click", () => {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  stopPlayback();
-  btnPlay.disabled = true;
-  btnStop.disabled = false;
-  const secPerStep = 60 / project.bpm / 4;
-  const t0 = audioCtx.currentTime + 0.05;
-  let stepOffset = 0;
-  let lastEnd = t0;
-  for (const section of project.sections) {
-    for (const bar of section.bars) {
-      for (const n of bar.notes) {
-        const start = t0 + (stepOffset + n.start) * secPerStep;
-        const dur = n.length * secPerStep * 0.95;
-        scheduleNote(audioCtx, start, dur, n.pitch, n.vel);
-        const end = start + dur;
-        if (end > lastEnd) lastEnd = end;
-      }
-      stepOffset += STEPS_PER_BAR;
-    }
+function playSection(section) {
+  ensureAudio();
+  // exclusive: stop any current playback
+  if (playingSectionId) {
+    for (const fn of activeOscillators) fn();
+    activeOscillators = [];
+    if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
   }
+  playingSectionId = section.id;
+  const secPerStep = 60 / section.bpm / 4;
+  const t0 = audioCtx.currentTime + 0.05;
+  let lastEnd = t0;
+  section.bars.forEach((bar, bi) => {
+    for (const n of bar.notes) {
+      const start = t0 + (bi * STEPS_PER_BAR + n.start) * secPerStep;
+      const dur = n.length * secPerStep * 0.95;
+      scheduleNote(start, dur, n.pitch, n.vel);
+      if (start + dur > lastEnd) lastEnd = start + dur;
+    }
+  });
   const totalMs = Math.max(100, (lastEnd - audioCtx.currentTime) * 1000 + 100);
-  playStopTimer = setTimeout(stopPlayback, totalMs);
-});
-btnStop.addEventListener("click", stopPlayback);
+  const myId = section.id;
+  playStopTimer = setTimeout(() => { if (playingSectionId === myId) stopPlayback(); }, totalMs);
+  renderAll();
+}
 
-// ---------- MIDI export ----------
+// ---------- MIDI export (per section) ----------
 function writeVarLen(n) {
   const bytes = [n & 0x7f];
   n >>= 7;
@@ -766,40 +786,26 @@ function writeVarLen(n) {
 }
 function strBytes(s) { return Array.from(new TextEncoder().encode(s)); }
 
-function buildTrack(part, isFirstTrack) {
-  const events = []; // { tick, bytes }
+function buildSectionTrack(section, part, isFirstTrack) {
+  const events = [];
   if (isFirstTrack) {
-    // tempo meta
-    const mpq = Math.round(60000000 / project.bpm);
+    const mpq = Math.round(60000000 / section.bpm);
     events.push({ tick: 0, order: 0, bytes: [0xff, 0x51, 0x03, (mpq >> 16) & 0xff, (mpq >> 8) & 0xff, mpq & 0xff] });
   }
-  // track name
   const nameBytes = strBytes(part.name);
   events.push({ tick: 0, order: 0, bytes: [0xff, 0x03, nameBytes.length, ...nameBytes] });
-
-  // collect note on/off in absolute ticks
-  let barStartStep = 0;
-  for (const section of project.sections) {
-    for (const bar of section.bars) {
-      for (const n of bar.notes) {
-        if (n.partId !== part.id) continue;
-        const onTick = (barStartStep + n.start) * TICKS_PER_STEP;
-        const offTick = (barStartStep + n.start + n.length) * TICKS_PER_STEP;
-        const vel = VEL_MIDI[n.vel];
-        events.push({ tick: onTick, order: 1, bytes: [0x90, n.pitch, vel] });
-        events.push({ tick: offTick, order: 0, bytes: [0x80, n.pitch, 0] });
-      }
-      barStartStep += STEPS_PER_BAR;
+  section.bars.forEach((bar, bi) => {
+    for (const n of bar.notes) {
+      if (n.partId !== part.id) continue;
+      const onTick = (bi * STEPS_PER_BAR + n.start) * TICKS_PER_STEP;
+      const offTick = (bi * STEPS_PER_BAR + n.start + n.length) * TICKS_PER_STEP;
+      events.push({ tick: onTick, order: 1, bytes: [0x90, n.pitch, VEL_MIDI[n.vel]] });
+      events.push({ tick: offTick, order: 0, bytes: [0x80, n.pitch, 0] });
     }
-  }
-  // sort: by tick, then off-before-on at same tick (off order 0, on order 1)
+  });
   events.sort((a, b) => a.tick - b.tick || a.order - b.order);
-
-  // end-of-track at last tick
   const lastTick = events.length ? events[events.length - 1].tick : 0;
   events.push({ tick: lastTick, order: 2, bytes: [0xff, 0x2f, 0x00] });
-
-  // serialize with delta times
   const out = [];
   let prev = 0;
   for (const e of events) {
@@ -810,30 +816,35 @@ function buildTrack(part, isFirstTrack) {
   return out;
 }
 
-function buildMidi() {
-  const tracks = project.parts.map((p, i) => buildTrack(p, i === 0));
+function exportSectionMidi(section) {
+  const tracks = section.parts.map((p, i) => buildSectionTrack(section, p, i === 0));
   const numTracks = tracks.length;
   const header = [
-    0x4d, 0x54, 0x68, 0x64, // "MThd"
-    0, 0, 0, 6,
-    0, 1, // format 1
+    0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1,
     (numTracks >> 8) & 0xff, numTracks & 0xff,
     (TICKS_PER_QUARTER >> 8) & 0xff, TICKS_PER_QUARTER & 0xff,
   ];
   const bytes = [...header];
   for (const t of tracks) {
-    const len = t.length;
     bytes.push(0x4d, 0x54, 0x72, 0x6b);
+    const len = t.length;
     bytes.push((len >> 24) & 0xff, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff);
     bytes.push(...t);
   }
-  return new Uint8Array(bytes);
+  const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
+  const safe = (section.title || "section").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 40) || "section";
+  triggerDownload(blob, `${safe}.mid`);
 }
 
-document.getElementById("btn-export").addEventListener("click", () => {
-  const data = buildMidi();
-  const blob = new Blob([data], { type: "audio/midi" });
-  triggerDownload(blob, "score.mid");
+// ---------- Resize: re-flow bands ----------
+let resizeTimer = null;
+let lastN = barsPerBand();
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const n = barsPerBand();
+    if (n !== lastN) { lastN = n; renderAll(); }
+  }, 120);
 });
 
 // ---------- Init ----------
