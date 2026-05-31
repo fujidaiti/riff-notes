@@ -357,11 +357,18 @@ function persist() {
   }, 300);
 }
 
+let restoreError = null;
 (function restoreFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const restored = deserializeProject(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.version !== SCHEMA_VERSION) {
+      restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const restored = deserializeProject(parsed);
     if (!restored) {
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -373,6 +380,7 @@ function persist() {
     localStorage.removeItem(STORAGE_KEY);
   }
 })();
+if (restoreError) setTimeout(() => alert(restoreError), 0);
 let playingSectionId = null;
 let audioCtx = null;
 let activeOscillators = [];
