@@ -1626,7 +1626,7 @@ function copySelection(sheet) {
   };
 }
 
-function pasteClipboard(sheet) {
+async function pasteClipboard(sheet) {
   if (!sheet || !clipboard || clipboard.notes.length === 0) return;
 
   let targetBarIndex = -1, targetStep = 0, targetPitch = 0, targetPart = null;
@@ -1681,6 +1681,7 @@ function pasteClipboard(sheet) {
   }
 
   const newIds = [];
+  let outOfRangeMin = Infinity, outOfRangeMax = -Infinity, outOfRangeCount = 0;
   for (const cn of clipboard.notes) {
     const absStart = targetBarIndex * STEPS_PER_BAR + targetStep + cn.dStart;
     const newPitch = targetPitch - cn.dRow;
@@ -1700,12 +1701,31 @@ function pasteClipboard(sheet) {
     };
     sheet.bars[newBarIx].notes.push(note);
     newIds.push(note.id);
+    if (newPitch < targetPart.lo || newPitch > targetPart.hi) {
+      outOfRangeCount++;
+      if (newPitch < outOfRangeMin) outOfRangeMin = newPitch;
+      if (newPitch > outOfRangeMax) outOfRangeMax = newPitch;
+    }
   }
 
   sheet.selectedCell = null;
   sheet.selectedNoteIds = new Set(newIds);
   renderAll();
   persist();
+
+  if (outOfRangeCount > 0) {
+    const newLo = Math.min(targetPart.lo, outOfRangeMin);
+    const newHi = Math.max(targetPart.hi, outOfRangeMax);
+    const noun = outOfRangeCount === 1 ? "note falls" : "notes fall";
+    const msg = `${outOfRangeCount} pasted ${noun} outside "${targetPart.name}"'s pitch range (${pitchName(targetPart.lo)}–${pitchName(targetPart.hi)}). Extend the range to ${pitchName(newLo)}–${pitchName(newHi)} so they become visible?`;
+    const ok = await confirmAsync(msg);
+    if (ok) {
+      targetPart.lo = newLo;
+      targetPart.hi = newHi;
+      renderAll();
+      persist();
+    }
+  }
 }
 
 // ---------- Keyboard ----------
