@@ -322,6 +322,7 @@ function serializeProject(p) {
 
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sections) || doc.sections.length === 0) return null;
+  if (doc.version !== SCHEMA_VERSION) return null;
   const sections = doc.sections.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Section",
@@ -361,11 +362,16 @@ function persist() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const restored = deserializeProject(JSON.parse(raw));
-    if (!restored) return;
+    if (!restored) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
     project.sections = restored.sections;
     activeSectionId = project.sections[0].id;
     lastFocusedSectionId = activeSectionId;
-  } catch {}
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 })();
 let playingSectionId = null;
 let audioCtx = null;
@@ -896,7 +902,11 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   const fr = new FileReader();
   fr.onload = () => {
     try {
-      const obj = deserializeProject(JSON.parse(fr.result));
+      const parsed = JSON.parse(fr.result);
+      if (parsed && parsed.version !== SCHEMA_VERSION) {
+        throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
+      }
+      const obj = deserializeProject(parsed);
       if (!obj) throw new Error("Invalid format");
       project.sections = obj.sections;
       activeSectionId = project.sections[0]?.id ?? null;
