@@ -1108,8 +1108,10 @@ function handlePointerDown(ev, section, part, wrap, bar) {
     drag = {
       mode, note, bar: noteBar, part, section, wrap,
       startX: ev.clientX,
+      startY: ev.clientY,
       origStart: note.start,
       origLength: note.length,
+      origPitch: note.pitch,
       moved: false,
       isExisting: true,
       wasSelected,
@@ -1143,8 +1145,10 @@ function handlePointerDown(ev, section, part, wrap, bar) {
   drag = {
     mode: "move", note, bar, part, section, wrap,
     startX: ev.clientX,
+    startY: ev.clientY,
     origStart: note.start,
     origLength: note.length,
+    origPitch: note.pitch,
     moved: false, isExisting: false, wasSelected: false,
   };
   try { wrap.setPointerCapture(ev.pointerId); } catch {}
@@ -1154,13 +1158,18 @@ function handlePointerDown(ev, section, part, wrap, bar) {
 document.addEventListener("pointermove", (ev) => {
   if (!drag) return;
   const cellW = getCellW();
+  const cellH = getCellH();
   const dx = ev.clientX - drag.startX;
+  const dy = ev.clientY - drag.startY;
   const dSteps = Math.round(dx / cellW);
-  if (Math.abs(dx) > CLICK_MAX_MOVE) drag.moved = true;
+  const dRows = Math.round(dy / cellH);
+  if (Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE) drag.moved = true;
   let changed = false;
   if (drag.mode === "move") {
     const newStart = Math.max(0, Math.min(STEPS_PER_BAR - drag.note.length, drag.origStart + dSteps));
     if (newStart !== drag.note.start) { drag.note.start = newStart; changed = true; }
+    const newPitch = Math.max(drag.part.lo, Math.min(drag.part.hi, drag.origPitch - dRows));
+    if (newPitch !== drag.note.pitch) { drag.note.pitch = newPitch; changed = true; }
   } else if (drag.mode === "resize-right") {
     const newLen = Math.max(1, Math.min(STEPS_PER_BAR - drag.note.start, drag.origLength + dSteps));
     if (newLen !== drag.note.length) { drag.note.length = newLen; changed = true; }
@@ -1195,7 +1204,9 @@ function updateNoteDom(d) {
   const noteEl = d.wrap.querySelector(`[data-note-id="${d.note.id}"]`);
   if (!noteEl) return;
   const cellW = getCellW();
+  const cellH = getCellH();
   noteEl.style.left = (d.note.start * cellW) + "px";
+  noteEl.style.top = ((d.part.hi - d.note.pitch) * cellH) + "px";
   noteEl.style.width = (d.note.length * cellW - 1) + "px";
 }
 
