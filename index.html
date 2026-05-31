@@ -218,12 +218,20 @@
     grid-column: 2;
     position: relative;
     height: 10px;
-    background: #f5f5ef;
+    background-color: #f5f5ef;
+    background-image:
+      linear-gradient(to right, #b8b8af 1px, transparent 1px),
+      linear-gradient(to right, #d6d6cd 1px, transparent 1px);
+    background-size:
+      calc(var(--cell-w) * 4) 100%,
+      var(--cell-w) 100%;
+    background-position: 0 0, 0 0;
+    background-repeat: repeat-x;
     border: 1px solid var(--line);
     border-radius: 2px;
     cursor: pointer;
   }
-  .ruler-track:hover { background: #ecece6; }
+  .ruler-track:hover { background-color: #ecece6; }
   .playhead-marker {
     position: absolute;
     top: -2px; bottom: -2px;
