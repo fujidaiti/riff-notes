@@ -156,6 +156,7 @@
     white-space: nowrap;
     overflow: hidden;
   }
+  .label-row .oct { font-size: 0.75em; color: #aaa; margin-left: 1px; }
   .bar-note-input {
     width: calc(var(--cell-w) * 16);
     margin-left: var(--label-w);
@@ -513,6 +514,13 @@ function pitchDisplayName(midi, section, withOctave) {
   const pc = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[pc] + (withOctave ? octave : "");
 }
+function pitchDisplayHtml(midi, section, withOctave) {
+  const base = pitchDisplayName(midi, section, false);
+  if (!withOctave) return escapeHtml(base);
+  const oct = Math.floor(midi / 12) - 1;
+  return escapeHtml(base) + `<span class="oct">${oct}</span>`;
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function inScaleSet(section) {
   const intervals = SCALES[section.scale.mode] || SCALES.major;
   return new Set(intervals.map(i => (i + section.scale.root) % 12));
@@ -990,10 +998,12 @@ function renderBand(section, bandStart, bandBars) {
 
         const isBoundary = pitch === part.lo || pitch === part.hi;
         const inScale = scaleSet.has(pc);
-        let labelText = "";
-        if (isBoundary) labelText = pitchDisplayName(pitch, section, true);
-        else if (inScale) labelText = pitchDisplayName(pitch, section, false);
-        labelCol.appendChild(el("div", { class: "label-row" }, labelText));
+        let labelHtml = "";
+        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, section, true);
+        else if (inScale) labelHtml = pitchDisplayHtml(pitch, section, false);
+        const labelDiv = el("div", { class: "label-row" });
+        labelDiv.innerHTML = labelHtml;
+        labelCol.appendChild(labelDiv);
       }
       gridRow.appendChild(labelCol);
       gridRow.appendChild(wrap);
