@@ -347,15 +347,26 @@ function deserializeProject(doc) {
 }
 
 let persistTimer = null;
+function writePersist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeProject(project)));
+  } catch {}
+}
 function persist() {
   if (persistTimer) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeProject(project)));
-    } catch {}
+    writePersist();
   }, 300);
 }
+function flushPersist() {
+  if (!persistTimer) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  writePersist();
+}
+window.addEventListener("pagehide", flushPersist);
+window.addEventListener("beforeunload", flushPersist);
 
 let restoreError = null;
 (function restoreFromStorage() {
