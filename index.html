@@ -34,6 +34,12 @@
   }
   .toolbar button, .toolbar input, .toolbar select { font-size: 13px; padding: 4px 8px; }
   .toolbar button { cursor: pointer; }
+  .project-name {
+    font-size: 15px; font-weight: 600;
+    border: 1px solid transparent; background: transparent;
+    border-radius: 4px; padding: 4px 6px; min-width: 160px;
+  }
+  .project-name:hover, .project-name:focus { border-color: var(--line); background: #fff; outline: none; }
   .spacer { flex: 1; }
   .hint { font-size: 11px; color: #666; padding: 6px 12px; }
 
@@ -322,7 +328,7 @@
 </head>
 <body>
 <div class="toolbar">
-  <strong>Sheet Grid MIDI Editor</strong>
+  <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
   <button id="btn-save">Save JSON</button>
   <button id="btn-load">Load JSON</button>
   <input type="file" id="file-load" accept="application/json,.json" class="hidden">
@@ -400,7 +406,7 @@ function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId
 function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); }
 function clearSelection(sheet) { sheet.selectedNoteIds = new Set(); }
 
-const project = { sheets: [makeSheet("Sheet 1")] };
+const project = { name: "", sheets: [makeSheet("Sheet 1")] };
 let activeSheetId = project.sheets[0].id;
 let lastFocusedSheetId = project.sheets[0].id;
 
@@ -415,6 +421,7 @@ const STORAGE_KEY = "midi-editor:state";
 function serializeProject(p) {
   return {
     version: SCHEMA_VERSION,
+    name: p.name || "",
     sheets: p.sheets.map(s => ({
       id: s.id,
       title: s.title,
@@ -460,7 +467,7 @@ function deserializeProject(doc) {
     partsPanelOpen: false,
     playStart: 0,
   }));
-  return { sheets };
+  return { name: typeof doc.name === "string" ? doc.name : "", sheets };
 }
 
 let persistTimer = null;
@@ -473,6 +480,14 @@ function formatSavedAt(ts) {
 function updateSavedIndicator(ts) {
   const el = document.getElementById("saved-indicator");
   if (el) el.textContent = ts ? formatSavedAt(ts) : "Not saved yet";
+}
+function updateDocumentTitle() {
+  document.title = project.name ? project.name : "Untitled project";
+}
+function syncProjectNameInput() {
+  const inp = document.getElementById("project-name");
+  if (inp) inp.value = project.name || "";
+  updateDocumentTitle();
 }
 function writePersist() {
   try {
@@ -514,6 +529,7 @@ let restoreError = null;
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
+    project.name = restored.name || "";
     project.sheets = restored.sheets;
     activeSheetId = project.sheets[0].id;
     lastFocusedSheetId = activeSheetId;
@@ -1559,10 +1575,19 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   }
 });
 
+// ---------- Project name ----------
+syncProjectNameInput();
+document.getElementById("project-name").addEventListener("input", (e) => {
+  project.name = e.target.value;
+  updateDocumentTitle();
+  persist();
+});
+
 // ---------- Save / Load JSON ----------
 document.getElementById("btn-save").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(serializeProject(project), null, 2)], { type: "application/json" });
-  triggerDownload(blob, "score.json");
+  const safe = (project.name || "score").trim().replace(/[\\/:*?"<>|]+/g, "_") || "score";
+  triggerDownload(blob, safe + ".json");
 });
 document.getElementById("btn-load").addEventListener("click", () => document.getElementById("file-load").click());
 document.getElementById("file-load").addEventListener("change", (e) => {
@@ -1577,9 +1602,11 @@ document.getElementById("file-load").addEventListener("change", (e) => {
       }
       const obj = deserializeProject(parsed);
       if (!obj) throw new Error("Invalid format");
+      project.name = obj.name || "";
       project.sheets = obj.sheets;
       activeSheetId = project.sheets[0]?.id ?? null;
       lastFocusedSheetId = activeSheetId;
+      syncProjectNameInput();
       renderAll();
     } catch (err) {
       alert("Failed to load JSON: " + err.message);
