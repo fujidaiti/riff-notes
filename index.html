@@ -109,8 +109,10 @@
   .parts-panel h4 { margin: 0 0 6px; font-size: 12px; color: #444; }
   .part-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
   .part-row input[type=text] { flex: 0 0 160px; }
-  .part-row .range-info { color: #555; font-size: 12px; min-width: 100px; }
   .part-row button { font-size: 11px; padding: 2px 6px; cursor: pointer; }
+  .range-controls { display: inline-flex; align-items: center; gap: 2px; }
+  .range-controls select { font-size: 12px; padding: 1px 2px; }
+  .range-controls .range-sep { color: #888; padding: 0 4px; }
 
   /* Bands of bars */
   .bands { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
@@ -229,6 +231,8 @@ const VEL_OPACITY = [0.25, 0.45, 0.65, 0.85, 1.0];
 const VEL_GAIN   = [0.08, 0.16, 0.30, 0.50, 0.75];
 const DEFAULT_VEL = 2;
 const PITCH_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const PIANO_MIN = 21;  // A0
+const PIANO_MAX = 108; // C8
 const SCALES = {
   major: [0,2,4,5,7,9,11],
   minor: [0,2,3,5,7,8,10],
@@ -458,15 +462,19 @@ function renderSection(section, idx) {
 
 function renderPartsPanel(section) {
   const panel = el("div", { class: "parts-panel" });
-  panel.appendChild(el("h4", {}, "Parts for this section"));
+  panel.appendChild(el("h4", {}, "Parts for this section (visible pitch range; hidden notes still play and export)"));
   section.parts.forEach((p, idx) => {
     const row = el("div", { class: "part-row" },
       el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(section.id, p.id, p.name); } }),
-      el("span", { class: "range-info" }, `${pitchName(p.lo)} – ${pitchName(p.hi)}`),
-      el("button", { title: "Extend up",   onclick: () => adjustRange(section, p, "hi", +1) }, "Top +"),
-      el("button", { title: "Shrink top",  onclick: () => adjustRange(section, p, "hi", -1) }, "Top −"),
-      el("button", { title: "Extend down", onclick: () => adjustRange(section, p, "lo", -1) }, "Bot +"),
-      el("button", { title: "Shrink bot",  onclick: () => adjustRange(section, p, "lo", +1) }, "Bot −"),
+      el("div", { class: "range-controls" },
+        el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
+        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }),
+        el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
+        el("span", { class: "range-sep" }, "–"),
+        el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
+        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }),
+        el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
+      ),
       el("button", { onclick: () => movePart(section, idx, -1) }, "▲"),
       el("button", { onclick: () => movePart(section, idx, +1) }, "▼"),
       el("button", { disabled: section.parts.length <= 1, onclick: () => deletePart(section, idx) }, "✕"),
@@ -479,21 +487,28 @@ function renderPartsPanel(section) {
   return panel;
 }
 
+function makePitchSelect(min, max, value, onChange) {
+  const sel = el("select");
+  for (let m = min; m <= max; m++) {
+    sel.appendChild(el("option", { value: String(m), selected: m === value }, pitchName(m)));
+  }
+  sel.addEventListener("change", (e) => onChange(parseInt(e.target.value, 10)));
+  return sel;
+}
+
 function updatePartSideLabels(sectionId, partId, name) {
   document.querySelectorAll(`[data-section-id="${sectionId}"] [data-part-id="${partId}"] .part-side`).forEach(e => e.textContent = name);
 }
 
-function adjustRange(section, part, which, delta) {
-  if (which === "hi") {
-    const next = part.hi + delta;
-    if (next < part.lo) return;
-    if (next > 127) return;
-    part.hi = next;
-  } else {
+function stepRange(part, which, delta) {
+  if (which === "lo") {
     const next = part.lo + delta;
-    if (next > part.hi) return;
-    if (next < 0) return;
+    if (next < PIANO_MIN || next >= part.hi) return;
     part.lo = next;
+  } else {
+    const next = part.hi + delta;
+    if (next > PIANO_MAX || next <= part.lo) return;
+    part.hi = next;
   }
   renderAll();
 }
