@@ -253,6 +253,7 @@
     width: 2px; height: 14px;
     background: #d97a3a;
   }
+  .playhead-marker.dim { opacity: 0.35; }
   .playhead-line {
     position: absolute;
     top: 0; bottom: 0;
@@ -604,49 +605,67 @@ function renderAll() {
 // Position the ruler marker(s) at section.playStart and clear any grid lines.
 function updatePlayheadDom(section) {
   const absStep = section.playStart || 0;
-  const targetBar = Math.floor(absStep / STEPS_PER_BAR);
-  const stepInBar = absStep % STEPS_PER_BAR;
+  const startBar = Math.floor(absStep / STEPS_PER_BAR);
+  const startStepInBar = absStep % STEPS_PER_BAR;
   const cellW = getCellW();
   document.querySelectorAll(".ruler-track").forEach(track => {
     const bi = parseInt(track.dataset.barIndex, 10);
-    const marker = track.querySelector(".playhead-marker");
-    if (!marker) return;
-    if (bi === targetBar) {
-      marker.style.display = "block";
-      marker.style.left = (stepInBar * cellW) + "px";
-    } else {
-      marker.style.display = "none";
+    const start = track.querySelector(".playhead-marker.start");
+    const live = track.querySelector(".playhead-marker.live");
+    if (start) {
+      if (bi === startBar) {
+        start.style.display = "block";
+        start.style.left = (startStepInBar * cellW) + "px";
+        start.classList.remove("dim");
+      } else {
+        start.style.display = "none";
+      }
     }
+    if (live) live.style.display = "none";
   });
-  // Clear any active grid playhead lines (used only during playback)
   document.querySelectorAll(".playhead-line.active").forEach(l => l.classList.remove("active"));
 }
 
-// Move playhead during playback: ruler marker follows, plus a line in the
-// currently-playing bar's grids (one per part).
-function updatePlaybackPlayhead(absStep) {
-  const targetBar = Math.floor(absStep / STEPS_PER_BAR);
-  const stepInBar = absStep - targetBar * STEPS_PER_BAR;
+// Move playhead during playback: live marker follows current position,
+// start marker remains visible (translucent) at section.playStart, plus a
+// line in the currently-playing bar's grids (one per part).
+function updatePlaybackPlayhead(absStep, section) {
+  const liveBar = Math.floor(absStep / STEPS_PER_BAR);
+  const liveStepInBar = absStep - liveBar * STEPS_PER_BAR;
   const cellW = getCellW();
-  const x = stepInBar * cellW;
+  const liveX = liveStepInBar * cellW;
+  const startStep = section ? (section.playStart || 0) : -1;
+  const startBar = Math.floor(startStep / STEPS_PER_BAR);
+  const startStepInBar = startStep - startBar * STEPS_PER_BAR;
   document.querySelectorAll(".ruler-track").forEach(track => {
     const bi = parseInt(track.dataset.barIndex, 10);
-    const marker = track.querySelector(".playhead-marker");
-    if (!marker) return;
-    if (bi === targetBar) {
-      marker.style.display = "block";
-      marker.style.left = x + "px";
-    } else {
-      marker.style.display = "none";
+    const start = track.querySelector(".playhead-marker.start");
+    const live = track.querySelector(".playhead-marker.live");
+    if (start) {
+      if (bi === startBar && startStep >= 0) {
+        start.style.display = "block";
+        start.style.left = (startStepInBar * cellW) + "px";
+        start.classList.add("dim");
+      } else {
+        start.style.display = "none";
+      }
+    }
+    if (live) {
+      if (bi === liveBar) {
+        live.style.display = "block";
+        live.style.left = liveX + "px";
+      } else {
+        live.style.display = "none";
+      }
     }
   });
   document.querySelectorAll(".grid-wrap").forEach(wrap => {
     const line = wrap.querySelector(".playhead-line");
     if (!line) return;
     const bi = parseInt(wrap.dataset.barIndex, 10);
-    if (bi === targetBar) {
+    if (bi === liveBar) {
       line.classList.add("active");
-      line.style.left = x + "px";
+      line.style.left = liveX + "px";
     } else {
       line.classList.remove("active");
     }
@@ -845,9 +864,12 @@ function renderBand(section, bandStart, bandBars) {
     const rulerBar = el("div", { class: "ruler-bar" });
     const track = el("div", { class: "ruler-track" });
     track.dataset.barIndex = String(absBarIdx);
-    const marker = el("div", { class: "playhead-marker" });
+    const marker = el("div", { class: "playhead-marker start" });
     marker.style.display = "none";
     track.appendChild(marker);
+    const liveMarker = el("div", { class: "playhead-marker live" });
+    liveMarker.style.display = "none";
+    track.appendChild(liveMarker);
     track.addEventListener("click", (ev) => {
       if (playingSectionId) return;
       const rect = track.getBoundingClientRect();
@@ -1229,9 +1251,9 @@ function playSection(section) {
     const elapsed = audioCtx.currentTime - playbackT0;
     const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
     if (cur >= playbackTotalSteps) {
-      updatePlaybackPlayhead(playbackTotalSteps - 0.0001);
+      updatePlaybackPlayhead(playbackTotalSteps - 0.0001, section);
     } else {
-      updatePlaybackPlayhead(cur);
+      updatePlaybackPlayhead(cur, section);
     }
     playbackRaf = requestAnimationFrame(tick);
   };
