@@ -1165,15 +1165,8 @@ function ensureAudio() {
 }
 
 function stopPlayback() {
-  // Capture the current playhead position before tearing down playback state,
-  // and apply it to whichever section was playing.
-  const sec = project.sections.find(s => s.id === playingSectionId);
-  if (sec && audioCtx) {
-    const elapsed = audioCtx.currentTime - playbackT0;
-    const step = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
-    const clamped = Math.min(playbackTotalSteps - 1, Math.max(0, Math.floor(step)));
-    sec.playStart = clamped;
-  }
+  // Leave section.playStart untouched — the cursor returns to wherever the
+  // user set it. The Stop button doesn't move the start position.
   for (const fn of activeOscillators) fn();
   activeOscillators = [];
   if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
@@ -1182,15 +1175,7 @@ function stopPlayback() {
   renderAll();
 }
 
-function playbackEndedNaturally() {
-  // Don't move the cursor — leave playStart where the user set it.
-  for (const fn of activeOscillators) fn();
-  activeOscillators = [];
-  if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
-  if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
-  playingSectionId = null;
-  renderAll();
-}
+const playbackEndedNaturally = stopPlayback;
 
 function scheduleNote(when, durSec, midi, vel) {
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
