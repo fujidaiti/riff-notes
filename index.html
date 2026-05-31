@@ -16,6 +16,7 @@
     --scale-root-tint: #cfe8b8;
     --note: #c97a4a;
     --note-sel: #2b6cb0;
+    --note-hover: #0aa39b;
     --section-bg: #ffffff;
     --section-border: #e2e2dc;
     --panel-bg: #f1f0ea;
@@ -278,6 +279,16 @@
     touch-action: none;
   }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 2; }
+  .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 1; }
+  .cell-hover {
+    position: fixed;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid var(--note-hover);
+    border-radius: 2px;
+    z-index: 1;
+    display: none;
+  }
 
   .cell-tooltip {
     position: fixed;
@@ -1032,6 +1043,7 @@ function renderBand(section, bandStart, bandBars) {
         const noteEl = el("div", { class: "note" + (n.id === section.selectedNoteId ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
         noteEl.dataset.vel = String(n.vel);
+        noteEl.dataset.len = String(n.length);
         const top = (part.hi - n.pitch) * cellH;
         noteEl.style.left = (n.start * cellW) + "px";
         noteEl.style.top = top + "px";
@@ -1086,6 +1098,13 @@ function handlePointerDown(ev, section, part, wrap, bar) {
     let mode = "move";
     if (relLeft <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
     else if (relRight <= RESIZE_EDGE) mode = "resize-right";
+    const wasSelected = section.selectedNoteId === note.id;
+    if (!wasSelected) {
+      const sectionEl = wrap.closest(".section");
+      if (sectionEl) sectionEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+      target.classList.add("selected");
+      section.selectedNoteId = note.id;
+    }
     drag = {
       mode, note, bar: noteBar, part, section, wrap,
       startX: ev.clientX,
@@ -1093,7 +1112,7 @@ function handlePointerDown(ev, section, part, wrap, bar) {
       origLength: note.length,
       moved: false,
       isExisting: true,
-      wasSelected: section.selectedNoteId === note.id,
+      wasSelected,
     };
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
@@ -1163,8 +1182,6 @@ document.addEventListener("pointerup", () => {
   if (!d.moved && d.isExisting) {
     if (d.wasSelected) {
       d.note.vel = (d.note.vel + 1) % VEL_LABELS.length;
-    } else {
-      d.section.selectedNoteId = d.note.id;
     }
     renderAll();
     refreshCellTooltipAtLastPointer();
@@ -1229,6 +1246,52 @@ function showCellTooltipAt(ev, wrap) {
   tip.style.top = top + "px";
 }
 let lastPointer = null;
+let cellHoverEl = null;
+function getCellHover() {
+  if (!cellHoverEl) {
+    cellHoverEl = el("div", { class: "cell-hover" });
+    document.body.appendChild(cellHoverEl);
+  }
+  return cellHoverEl;
+}
+function hideCellHover() { if (cellHoverEl) cellHoverEl.style.display = "none"; }
+function updateCellHover(ev, wrap) {
+  if (drag) { hideCellHover(); return; }
+  const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+  if (noteTarget && wrap.contains(noteTarget)) { hideCellHover(); return; }
+  const rect = wrap.getBoundingClientRect();
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  const stepInBar = Math.floor(x / cellW);
+  const rowIdx = Math.floor(y / cellH);
+  const partHi = parseInt(wrap.dataset.partHi, 10);
+  const partLo = parseInt(wrap.dataset.partLo, 10);
+  const numRows = partHi - partLo + 1;
+  if (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows) {
+    hideCellHover();
+    return;
+  }
+  const hover = getCellHover();
+  hover.style.display = "block";
+  hover.style.left = (rect.left + stepInBar * cellW) + "px";
+  hover.style.top = (rect.top + rowIdx * cellH) + "px";
+  hover.style.width = cellW + "px";
+  hover.style.height = cellH + "px";
+}
+function updateNoteCursor(ev) {
+  if (drag) return;
+  const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+  if (!noteTarget) return;
+  const rect = noteTarget.getBoundingClientRect();
+  const relLeft = ev.clientX - rect.left;
+  const relRight = rect.right - ev.clientX;
+  const len = parseInt(noteTarget.dataset.len, 10) || 1;
+  const canResizeLeft = len > 1 && relLeft <= RESIZE_EDGE;
+  const canResizeRight = relRight <= RESIZE_EDGE;
+  noteTarget.style.cursor = (canResizeLeft || canResizeRight) ? "ew-resize" : "";
+}
 document.addEventListener("pointermove", (ev) => {
   lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
   let wrap;
@@ -1237,19 +1300,22 @@ document.addEventListener("pointermove", (ev) => {
   } else {
     wrap = ev.target && ev.target.closest && ev.target.closest(".grid-wrap");
   }
-  if (!wrap) { hideCellTooltip(); return; }
+  if (!wrap) { hideCellTooltip(); hideCellHover(); return; }
   showCellTooltipAt(ev, wrap);
+  updateCellHover(ev, wrap);
+  updateNoteCursor(ev);
 });
 function refreshCellTooltipAtLastPointer() {
   if (!lastPointer) return;
   const elAtPoint = document.elementFromPoint(lastPointer.clientX, lastPointer.clientY);
   const wrap = elAtPoint && elAtPoint.closest && elAtPoint.closest(".grid-wrap");
-  if (!wrap) { hideCellTooltip(); return; }
+  if (!wrap) { hideCellTooltip(); hideCellHover(); return; }
   const fakeEv = { clientX: lastPointer.clientX, clientY: lastPointer.clientY, target: elAtPoint };
   showCellTooltipAt(fakeEv, wrap);
+  updateCellHover(fakeEv, wrap);
 }
-document.documentElement.addEventListener("pointerleave", hideCellTooltip);
-window.addEventListener("blur", hideCellTooltip);
+document.documentElement.addEventListener("pointerleave", () => { hideCellTooltip(); hideCellHover(); });
+window.addEventListener("blur", () => { hideCellTooltip(); hideCellHover(); });
 
 // ---------- Keyboard ----------
 document.addEventListener("keydown", (ev) => {
