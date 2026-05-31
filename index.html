@@ -7,6 +7,7 @@
   :root {
     --cell-w: 22px;
     --cell-h: 14px;
+    --label-w: 26px;
     --bg: #fafaf7;
     --ink: #222;
     --line: #d2d2cc;
@@ -140,6 +141,21 @@
   .band-row + .band-row { margin-top: 4px; }
   .bars-strip { display: grid; gap: 12px; }
   .bar-cell { display: flex; flex-direction: column; gap: 2px; }
+  .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
+  .label-col {
+    display: flex; flex-direction: column;
+    width: var(--label-w);
+    font-size: 10px; color: #888;
+    padding-right: 3px;
+    text-align: right;
+    user-select: none;
+  }
+  .label-row {
+    height: var(--cell-h);
+    line-height: var(--cell-h);
+    white-space: nowrap;
+    overflow: hidden;
+  }
   .bar-note-input {
     width: 100%;
     font: inherit;
@@ -188,12 +204,6 @@
   .grid-row:last-child { border-bottom: none; }
   .grid-row.in-scale { background: var(--scale-tint); }
   .grid-row.in-scale-root { background: var(--scale-root-tint); }
-  .row-label {
-    position: absolute; left: 2px; top: -1px;
-    font-size: 9px; color: #999;
-    pointer-events: none;
-    line-height: var(--cell-h);
-  }
   .note {
     position: absolute;
     height: calc(var(--cell-h) - 2px);
@@ -684,7 +694,7 @@ function renderBand(section, bandStart, bandBars) {
 
   // Bar number row
   const numRow = el("div", { class: "band-bar-numbers" });
-  numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
+  numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
   bandBars.forEach((bar, i) => {
     const span = el("span", {}, `Bar ${bandStart + i + 1}`);
     if (section.bars.length > 1) {
@@ -712,7 +722,7 @@ function renderBand(section, bandStart, bandBars) {
     partRow.dataset.partId = part.id;
     const side = el("div", { class: "part-side" }, part.name);
     const strip = el("div", { class: "bars-strip" });
-    strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
+    strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
     const numRows = part.hi - part.lo + 1;
 
     bandBars.forEach((bar, bi) => {
@@ -729,6 +739,8 @@ function renderBand(section, bandStart, bandBars) {
         persist();
       });
       cell.appendChild(noteInput);
+      const gridRow = el("div", { class: "bar-grid" });
+      const labelCol = el("div", { class: "label-col" });
       const wrap = el("div", { class: "grid-wrap" });
       wrap.dataset.partId = part.id;
       wrap.dataset.barIndex = String(bandStart + bi);
@@ -737,13 +749,21 @@ function renderBand(section, bandStart, bandBars) {
 
       for (let i = 0; i < numRows; i++) {
         const pitch = part.hi - i;
-        const rowEl = el("div", { class: "grid-row" });
         const pc = ((pitch % 12) + 12) % 12;
+        const rowEl = el("div", { class: "grid-row" });
         if (pc === section.scale.root) rowEl.classList.add("in-scale-root");
         else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
-        if (pc === 0) rowEl.appendChild(el("span", { class: "row-label" }, pitchName(pitch)));
         wrap.appendChild(rowEl);
+
+        const isBoundary = pitch === part.lo || pitch === part.hi;
+        const inScale = scaleSet.has(pc);
+        let labelText = "";
+        if (isBoundary) labelText = pitchName(pitch);
+        else if (inScale) labelText = PITCH_NAMES[pc];
+        labelCol.appendChild(el("div", { class: "label-row" }, labelText));
       }
+      gridRow.appendChild(labelCol);
+      gridRow.appendChild(wrap);
 
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
@@ -758,7 +778,7 @@ function renderBand(section, bandStart, bandBars) {
       });
 
       wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bar));
-      cell.appendChild(wrap);
+      cell.appendChild(gridRow);
       strip.appendChild(cell);
     });
 
