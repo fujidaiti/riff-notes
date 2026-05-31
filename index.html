@@ -1687,7 +1687,7 @@ function pasteClipboard(sheet) {
     const newBarIx = Math.floor(absStart / STEPS_PER_BAR);
     const stepInBar = absStart - newBarIx * STEPS_PER_BAR;
     if (newBarIx < 0 || newBarIx >= sheet.bars.length) continue;
-    if (newPitch < targetPart.lo || newPitch > targetPart.hi) continue;
+    if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
     let newLength = Math.min(cn.length, STEPS_PER_BAR - stepInBar);
     if (newLength < 1) newLength = 1;
     const note = {
