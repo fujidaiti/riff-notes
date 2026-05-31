@@ -1597,11 +1597,138 @@ function refreshCellTooltipAtLastPointer() {
 document.documentElement.addEventListener("pointerleave", () => { hideCellTooltip(); hideCellHover(); });
 window.addEventListener("blur", () => { hideCellTooltip(); hideCellHover(); });
 
+// ---------- Clipboard (copy/paste) ----------
+let clipboard = null;
+// shape: { notes: [{ dStart, dRow, length, vel }, ...] }
+
+function copySelection(sheet) {
+  if (!sheet || sheet.selectedNoteIds.size === 0) return;
+  const ids = sheet.selectedNoteIds;
+  const picked = [];
+  for (const b of sheet.bars) {
+    for (const n of b.notes) {
+      if (ids.has(n.id)) picked.push(n);
+    }
+  }
+  if (picked.length === 0) return;
+  let minStart = Infinity, maxPitch = -Infinity;
+  for (const n of picked) {
+    if (n.start < minStart) minStart = n.start;
+    if (n.pitch > maxPitch) maxPitch = n.pitch;
+  }
+  clipboard = {
+    notes: picked.map(n => ({
+      dStart: n.start - minStart,
+      dRow: maxPitch - n.pitch,
+      length: n.length,
+      vel: n.vel,
+    })),
+  };
+}
+
+function pasteClipboard(sheet) {
+  if (!sheet || !clipboard || clipboard.notes.length === 0) return;
+
+  let targetBarIndex = -1, targetStep = 0, targetPitch = 0, targetPart = null;
+
+  if (sheet.selectedNoteIds.size > 1) {
+    // Multi-note: delete first, anchor at deleted bounding-box top-left.
+    const ids = sheet.selectedNoteIds;
+    let minStart = Infinity, maxPitch = -Infinity;
+    let foundBar = null, foundPartId = null;
+    for (let bi = 0; bi < sheet.bars.length; bi++) {
+      const b = sheet.bars[bi];
+      for (const n of b.notes) {
+        if (!ids.has(n.id)) continue;
+        if (n.start < minStart) minStart = n.start;
+        if (n.pitch > maxPitch) maxPitch = n.pitch;
+        if (foundBar === null) { foundBar = b; targetBarIndex = bi; foundPartId = n.partId; }
+      }
+    }
+    if (foundBar === null) return;
+    targetPart = sheet.parts.find(p => p.id === foundPartId);
+    if (!targetPart) return;
+    targetStep = minStart;
+    targetPitch = maxPitch;
+    // Delete the selection
+    for (const b of sheet.bars) {
+      b.notes = b.notes.filter(n => !ids.has(n.id));
+    }
+    sheet.selectedNoteIds = new Set();
+  } else if (sheet.selectedNoteIds.size === 1) {
+    const onlyId = sheet.selectedNoteIds.values().next().value;
+    let foundNote = null;
+    for (let bi = 0; bi < sheet.bars.length; bi++) {
+      const b = sheet.bars[bi];
+      const n = b.notes.find(x => x.id === onlyId);
+      if (n) { foundNote = n; targetBarIndex = bi; break; }
+    }
+    if (!foundNote) return;
+    targetPart = sheet.parts.find(p => p.id === foundNote.partId);
+    if (!targetPart) return;
+    targetStep = foundNote.start;
+    targetPitch = foundNote.pitch;
+  } else if (sheet.selectedCell) {
+    const c = sheet.selectedCell;
+    targetBarIndex = sheet.bars.findIndex(b => b.id === c.barId);
+    if (targetBarIndex < 0) return;
+    targetPart = sheet.parts.find(p => p.id === c.partId);
+    if (!targetPart) return;
+    targetStep = c.step;
+    targetPitch = c.pitch;
+  } else {
+    return; // nothing selected
+  }
+
+  const newIds = [];
+  for (const cn of clipboard.notes) {
+    const absStart = targetBarIndex * STEPS_PER_BAR + targetStep + cn.dStart;
+    const newPitch = targetPitch - cn.dRow;
+    const newBarIx = Math.floor(absStart / STEPS_PER_BAR);
+    const stepInBar = absStart - newBarIx * STEPS_PER_BAR;
+    if (newBarIx < 0 || newBarIx >= sheet.bars.length) continue;
+    if (newPitch < targetPart.lo || newPitch > targetPart.hi) continue;
+    let newLength = Math.min(cn.length, STEPS_PER_BAR - stepInBar);
+    if (newLength < 1) newLength = 1;
+    const note = {
+      id: uid(),
+      partId: targetPart.id,
+      pitch: newPitch,
+      start: stepInBar,
+      length: newLength,
+      vel: cn.vel,
+    };
+    sheet.bars[newBarIx].notes.push(note);
+    newIds.push(note.id);
+  }
+
+  sheet.selectedCell = null;
+  sheet.selectedNoteIds = new Set(newIds);
+  renderAll();
+  persist();
+}
+
 // ---------- Keyboard ----------
 document.addEventListener("keydown", (ev) => {
-  if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+
+  if (isCreateModifier(ev) && (ev.key === "c" || ev.key === "C")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    copySelection(sec);
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "v" || ev.key === "V")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    pasteClipboard(sec);
+    ev.preventDefault();
+    return;
+  }
+
+  if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
   if (!sec || sec.selectedNoteIds.size === 0) return;
   const ids = sec.selectedNoteIds;
