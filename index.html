@@ -906,19 +906,23 @@ function renderBand(section, bandStart, bandBars) {
     liveMarker.style.display = "none";
     track.appendChild(liveMarker);
     track.addEventListener("click", (ev) => {
-      if (playingSectionId) return; // ignore during active playback
       const rect = track.getBoundingClientRect();
       const cw = getCellW();
       let step = Math.floor((ev.clientX - rect.left) / cw);
       if (step < 0) step = 0;
       if (step > STEPS_PER_BAR - 1) step = STEPS_PER_BAR - 1;
-      section.playStart = absBarIdx * STEPS_PER_BAR + step;
-      // While paused, the ruler also moves the freeze/resume point — start
-      // and resume positions stay aligned with user intent.
-      if (pausedSectionId === section.id) {
-        pausedStep = section.playStart;
+      const newAbs = absBarIdx * STEPS_PER_BAR + step;
+      section.playStart = newAbs;
+      if (playingSectionId === section.id) {
+        // Seek mid-playback: restart playback from the new step.
+        playSection(section, newAbs);
+      } else if (pausedSectionId === section.id) {
+        // While paused, keep the freeze/resume point aligned with the cursor.
+        pausedStep = newAbs;
+        updatePlayheadDom(section);
+      } else {
+        updatePlayheadDom(section);
       }
-      updatePlayheadDom(section);
     });
     rulerBar.appendChild(track);
     rulerRow.appendChild(rulerBar);
