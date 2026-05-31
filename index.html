@@ -1167,8 +1167,10 @@ document.addEventListener("pointerup", () => {
       d.section.selectedNoteId = d.note.id;
     }
     renderAll();
+    refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
     renderAll();
+    refreshCellTooltipAtLastPointer();
   }
 });
 
@@ -1226,7 +1228,9 @@ function showCellTooltipAt(ev, wrap) {
   tip.style.left = left + "px";
   tip.style.top = top + "px";
 }
+let lastPointer = null;
 document.addEventListener("pointermove", (ev) => {
+  lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
   let wrap;
   if (drag && drag.wrap) {
     wrap = drag.wrap;
@@ -1236,6 +1240,14 @@ document.addEventListener("pointermove", (ev) => {
   if (!wrap) { hideCellTooltip(); return; }
   showCellTooltipAt(ev, wrap);
 });
+function refreshCellTooltipAtLastPointer() {
+  if (!lastPointer) return;
+  const elAtPoint = document.elementFromPoint(lastPointer.clientX, lastPointer.clientY);
+  const wrap = elAtPoint && elAtPoint.closest && elAtPoint.closest(".grid-wrap");
+  if (!wrap) { hideCellTooltip(); return; }
+  const fakeEv = { clientX: lastPointer.clientX, clientY: lastPointer.clientY, target: elAtPoint };
+  showCellTooltipAt(fakeEv, wrap);
+}
 document.documentElement.addEventListener("pointerleave", hideCellTooltip);
 window.addEventListener("blur", hideCellTooltip);
 
