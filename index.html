@@ -482,7 +482,9 @@ setTimeout(() => {
   const ts = parseInt(localStorage.getItem(SAVED_AT_KEY) || "", 10);
   updateSavedIndicator(Number.isFinite(ts) ? ts : null);
 }, 0);
-let playingSectionId = null;
+let playingSectionId = null;   // section actively producing sound
+let pausedSectionId = null;    // section frozen mid-playback
+let pausedStep = 0;            // step at which paused playback is frozen
 let audioCtx = null;
 let activeOscillators = [];
 let playStopTimer = null;
@@ -565,9 +567,12 @@ function ensureActiveSection() {
 function renderTabs() {
   tabstripEl.innerHTML = "";
   project.sections.forEach((s, i) => {
+    const playMark = playingSectionId === s.id
+      ? el("span", { class: "tab-playing", title: "Playing" }, "▶")
+      : (pausedSectionId === s.id ? el("span", { class: "tab-playing", title: "Paused" }, "⏸") : null);
     const tab = el("div", { class: "tab" + (s.id === activeSectionId ? " active" : "") },
       el("span", { class: "tab-label" }, s.title || `Section ${i + 1}`),
-      playingSectionId === s.id ? el("span", { class: "tab-playing", title: "Playing" }, "▶") : null,
+      playMark,
     );
     tab.dataset.sectionId = s.id;
     tab.addEventListener("click", () => {
@@ -607,6 +612,10 @@ function updatePlayheadDom(section) {
   const absStep = section.playStart || 0;
   const startBar = Math.floor(absStep / STEPS_PER_BAR);
   const startStepInBar = absStep % STEPS_PER_BAR;
+  const isPaused = pausedSectionId === section.id;
+  const liveStep = isPaused ? pausedStep : -1;
+  const liveBar = isPaused ? Math.floor(liveStep / STEPS_PER_BAR) : -1;
+  const liveStepInBar = isPaused ? liveStep - liveBar * STEPS_PER_BAR : 0;
   const cellW = getCellW();
   document.querySelectorAll(".ruler-track").forEach(track => {
     const bi = parseInt(track.dataset.barIndex, 10);
@@ -621,9 +630,26 @@ function updatePlayheadDom(section) {
         start.style.display = "none";
       }
     }
-    if (live) live.style.display = "none";
+    if (live) {
+      if (isPaused && bi === liveBar) {
+        live.style.display = "block";
+        live.style.left = (liveStepInBar * cellW) + "px";
+      } else {
+        live.style.display = "none";
+      }
+    }
   });
-  document.querySelectorAll(".playhead-line.active").forEach(l => l.classList.remove("active"));
+  document.querySelectorAll(".grid-wrap").forEach(wrap => {
+    const line = wrap.querySelector(".playhead-line");
+    if (!line) return;
+    const bi = parseInt(wrap.dataset.barIndex, 10);
+    if (isPaused && bi === liveBar) {
+      line.classList.add("active");
+      line.style.left = (liveStepInBar * cellW) + "px";
+    } else {
+      line.classList.remove("active");
+    }
+  });
 }
 
 // Move playhead during playback: live marker follows current position,
@@ -708,10 +734,19 @@ function renderSection(section, idx) {
     oninput: (e) => { section.notes = e.target.value; persist(); },
   }, section.notes || "");
 
-  const playBtn = el("button", { class: "play" + (playingSectionId === section.id ? " playing" : "") }, "▶ Play");
-  playBtn.addEventListener("click", () => playSection(section));
-  const stopBtn = el("button", { disabled: playingSectionId !== section.id }, "■ Stop");
-  stopBtn.addEventListener("click", () => { if (playingSectionId === section.id) stopPlayback(); });
+  const isPlayingThis = playingSectionId === section.id;
+  const isPausedThis = pausedSectionId === section.id;
+  const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
+  const playBtn = el("button", { class: "play" + (isPlayingThis ? " playing" : "") }, playLabel);
+  playBtn.addEventListener("click", () => {
+    if (playingSectionId === section.id) pausePlayback();
+    else if (pausedSectionId === section.id) resumePlayback(section);
+    else playSection(section);
+  });
+  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis }, "■ Stop");
+  stopBtn.addEventListener("click", () => {
+    if (playingSectionId === section.id || pausedSectionId === section.id) stopPlayback();
+  });
 
   const actions = el("div", { class: "section-actions" },
     el("button", { onclick: () => { section.partsPanelOpen = !section.partsPanelOpen; renderAll(); } }, "Parts…"),
@@ -871,13 +906,18 @@ function renderBand(section, bandStart, bandBars) {
     liveMarker.style.display = "none";
     track.appendChild(liveMarker);
     track.addEventListener("click", (ev) => {
-      if (playingSectionId) return;
+      if (playingSectionId) return; // ignore during active playback
       const rect = track.getBoundingClientRect();
       const cw = getCellW();
       let step = Math.floor((ev.clientX - rect.left) / cw);
       if (step < 0) step = 0;
       if (step > STEPS_PER_BAR - 1) step = STEPS_PER_BAR - 1;
       section.playStart = absBarIdx * STEPS_PER_BAR + step;
+      // While paused, the ruler also moves the freeze/resume point — start
+      // and resume positions stay aligned with user intent.
+      if (pausedSectionId === section.id) {
+        pausedStep = section.playStart;
+      }
       updatePlayheadDom(section);
     });
     rulerBar.appendChild(track);
@@ -1164,18 +1204,42 @@ function ensureAudio() {
   if (audioCtx.state === "suspended") audioCtx.resume();
 }
 
-function stopPlayback() {
-  // Leave section.playStart untouched — the cursor returns to wherever the
-  // user set it. The Stop button doesn't move the start position.
+function teardownPlayback() {
   for (const fn of activeOscillators) fn();
   activeOscillators = [];
   if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
   if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+}
+
+function stopPlayback() {
+  // Full stop: clear playing and paused state. section.playStart unchanged.
+  teardownPlayback();
   playingSectionId = null;
+  pausedSectionId = null;
+  pausedStep = 0;
   renderAll();
 }
 
 const playbackEndedNaturally = stopPlayback;
+
+function pausePlayback() {
+  if (!playingSectionId || !audioCtx) return;
+  const elapsed = audioCtx.currentTime - playbackT0;
+  const step = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+  const clamped = Math.max(0, Math.min(playbackTotalSteps - 0.0001, step));
+  teardownPlayback();
+  pausedSectionId = playingSectionId;
+  pausedStep = clamped;
+  playingSectionId = null;
+  renderAll();
+}
+
+function resumePlayback(section) {
+  const fromStep = Math.floor(pausedStep);
+  pausedSectionId = null;
+  pausedStep = 0;
+  playSection(section, fromStep);
+}
 
 function scheduleNote(when, durSec, midi, vel) {
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
@@ -1194,19 +1258,17 @@ function scheduleNote(when, durSec, midi, vel) {
   activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
 }
 
-function playSection(section) {
+function playSection(section, fromStep) {
   ensureAudio();
-  // exclusive: stop any current playback
-  if (playingSectionId) {
-    for (const fn of activeOscillators) fn();
-    activeOscillators = [];
-    if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
-    if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
-  }
+  // exclusive: stop any current playback (playing or paused)
+  teardownPlayback();
+  pausedSectionId = null;
+  pausedStep = 0;
   playingSectionId = section.id;
   const secPerStep = 60 / section.bpm / 4;
   const totalSteps = section.bars.length * STEPS_PER_BAR;
-  const startStep = Math.max(0, Math.min(totalSteps - 1, section.playStart || 0));
+  const wantedStart = (fromStep != null) ? fromStep : (section.playStart || 0);
+  const startStep = Math.max(0, Math.min(totalSteps - 1, wantedStart));
   // Wrap to 0 if cursor is past the end
   const effectiveStart = startStep >= totalSteps ? 0 : startStep;
   const t0 = audioCtx.currentTime + 0.05;
