@@ -125,19 +125,21 @@
   .band-bar-numbers {
     grid-column: 2;
     display: grid;
+    gap: 12px;
     font-size: 10px;
     color: #888;
-    padding-left: 2px;
   }
-  .band-bar-numbers > span { padding: 1px 4px; border-left: 2px solid var(--line-strong); }
-  .band-bar-numbers > span:first-child { border-left: none; padding-left: 0; }
+  .band-bar-numbers > span { padding: 1px 4px; }
   .band-row {
     grid-column: 1 / span 2;
     display: grid;
     grid-template-columns: 22px auto;
     gap: 4px;
     align-items: center;
+    margin-top: 48px;
   }
+  .band-row:first-of-type { margin-top: 0; }
+  .bars-strip { display: grid; gap: 12px; }
   .part-side {
     grid-column: 1;
     display: flex;
@@ -153,19 +155,16 @@
     user-select: none;
   }
   .grid-wrap {
-    grid-column: 2;
     position: relative;
     background: #fff;
     border: 1px solid var(--line);
     background-image:
-      linear-gradient(to right, var(--line-strong) 2px, transparent 2px),
       linear-gradient(to right, #cdcdc4 1px, transparent 1px),
       linear-gradient(to right, #ececea 1px, transparent 1px);
     background-size:
-      calc(var(--cell-w) * 16) 100%,
       calc(var(--cell-w) * 4) 100%,
       var(--cell-w) 100%;
-    background-position: 0 0, 0 0, 0 0;
+    background-position: 0 0, 0 0;
   }
   .grid-row {
     position: relative;
@@ -489,7 +488,7 @@ function renderPartsPanel(section) {
 
 function makePitchSelect(min, max, value, onChange) {
   const sel = el("select");
-  for (let m = min; m <= max; m++) {
+  for (let m = max; m >= min; m--) {
     sel.appendChild(el("option", { value: String(m), selected: m === value }, pitchName(m)));
   }
   sel.addEventListener("change", (e) => onChange(parseInt(e.target.value, 10)));
@@ -545,7 +544,6 @@ function renderBands(section) {
 function renderBand(section, bandStart, bandBars) {
   const cellW = getCellW();
   const cellH = getCellH();
-  const totalSteps = bandBars.length * STEPS_PER_BAR;
   const bandEl = el("div", { class: "band" });
 
   // Bar number row
@@ -577,43 +575,45 @@ function renderBand(section, bandStart, bandBars) {
     const partRow = el("div", { class: "band-row" });
     partRow.dataset.partId = part.id;
     const side = el("div", { class: "part-side" }, part.name);
-    const wrap = el("div", { class: "grid-wrap" });
-    wrap.dataset.partId = part.id;
-    wrap.dataset.bandStart = String(bandStart);
-    wrap.style.width = `calc(var(--cell-w) * ${totalSteps})`;
+    const strip = el("div", { class: "bars-strip" });
+    strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
     const numRows = part.hi - part.lo + 1;
-    wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
-    for (let i = 0; i < numRows; i++) {
-      const pitch = part.hi - i;
-      const rowEl = el("div", { class: "grid-row" });
-      const pc = ((pitch % 12) + 12) % 12;
-      if (pc === section.scale.root) rowEl.classList.add("in-scale-root");
-      else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
-      if (pc === 0) rowEl.appendChild(el("span", { class: "row-label" }, pitchName(pitch)));
-      wrap.appendChild(rowEl);
-    }
-
-    // Notes
     bandBars.forEach((bar, bi) => {
+      const wrap = el("div", { class: "grid-wrap" });
+      wrap.dataset.partId = part.id;
+      wrap.dataset.barIndex = String(bandStart + bi);
+      wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
+      wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
+
+      for (let i = 0; i < numRows; i++) {
+        const pitch = part.hi - i;
+        const rowEl = el("div", { class: "grid-row" });
+        const pc = ((pitch % 12) + 12) % 12;
+        if (pc === section.scale.root) rowEl.classList.add("in-scale-root");
+        else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
+        if (pc === 0) rowEl.appendChild(el("span", { class: "row-label" }, pitchName(pitch)));
+        wrap.appendChild(rowEl);
+      }
+
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
         const noteEl = el("div", { class: "note" + (n.id === section.selectedNoteId ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
-        noteEl.dataset.barIndex = String(bandStart + bi);
-        const left = (bi * STEPS_PER_BAR + n.start) * cellW;
         const top = (part.hi - n.pitch) * cellH;
-        noteEl.style.left = left + "px";
+        noteEl.style.left = (n.start * cellW) + "px";
         noteEl.style.top = top + "px";
         noteEl.style.width = (n.length * cellW - 1) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
         wrap.appendChild(noteEl);
       });
+
+      wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bar));
+      strip.appendChild(wrap);
     });
 
-    wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bandStart, bandBars));
     partRow.appendChild(side);
-    partRow.appendChild(wrap);
+    partRow.appendChild(strip);
     bandEl.appendChild(partRow);
   });
   return bandEl;
@@ -624,7 +624,7 @@ const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
 let drag = null;
 
-function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
+function handlePointerDown(ev, section, part, wrap, bar) {
   if (ev.button !== 0) return;
   lastFocusedSectionId = section.id;
   const rect = wrap.getBoundingClientRect();
@@ -632,25 +632,18 @@ function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
   const cellH = getCellH();
   const x = ev.clientX - rect.left;
   const y = ev.clientY - rect.top;
-  const totalStep = Math.floor(x / cellW);
+  const stepInBar = Math.floor(x / cellW);
   const rowIdx = Math.floor(y / cellH);
   const numRows = part.hi - part.lo + 1;
-  if (totalStep < 0 || rowIdx < 0 || rowIdx >= numRows) return;
-  if (totalStep >= bandBars.length * STEPS_PER_BAR) return;
-  const barIdxInBand = Math.floor(totalStep / STEPS_PER_BAR);
-  const stepInBar = totalStep % STEPS_PER_BAR;
-  const bar = bandBars[barIdxInBand];
+  if (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows) return;
   const pitch = part.hi - rowIdx;
 
   const target = ev.target.closest(".note");
   if (target) {
     const noteId = target.dataset.noteId;
-    let note = null, noteBar = null;
-    for (const b of bandBars) {
-      const f = b.notes.find(n => n.id === noteId);
-      if (f) { note = f; noteBar = b; break; }
-    }
+    const note = bar.notes.find(n => n.id === noteId);
     if (!note) return;
+    const noteBar = bar;
     const noteRect = target.getBoundingClientRect();
     const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
@@ -674,9 +667,10 @@ function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
   // Create note
   const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
   if (existing) return;
-  // clear other-section selection visuals
+  // clear existing selection visuals within this section
   if (section.selectedNoteId) {
-    wrap.parentElement.parentElement.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+    const sectionEl = wrap.closest(".section");
+    if (sectionEl) sectionEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
   }
   const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
   bar.notes.push(note);
@@ -685,8 +679,7 @@ function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
   const noteEl = document.createElement("div");
   noteEl.className = "note selected";
   noteEl.dataset.noteId = note.id;
-  noteEl.dataset.barIndex = String(bandStart + barIdxInBand);
-  noteEl.style.left = ((barIdxInBand * STEPS_PER_BAR + note.start) * cellW) + "px";
+  noteEl.style.left = (note.start * cellW) + "px";
   noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
   noteEl.style.width = (note.length * cellW - 1) + "px";
   noteEl.style.opacity = VEL_OPACITY[note.vel];
@@ -698,7 +691,6 @@ function handlePointerDown(ev, section, part, wrap, bandStart, bandBars) {
     origStart: note.start,
     origLength: note.length,
     moved: false, isExisting: false, wasSelected: false,
-    barIdxInBand,
   };
   try { wrap.setPointerCapture(ev.pointerId); } catch {}
   ev.preventDefault();
@@ -748,8 +740,7 @@ function updateNoteDom(d) {
   const noteEl = d.wrap.querySelector(`[data-note-id="${d.note.id}"]`);
   if (!noteEl) return;
   const cellW = getCellW();
-  const barIdxInBand = parseInt(noteEl.dataset.barIndex, 10) - parseInt(d.wrap.dataset.bandStart, 10);
-  noteEl.style.left = ((barIdxInBand * STEPS_PER_BAR + d.note.start) * cellW) + "px";
+  noteEl.style.left = (d.note.start * cellW) + "px";
   noteEl.style.width = (d.note.length * cellW - 1) + "px";
 }
 
