@@ -204,6 +204,58 @@
   .grid-row:last-child { border-bottom: none; }
   .grid-row.in-scale { background: var(--scale-tint); }
   .grid-row.in-scale-root { background: var(--scale-root-tint); }
+  .band-ruler {
+    grid-column: 2;
+    display: grid;
+    gap: 12px;
+    margin-top: 2px;
+  }
+  .ruler-bar {
+    display: grid;
+    grid-template-columns: var(--label-w) calc(var(--cell-w) * 16);
+  }
+  .ruler-track {
+    grid-column: 2;
+    position: relative;
+    height: 10px;
+    background: #f5f5ef;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ruler-track:hover { background: #ecece6; }
+  .playhead-marker {
+    position: absolute;
+    top: -2px; bottom: -2px;
+    width: 0; height: 0;
+    pointer-events: none;
+  }
+  .playhead-marker::before {
+    content: "";
+    position: absolute;
+    left: -4px; top: -3px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #d97a3a;
+  }
+  .playhead-marker::after {
+    content: "";
+    position: absolute;
+    left: -1px; top: 0;
+    width: 2px; height: 14px;
+    background: #d97a3a;
+  }
+  .playhead-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: rgba(217, 122, 58, 0.85);
+    pointer-events: none;
+    z-index: 3;
+    display: none;
+  }
+  .playhead-line.active { display: block; }
   .note {
     position: absolute;
     height: calc(var(--cell-h) - 2px);
@@ -293,6 +345,7 @@ function makeSection(title = "Section") {
     bars: [makeBar()],
     selectedNoteId: null,
     partsPanelOpen: false,
+    playStart: 0,
   };
 }
 
@@ -352,6 +405,7 @@ function deserializeProject(doc) {
     // runtime/view state — never persisted, always defaulted
     selectedNoteId: null,
     partsPanelOpen: false,
+    playStart: 0,
   }));
   return { sections };
 }
@@ -423,6 +477,11 @@ let playingSectionId = null;
 let audioCtx = null;
 let activeOscillators = [];
 let playStopTimer = null;
+let playbackRaf = null;
+let playbackT0 = 0;
+let playbackStartStep = 0;
+let playbackSecPerStep = 0;
+let playbackTotalSteps = 0;
 
 // ---------- Pitch helpers ----------
 function pitchName(midi) {
@@ -527,8 +586,63 @@ function renderAll() {
   renderTabs();
   sectionsEl.innerHTML = "";
   const idx = project.sections.findIndex(s => s.id === activeSectionId);
-  if (idx >= 0) sectionsEl.appendChild(renderSection(project.sections[idx], idx));
+  if (idx >= 0) {
+    sectionsEl.appendChild(renderSection(project.sections[idx], idx));
+    updatePlayheadDom(project.sections[idx]);
+  }
   persist();
+}
+
+// Position the ruler marker(s) at section.playStart and clear any grid lines.
+function updatePlayheadDom(section) {
+  const absStep = section.playStart || 0;
+  const targetBar = Math.floor(absStep / STEPS_PER_BAR);
+  const stepInBar = absStep % STEPS_PER_BAR;
+  const cellW = getCellW();
+  document.querySelectorAll(".ruler-track").forEach(track => {
+    const bi = parseInt(track.dataset.barIndex, 10);
+    const marker = track.querySelector(".playhead-marker");
+    if (!marker) return;
+    if (bi === targetBar) {
+      marker.style.display = "block";
+      marker.style.left = (stepInBar * cellW) + "px";
+    } else {
+      marker.style.display = "none";
+    }
+  });
+  // Clear any active grid playhead lines (used only during playback)
+  document.querySelectorAll(".playhead-line.active").forEach(l => l.classList.remove("active"));
+}
+
+// Move playhead during playback: ruler marker follows, plus a line in the
+// currently-playing bar's grids (one per part).
+function updatePlaybackPlayhead(absStep) {
+  const targetBar = Math.floor(absStep / STEPS_PER_BAR);
+  const stepInBar = absStep - targetBar * STEPS_PER_BAR;
+  const cellW = getCellW();
+  const x = stepInBar * cellW;
+  document.querySelectorAll(".ruler-track").forEach(track => {
+    const bi = parseInt(track.dataset.barIndex, 10);
+    const marker = track.querySelector(".playhead-marker");
+    if (!marker) return;
+    if (bi === targetBar) {
+      marker.style.display = "block";
+      marker.style.left = x + "px";
+    } else {
+      marker.style.display = "none";
+    }
+  });
+  document.querySelectorAll(".grid-wrap").forEach(wrap => {
+    const line = wrap.querySelector(".playhead-line");
+    if (!line) return;
+    const bi = parseInt(wrap.dataset.barIndex, 10);
+    if (bi === targetBar) {
+      line.classList.add("active");
+      line.style.left = x + "px";
+    } else {
+      line.classList.remove("active");
+    }
+  });
 }
 
 function renderSection(section, idx) {
@@ -715,6 +829,32 @@ function renderBand(section, bandStart, bandBars) {
   });
   bandEl.appendChild(numRow);
 
+  // Ruler row: clickable per-bar tracks for setting playStart
+  const rulerRow = el("div", { class: "band-ruler" });
+  rulerRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
+  bandBars.forEach((bar, i) => {
+    const absBarIdx = bandStart + i;
+    const rulerBar = el("div", { class: "ruler-bar" });
+    const track = el("div", { class: "ruler-track" });
+    track.dataset.barIndex = String(absBarIdx);
+    const marker = el("div", { class: "playhead-marker" });
+    marker.style.display = "none";
+    track.appendChild(marker);
+    track.addEventListener("click", (ev) => {
+      if (playingSectionId) return;
+      const rect = track.getBoundingClientRect();
+      const cw = getCellW();
+      let step = Math.floor((ev.clientX - rect.left) / cw);
+      if (step < 0) step = 0;
+      if (step > STEPS_PER_BAR - 1) step = STEPS_PER_BAR - 1;
+      section.playStart = absBarIdx * STEPS_PER_BAR + step;
+      updatePlayheadDom(section);
+    });
+    rulerBar.appendChild(track);
+    rulerRow.appendChild(rulerBar);
+  });
+  bandEl.appendChild(rulerRow);
+
   // Rows: one per part
   const scaleSet = inScaleSet(section);
   section.parts.forEach(part => {
@@ -776,6 +916,9 @@ function renderBand(section, bandStart, bandBars) {
         noteEl.style.opacity = VEL_OPACITY[n.vel];
         wrap.appendChild(noteEl);
       });
+
+      const playLine = el("div", { class: "playhead-line" });
+      wrap.appendChild(playLine);
 
       wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bar));
       cell.appendChild(gridRow);
@@ -992,9 +1135,29 @@ function ensureAudio() {
 }
 
 function stopPlayback() {
+  // Capture the current playhead position before tearing down playback state,
+  // and apply it to whichever section was playing.
+  const sec = project.sections.find(s => s.id === playingSectionId);
+  if (sec && audioCtx) {
+    const elapsed = audioCtx.currentTime - playbackT0;
+    const step = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+    const clamped = Math.min(playbackTotalSteps - 1, Math.max(0, Math.floor(step)));
+    sec.playStart = clamped;
+  }
   for (const fn of activeOscillators) fn();
   activeOscillators = [];
   if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+  if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+  playingSectionId = null;
+  renderAll();
+}
+
+function playbackEndedNaturally() {
+  // Don't move the cursor — leave playStart where the user set it.
+  for (const fn of activeOscillators) fn();
+  activeOscillators = [];
+  if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+  if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
   playingSectionId = null;
   renderAll();
 }
@@ -1023,23 +1186,49 @@ function playSection(section) {
     for (const fn of activeOscillators) fn();
     activeOscillators = [];
     if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+    if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
   }
   playingSectionId = section.id;
   const secPerStep = 60 / section.bpm / 4;
+  const totalSteps = section.bars.length * STEPS_PER_BAR;
+  const startStep = Math.max(0, Math.min(totalSteps - 1, section.playStart || 0));
+  // Wrap to 0 if cursor is past the end
+  const effectiveStart = startStep >= totalSteps ? 0 : startStep;
   const t0 = audioCtx.currentTime + 0.05;
   let lastEnd = t0;
   section.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
-      const start = t0 + (bi * STEPS_PER_BAR + n.start) * secPerStep;
+      const absStart = bi * STEPS_PER_BAR + n.start;
+      if (absStart < effectiveStart) continue;
+      const start = t0 + (absStart - effectiveStart) * secPerStep;
       const dur = n.length * secPerStep * 0.95;
       scheduleNote(start, dur, n.pitch, n.vel);
       if (start + dur > lastEnd) lastEnd = start + dur;
     }
   });
-  const totalMs = Math.max(100, (lastEnd - audioCtx.currentTime) * 1000 + 100);
+  playbackT0 = t0;
+  playbackStartStep = effectiveStart;
+  playbackSecPerStep = secPerStep;
+  playbackTotalSteps = totalSteps;
+  const endStepTime = t0 + (totalSteps - effectiveStart) * secPerStep;
+  const endTime = Math.max(lastEnd, endStepTime);
+  const totalMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
   const myId = section.id;
-  playStopTimer = setTimeout(() => { if (playingSectionId === myId) stopPlayback(); }, totalMs);
+  playStopTimer = setTimeout(() => { if (playingSectionId === myId) playbackEndedNaturally(); }, totalMs);
+
+  const tick = () => {
+    if (playingSectionId !== section.id || !audioCtx) return;
+    const elapsed = audioCtx.currentTime - playbackT0;
+    const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+    if (cur >= playbackTotalSteps) {
+      updatePlaybackPlayhead(playbackTotalSteps - 0.0001);
+    } else {
+      updatePlaybackPlayhead(cur);
+    }
+    playbackRaf = requestAnimationFrame(tick);
+  };
   renderAll();
+  playbackRaf = requestAnimationFrame(tick);
 }
 
 // ---------- MIDI export (per section) ----------
