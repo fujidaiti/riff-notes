@@ -1601,6 +1601,19 @@ window.addEventListener("blur", () => { hideCellTooltip(); hideCellHover(); });
 let clipboard = null;
 // shape: { notes: [{ dStart, dRow, length, vel }, ...] }
 
+function cutSelection(sheet) {
+  if (!sheet || sheet.selectedNoteIds.size === 0) return;
+  copySelection(sheet);
+  const ids = sheet.selectedNoteIds;
+  for (const b of sheet.bars) {
+    b.notes = b.notes.filter(n => !ids.has(n.id));
+  }
+  clearSelection(sheet);
+  sheet.selectedCell = null;
+  renderAll();
+  persist();
+}
+
 function copySelection(sheet) {
   if (!sheet || sheet.selectedNoteIds.size === 0) return;
   const ids = sheet.selectedNoteIds;
@@ -1737,6 +1750,13 @@ document.addEventListener("keydown", (ev) => {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec) return;
     copySelection(sec);
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "x" || ev.key === "X")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    cutSelection(sec);
     ev.preventDefault();
     return;
   }
