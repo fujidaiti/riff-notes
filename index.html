@@ -299,12 +299,12 @@
     display: none;
   }
   .rubber-band {
-    position: absolute;
+    position: fixed;
     pointer-events: none;
     box-sizing: border-box;
     border: 1px solid var(--note-hover);
     background: rgba(10, 163, 155, 0.12);
-    z-index: 3;
+    z-index: 9998;
   }
   .cell-selected {
     position: absolute;
@@ -441,6 +441,29 @@ function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([no
 function clearSelection(sheet) { sheet.selectedNoteIds = new Set(); }
 function setCellSelection(sheet, sel) { sheet.selectedCell = sel; sheet.selectedNoteIds = new Set(); }
 function clearCellSelection(sheet) { sheet.selectedCell = null; }
+function partOfSelection(sheet) {
+  if (sheet.selectedNoteIds.size === 0) return null;
+  for (const b of sheet.bars) {
+    for (const n of b.notes) if (sheet.selectedNoteIds.has(n.id)) return n.partId;
+  }
+  return null;
+}
+function dropForeignPartFromSelection(sheet, keepPartId) {
+  if (!keepPartId || sheet.selectedNoteIds.size === 0) return;
+  const drop = [];
+  for (const b of sheet.bars) {
+    for (const n of b.notes) {
+      if (sheet.selectedNoteIds.has(n.id) && n.partId !== keepPartId) drop.push(n.id);
+    }
+  }
+  for (const id of drop) sheet.selectedNoteIds.delete(id);
+}
+function toggleNoteSelection(sheet, note) {
+  if (sheet.selectedNoteIds.has(note.id)) { sheet.selectedNoteIds.delete(note.id); return; }
+  dropForeignPartFromSelection(sheet, note.partId);
+  sheet.selectedNoteIds.add(note.id);
+  sheet.selectedCell = null;
+}
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 function isCreateModifier(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey; }
 
@@ -1181,10 +1204,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     const prevSize = sheet.selectedNoteIds.size;
 
     if (ev.shiftKey) {
-      // Toggle membership; no drag.
-      if (wasInSelection) sheet.selectedNoteIds.delete(note.id);
-      else sheet.selectedNoteIds.add(note.id);
-      sheet.selectedCell = null;
+      toggleNoteSelection(sheet, note);
       renderAll();
       ev.preventDefault();
       return;
@@ -1203,12 +1223,20 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       // selection-collapse happens on a no-move pointerup.
     }
 
-    // Snapshot every selected note in this bar/part as the drag group.
+    // Snapshot every selected note in this part (possibly across multiple bars).
+    const sheetElForGroup = wrap.closest(".sheet");
     const group = [];
-    for (const n of bar.notes) {
-      if (n.partId !== part.id) continue;
-      if (!isNoteSelected(sheet, n.id)) continue;
-      group.push({ note: n, origStart: n.start, origLength: n.length, origPitch: n.pitch });
+    for (const b of sheet.bars) {
+      for (const n of b.notes) {
+        if (n.partId !== part.id) continue;
+        if (!isNoteSelected(sheet, n.id)) continue;
+        let noteWrap = wrap;
+        if (b !== bar && sheetElForGroup) {
+          const noteEl = sheetElForGroup.querySelector(`[data-note-id="${n.id}"]`);
+          if (noteEl) noteWrap = noteEl.closest(".grid-wrap") || wrap;
+        }
+        group.push({ note: n, wrap: noteWrap, origStart: n.start, origLength: n.length, origPitch: n.pitch });
+      }
     }
     drag = {
       mode, primaryNote: note, group,
@@ -1268,16 +1296,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
   }
 
   if (ev.shiftKey) {
-    drag = {
-      mode: "rubber-band",
-      bar, part, sheet, wrap,
-      startX: ev.clientX, startY: ev.clientY,
-      anchorX: x, anchorY: y,
-      moved: false,
-      additive: true,
-      bandEl: null,
-    };
-    try { wrap.setPointerCapture(ev.pointerId); } catch {}
+    startGlobalRubberBand({ sheet, additive: true, anchorX: ev.clientX, anchorY: ev.clientY });
     ev.preventDefault();
     return;
   }
@@ -1287,72 +1306,105 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     mode: "empty-pending",
     bar, part, sheet, wrap,
     startX: ev.clientX, startY: ev.clientY,
-    anchorX: x, anchorY: y,
     pendingCell: { barId: bar.id, partId: part.id, step: stepInBar, pitch },
     moved: false,
-    additive: false,
-    bandEl: null,
   };
   try { wrap.setPointerCapture(ev.pointerId); } catch {}
   ev.preventDefault();
 }
 
 function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-function ensureBandEl(d) {
-  if (d.bandEl) return d.bandEl;
-  const band = el("div", { class: "rubber-band" });
-  d.wrap.appendChild(band);
-  d.bandEl = band;
-  return band;
+function rectsOverlap(a, b) {
+  return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
-function updateRubberBand(d, ev) {
-  const rect = d.wrap.getBoundingClientRect();
-  const curX = clampNum(ev.clientX - rect.left, 0, rect.width);
-  const curY = clampNum(ev.clientY - rect.top, 0, rect.height);
-  const left = Math.min(d.anchorX, curX);
-  const top = Math.min(d.anchorY, curY);
-  const w = Math.abs(curX - d.anchorX);
-  const h = Math.abs(curY - d.anchorY);
-  const band = ensureBandEl(d);
-  band.style.left = left + "px";
-  band.style.top = top + "px";
-  band.style.width = w + "px";
-  band.style.height = h + "px";
+function startGlobalRubberBand(opts) {
+  const { sheet, additive, anchorX, anchorY } = opts;
+  const sheetEl = sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const noteElCache = new Map();
+  if (sheetEl) {
+    for (const noteEl of sheetEl.querySelectorAll(".note")) {
+      noteElCache.set(noteEl.dataset.noteId, noteEl);
+    }
+  }
+  const initialSelection = new Set(sheet.selectedNoteIds);
+  const initialPartId = partOfSelection(sheet);
+  if (!additive) {
+    for (const id of sheet.selectedNoteIds) {
+      const e = noteElCache.get(id); if (e) e.classList.remove("selected");
+    }
+    sheet.selectedNoteIds = new Set();
+  }
+  sheet.selectedCell = null;
+  const sel = sheetEl && sheetEl.querySelector(".cell-selected");
+  if (sel && sel.parentNode) sel.parentNode.removeChild(sel);
+  const bandEl = el("div", { class: "rubber-band" });
+  document.body.appendChild(bandEl);
+  drag = {
+    mode: "rubber-band",
+    sheet, additive, initialSelection, initialPartId,
+    lockedPartId: null,
+    anchorX, anchorY,
+    bandEl, noteElCache,
+  };
 }
 
-function commitRubberBand(d) {
-  const cellW = getCellW();
-  const cellH = getCellH();
-  const rect = d.wrap.getBoundingClientRect();
-  // anchor/cur are in wrap-local coords
-  const band = d.bandEl;
-  let x0, y0, x1, y1;
-  if (band) {
-    x0 = parseFloat(band.style.left);
-    y0 = parseFloat(band.style.top);
-    x1 = x0 + parseFloat(band.style.width);
-    y1 = y0 + parseFloat(band.style.height);
-  } else {
-    return new Set();
+function rubberBandTick(ev) {
+  const x0 = Math.min(drag.anchorX, ev.clientX);
+  const y0 = Math.min(drag.anchorY, ev.clientY);
+  const x1 = Math.max(drag.anchorX, ev.clientX);
+  const y1 = Math.max(drag.anchorY, ev.clientY);
+  drag.bandEl.style.left = x0 + "px";
+  drag.bandEl.style.top = y0 + "px";
+  drag.bandEl.style.width = (x1 - x0) + "px";
+  drag.bandEl.style.height = (y1 - y0) + "px";
+  const bandRect = { left: x0, top: y0, right: x1, bottom: y1 };
+
+  const sheetEl = sheetsEl.querySelector(`[data-sheet-id="${drag.sheet.id}"]`);
+  if (!sheetEl) return;
+  const tickHits = [];
+  for (const wrap of sheetEl.querySelectorAll(".grid-wrap")) {
+    const wr = wrap.getBoundingClientRect();
+    if (!rectsOverlap(bandRect, wr)) continue;
+    const partId = wrap.dataset.partId;
+    for (const noteEl of wrap.querySelectorAll(".note")) {
+      const nr = noteEl.getBoundingClientRect();
+      if (!rectsOverlap(bandRect, nr)) continue;
+      const noteId = noteEl.dataset.noteId;
+      const cx = (nr.left + nr.right) / 2, cy = (nr.top + nr.bottom) / 2;
+      const d = Math.hypot(cx - drag.anchorX, cy - drag.anchorY);
+      tickHits.push({ noteId, partId, d });
+    }
   }
-  const stepA = Math.floor(x0 / cellW);
-  const stepB = Math.ceil(x1 / cellW);
-  const rowA = Math.floor(y0 / cellH);
-  const rowB = Math.ceil(y1 / cellH);
-  const pitchHi = d.part.hi - rowA;
-  const pitchLo = d.part.hi - (rowB - 1);
-  const hits = new Set();
-  for (const n of d.bar.notes) {
-    if (n.partId !== d.part.id) continue;
-    if (n.pitch < pitchLo || n.pitch > pitchHi) continue;
-    // step intersection
-    if (n.start + n.length <= stepA) continue;
-    if (n.start >= stepB) continue;
-    hits.add(n.id);
+  if (drag.lockedPartId === null && tickHits.length > 0) {
+    tickHits.sort((a, b) => a.d - b.d);
+    drag.lockedPartId = tickHits[0].partId;
+    if (drag.additive && drag.initialPartId && drag.initialPartId !== drag.lockedPartId) {
+      drag.initialSelection = new Set();
+    }
   }
-  return hits;
+  const locked = drag.lockedPartId;
+  const intended = new Set();
+  if (locked) {
+    for (const h of tickHits) if (h.partId === locked) intended.add(h.noteId);
+  }
+  if (drag.additive) for (const id of drag.initialSelection) intended.add(id);
+  applySelectionDiff(drag.sheet, intended, drag.noteElCache);
+}
+
+function applySelectionDiff(sheet, intended, cache) {
+  for (const id of [...sheet.selectedNoteIds]) {
+    if (!intended.has(id)) {
+      sheet.selectedNoteIds.delete(id);
+      const e = cache.get(id); if (e) e.classList.remove("selected");
+    }
+  }
+  for (const id of intended) {
+    if (!sheet.selectedNoteIds.has(id)) {
+      sheet.selectedNoteIds.add(id);
+      const e = cache.get(id); if (e) e.classList.add("selected");
+    }
+  }
 }
 
 document.addEventListener("pointermove", (ev) => {
@@ -1364,13 +1416,18 @@ document.addEventListener("pointermove", (ev) => {
   const overThreshold = Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE;
   if (overThreshold) drag.moved = true;
 
-  // empty-pending: morph into rubber-band on first real movement.
+  // empty-pending: morph into global rubber-band on first real movement.
   if (drag.mode === "empty-pending" && overThreshold) {
-    drag.mode = "rubber-band";
+    const sheet = drag.sheet;
+    const anchorX = drag.startX, anchorY = drag.startY;
+    drag = null;
+    startGlobalRubberBand({ sheet, additive: false, anchorX, anchorY });
+    rubberBandTick(ev);
+    return;
   }
 
   if (drag.mode === "rubber-band") {
-    updateRubberBand(drag, ev);
+    rubberBandTick(ev);
     return;
   }
 
@@ -1400,7 +1457,7 @@ document.addEventListener("pointermove", (ev) => {
         changed = true;
       }
     }
-    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-right") {
     let minLen = Infinity, maxEnd = -Infinity;
     for (const g of drag.group) {
@@ -1416,7 +1473,7 @@ document.addEventListener("pointermove", (ev) => {
         changed = true;
       }
     }
-    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-left") {
     let minStart = Infinity, minLen = Infinity;
     for (const g of drag.group) {
@@ -1436,7 +1493,7 @@ document.addEventListener("pointermove", (ev) => {
         changed = true;
       }
     }
-    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   }
 });
 
@@ -1445,15 +1502,9 @@ document.addEventListener("pointerup", () => {
   const d = drag; drag = null;
 
   if (d.mode === "rubber-band") {
-    const hits = commitRubberBand(d);
-    if (d.additive) {
-      for (const id of hits) d.sheet.selectedNoteIds.add(id);
-    } else {
-      d.sheet.selectedNoteIds = hits;
-    }
-    if (hits.size > 0) d.sheet.selectedCell = null;
     if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
     renderAll();
+    persist();
     refreshCellTooltipAtLastPointer();
     return;
   }
@@ -1590,6 +1641,10 @@ function updateNoteCursor(ev) {
 }
 document.addEventListener("pointermove", (ev) => {
   lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+  if (drag && drag.mode === "rubber-band") {
+    hideCellTooltip(); hideCellHover();
+    return;
+  }
   let wrap;
   if (drag && drag.wrap) {
     wrap = drag.wrap;
@@ -1801,6 +1856,34 @@ document.addEventListener("keydown", (ev) => {
     renderAll();
     ev.preventDefault();
   }
+});
+
+// Document-level pointerdown: initiate a global rubber-band when the press
+// lands outside any grid-wrap (page background, between sheets, sheet header,
+// margins). Wrap handlers take precedence and pre-set `drag` for in-wrap presses.
+document.addEventListener("pointerdown", (ev) => {
+  if (drag) return;
+  if (ev.button !== 0) return;
+  const t = ev.target;
+  if (!t || !t.closest) return;
+  if (t.closest(".toolbar")) return;
+  if (t.closest("dialog")) return;
+  if (t.closest(".tabstrip")) return;
+  if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+  if (t.tagName === "BUTTON") return;
+  if (t.closest(".note")) return;
+  if (t.closest(".grid-wrap")) return;
+  const sheetEl = t.closest(".sheet");
+  let sheet;
+  if (sheetEl) {
+    sheet = project.sheets.find(s => s.id === sheetEl.dataset.sheetId);
+    lastFocusedSheetId = sheetEl.dataset.sheetId;
+  } else {
+    sheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+  }
+  if (!sheet) return;
+  startGlobalRubberBand({ sheet, additive: ev.shiftKey, anchorX: ev.clientX, anchorY: ev.clientY });
+  ev.preventDefault();
 });
 
 // click empty area within a sheet deselects that sheet's note
