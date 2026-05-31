@@ -35,6 +35,55 @@
   .spacer { flex: 1; }
   .hint { font-size: 11px; color: #666; padding: 6px 12px; }
 
+  /* Tab strip */
+  .tabstrip {
+    position: sticky; top: 41px; z-index: 19;
+    display: flex; align-items: flex-end; gap: 2px;
+    padding: 6px 12px 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: var(--panel-bg);
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+    margin-bottom: -1px;
+  }
+  .tab:hover { background: #ebebe2; }
+  .tab.active {
+    background: var(--section-bg);
+    color: var(--ink);
+    border-color: var(--line);
+    border-bottom: 1px solid var(--section-bg);
+    font-weight: 600;
+  }
+  .tab .tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tab .tab-playing { color: #d97a3a; font-size: 11px; }
+  .tab-add {
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px dashed var(--line);
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: -1px;
+  }
+  .tab-add:hover { background: var(--panel-bg); color: #222; }
+
   /* Section */
   .sections { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
   .section {
@@ -153,10 +202,10 @@
   <button id="btn-save">Save JSON</button>
   <button id="btn-load">Load JSON</button>
   <input type="file" id="file-load" accept="application/json,.json" class="hidden">
-  <button id="btn-add-section">+ Section</button>
   <span class="spacer"></span>
   <span class="hint">click empty cell = add · click note = select · click selected note = cycle velocity · drag = move/resize · backspace = delete</span>
 </div>
+<div class="tabstrip" id="tabstrip"></div>
 <div class="sections" id="sections"></div>
 <dialog id="confirm-dialog">
   <p id="confirm-message"></p>
@@ -221,6 +270,7 @@ function makeSection(title = "Section") {
 }
 
 const project = { sections: [makeSection("Section 1")] };
+let activeSectionId = project.sections[0].id;
 let lastFocusedSectionId = project.sections[0].id;
 let playingSectionId = null;
 let audioCtx = null;
@@ -286,13 +336,51 @@ function barsPerBand() {
 
 // ---------- Rendering ----------
 const sectionsEl = document.getElementById("sections");
+const tabstripEl = document.getElementById("tabstrip");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
 
+function ensureActiveSection() {
+  if (!project.sections.find(s => s.id === activeSectionId)) {
+    activeSectionId = project.sections[0]?.id ?? null;
+  }
+}
+
+function renderTabs() {
+  tabstripEl.innerHTML = "";
+  project.sections.forEach((s, i) => {
+    const tab = el("div", { class: "tab" + (s.id === activeSectionId ? " active" : "") },
+      el("span", { class: "tab-label" }, s.title || `Section ${i + 1}`),
+      playingSectionId === s.id ? el("span", { class: "tab-playing", title: "Playing" }, "▶") : null,
+    );
+    tab.dataset.sectionId = s.id;
+    tab.addEventListener("click", () => {
+      if (activeSectionId !== s.id) {
+        activeSectionId = s.id;
+        lastFocusedSectionId = s.id;
+        renderAll();
+      }
+    });
+    tabstripEl.appendChild(tab);
+  });
+  const addBtn = el("button", { class: "tab-add", title: "Add section" }, "+");
+  addBtn.addEventListener("click", () => {
+    const s = makeSection(`Section ${project.sections.length + 1}`);
+    project.sections.push(s);
+    activeSectionId = s.id;
+    lastFocusedSectionId = s.id;
+    renderAll();
+  });
+  tabstripEl.appendChild(addBtn);
+}
+
 function renderAll() {
+  ensureActiveSection();
+  renderTabs();
   sectionsEl.innerHTML = "";
-  project.sections.forEach((s, i) => sectionsEl.appendChild(renderSection(s, i)));
+  const idx = project.sections.findIndex(s => s.id === activeSectionId);
+  if (idx >= 0) sectionsEl.appendChild(renderSection(project.sections[idx], idx));
 }
 
 function renderSection(section, idx) {
@@ -303,7 +391,11 @@ function renderSection(section, idx) {
   // Header
   const titleInput = el("input", {
     class: "section-title", type: "text", value: section.title,
-    oninput: (e) => { section.title = e.target.value; },
+    oninput: (e) => {
+      section.title = e.target.value;
+      const tab = tabstripEl.querySelector(`[data-section-id="${section.id}"] .tab-label`);
+      if (tab) tab.textContent = section.title || `Section ${project.sections.indexOf(section) + 1}`;
+    },
   });
   const bpmInput = el("input", {
     type: "number", min: 20, max: 300, value: section.bpm,
@@ -341,7 +433,12 @@ function renderSection(section, idx) {
         if (project.sections.length <= 1) { alert("At least one section is required."); return; }
         if (await confirmAsync("Delete this section and all its bars?")) {
           if (playingSectionId === section.id) stopPlayback();
-          project.sections.splice(idx, 1);
+          const removedIdx = project.sections.findIndex(s => s.id === section.id);
+          project.sections.splice(removedIdx, 1);
+          // pick neighbor as new active
+          const next = project.sections[removedIdx] || project.sections[removedIdx - 1] || project.sections[0];
+          activeSectionId = next ? next.id : null;
+          lastFocusedSectionId = activeSectionId;
           renderAll();
         }
       },
@@ -697,7 +794,8 @@ document.getElementById("file-load").addEventListener("change", (e) => {
         s.partsPanelOpen = false;
       });
       project.sections = obj.sections;
-      lastFocusedSectionId = project.sections[0]?.id ?? null;
+      activeSectionId = project.sections[0]?.id ?? null;
+      lastFocusedSectionId = activeSectionId;
       renderAll();
     } catch (err) {
       alert("Failed to load JSON: " + err.message);
@@ -707,10 +805,6 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   e.target.value = "";
 });
 
-document.getElementById("btn-add-section").addEventListener("click", () => {
-  project.sections.push(makeSection(`Section ${project.sections.length + 1}`));
-  renderAll();
-});
 
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
