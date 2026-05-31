@@ -17,8 +17,8 @@
     --note: #c97a4a;
     --note-sel: #2b6cb0;
     --note-hover: #0aa39b;
-    --section-bg: #ffffff;
-    --section-border: #e2e2dc;
+    --sheet-bg: #ffffff;
+    --sheet-border: #e2e2dc;
     --panel-bg: #f1f0ea;
   }
   * { box-sizing: border-box; }
@@ -66,10 +66,10 @@
   }
   .tab:hover { background: #ebebe2; }
   .tab.active {
-    background: var(--section-bg);
+    background: var(--sheet-bg);
     color: var(--ink);
     border-color: var(--line);
-    border-bottom: 1px solid var(--section-bg);
+    border-bottom: 1px solid var(--sheet-bg);
     font-weight: 600;
   }
   .tab .tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -86,26 +86,26 @@
   }
   .tab-add:hover { background: var(--panel-bg); color: #222; }
 
-  /* Section */
-  .sections { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
-  .section {
-    background: var(--section-bg);
-    border: 1px solid var(--section-border);
+  /* Sheet */
+  .sheets { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+  .sheet {
+    background: var(--sheet-bg);
+    border: 1px solid var(--sheet-border);
     border-radius: 6px;
     padding: 10px;
   }
-  .section-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-  .section-meta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .section-meta-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #555; }
-  .section-meta-row input[type=number] { width: 60px; }
-  .section-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 220px; min-width: 160px; }
-  .section-title:focus, .section-title:hover { border-color: var(--line); background: #fff; }
-  .section-notes { width: 100%; min-height: 36px; resize: vertical; padding: 4px 6px; font-family: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; }
-  .section-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .section-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
-  .section-actions button.play.playing { background: #ffe6c2; }
+  .sheet-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .sheet-meta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .sheet-meta-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #555; }
+  .sheet-meta-row input[type=number] { width: 60px; }
+  .sheet-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 220px; min-width: 160px; }
+  .sheet-title:focus, .sheet-title:hover { border-color: var(--line); background: #fff; }
+  .sheet-notes { width: 100%; min-height: 36px; resize: vertical; padding: 4px 6px; font-family: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; }
+  .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .sheet-actions button.play.playing { background: #ffe6c2; }
 
-  /* Parts panel (per-section) */
+  /* Parts panel (per-sheet) */
   .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
   .parts-panel.hidden { display: none; }
   .parts-panel h4 { margin: 0 0 6px; font-size: 12px; color: #444; }
@@ -322,7 +322,7 @@
   <span class="hint" id="saved-indicator">Not saved yet</span>
 </div>
 <div class="tabstrip" id="tabstrip"></div>
-<div class="sections" id="sections"></div>
+<div class="sheets" id="sheets"></div>
 <dialog id="confirm-dialog">
   <p id="confirm-message"></p>
   <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -376,7 +376,7 @@ const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).sl
 
 function makePart(name = "Part 1", lo = 60, hi = 72) { return { id: uid(), name, lo, hi }; }
 function makeBar() { return { id: uid(), notes: [], partNotes: {} }; }
-function makeSection(title = "Section") {
+function makeSheet(title = "Sheet") {
   return {
     id: uid(), title, notes: "", bpm: 120,
     scale: { root: 0, mode: "major" },
@@ -389,14 +389,14 @@ function makeSection(title = "Section") {
   };
 }
 
-const project = { sections: [makeSection("Section 1")] };
-let activeSectionId = project.sections[0].id;
-let lastFocusedSectionId = project.sections[0].id;
+const project = { sheets: [makeSheet("Sheet 1")] };
+let activeSheetId = project.sheets[0].id;
+let lastFocusedSheetId = project.sheets[0].id;
 
 // ---------- Persistence schema ----------
 // The persisted document is intentionally decoupled from the runtime project
-// model. View/runtime state (selectedNoteId, partsPanelOpen, activeSectionId,
-// playingSectionId, etc.) is never written. Bump SCHEMA_VERSION on breaking
+// model. View/runtime state (selectedNoteId, partsPanelOpen, activeSheetId,
+// playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
 const SCHEMA_VERSION = 1;
 const STORAGE_KEY = "midi-editor:state";
@@ -404,7 +404,7 @@ const STORAGE_KEY = "midi-editor:state";
 function serializeProject(p) {
   return {
     version: SCHEMA_VERSION,
-    sections: p.sections.map(s => ({
+    sheets: p.sheets.map(s => ({
       id: s.id,
       title: s.title,
       notes: s.notes,
@@ -425,11 +425,11 @@ function serializeProject(p) {
 }
 
 function deserializeProject(doc) {
-  if (!doc || !Array.isArray(doc.sections) || doc.sections.length === 0) return null;
+  if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
   if (doc.version !== SCHEMA_VERSION) return null;
-  const sections = doc.sections.map(s => ({
+  const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
-    title: typeof s.title === "string" ? s.title : "Section",
+    title: typeof s.title === "string" ? s.title : "Sheet",
     notes: typeof s.notes === "string" ? s.notes : "",
     bpm: Number.isFinite(s.bpm) ? s.bpm : 120,
     scale: {
@@ -449,7 +449,7 @@ function deserializeProject(doc) {
     partsPanelOpen: false,
     playStart: 0,
   }));
-  return { sections };
+  return { sheets };
 }
 
 let persistTimer = null;
@@ -503,9 +503,9 @@ let restoreError = null;
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
-    project.sections = restored.sections;
-    activeSectionId = project.sections[0].id;
-    lastFocusedSectionId = activeSectionId;
+    project.sheets = restored.sheets;
+    activeSheetId = project.sheets[0].id;
+    lastFocusedSheetId = activeSheetId;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -515,8 +515,8 @@ setTimeout(() => {
   const ts = parseInt(localStorage.getItem(SAVED_AT_KEY) || "", 10);
   updateSavedIndicator(Number.isFinite(ts) ? ts : null);
 }, 0);
-let playingSectionId = null;   // section actively producing sound
-let pausedSectionId = null;    // section frozen mid-playback
+let playingSheetId = null;   // sheet actively producing sound
+let pausedSheetId = null;    // sheet frozen mid-playback
 let pausedStep = 0;            // step at which paused playback is frozen
 let audioCtx = null;
 let activeOscillators = [];
@@ -533,25 +533,25 @@ function pitchName(midi) {
   return PITCH_NAMES[n] + (Math.floor(midi / 12) - 1);
 }
 const DEGREE_NAMES = ["I","♭II","II","♭III","III","IV","♭V","V","♭VI","VI","♭VII","VII"];
-function pitchDisplayName(midi, section, withOctave) {
+function pitchDisplayName(midi, sheet, withOctave) {
   const octave = Math.floor(midi / 12) - 1;
-  if (section.pitchDisplay === "degree") {
-    const offset = (((midi - section.scale.root) % 12) + 12) % 12;
+  if (sheet.pitchDisplay === "degree") {
+    const offset = (((midi - sheet.scale.root) % 12) + 12) % 12;
     return DEGREE_NAMES[offset] + (withOctave ? octave : "");
   }
   const pc = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[pc] + (withOctave ? octave : "");
 }
-function pitchDisplayHtml(midi, section, withOctave) {
-  const base = pitchDisplayName(midi, section, false);
+function pitchDisplayHtml(midi, sheet, withOctave) {
+  const base = pitchDisplayName(midi, sheet, false);
   if (!withOctave) return escapeHtml(base);
   const oct = Math.floor(midi / 12) - 1;
   return escapeHtml(base) + `<span class="oct">${oct}</span>`;
 }
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function inScaleSet(section) {
-  const intervals = SCALES[section.scale.mode] || SCALES.major;
-  return new Set(intervals.map(i => (i + section.scale.root) % 12));
+function inScaleSet(sheet) {
+  const intervals = SCALES[sheet.scale.mode] || SCALES.major;
+  return new Set(intervals.map(i => (i + sheet.scale.root) % 12));
 }
 
 // ---------- DOM helpers ----------
@@ -602,67 +602,67 @@ function barsPerBand() {
 }
 
 // ---------- Rendering ----------
-const sectionsEl = document.getElementById("sections");
+const sheetsEl = document.getElementById("sheets");
 const tabstripEl = document.getElementById("tabstrip");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
 
-function ensureActiveSection() {
-  if (!project.sections.find(s => s.id === activeSectionId)) {
-    activeSectionId = project.sections[0]?.id ?? null;
+function ensureActiveSheet() {
+  if (!project.sheets.find(s => s.id === activeSheetId)) {
+    activeSheetId = project.sheets[0]?.id ?? null;
   }
 }
 
 function renderTabs() {
   tabstripEl.innerHTML = "";
-  project.sections.forEach((s, i) => {
-    const playMark = playingSectionId === s.id
+  project.sheets.forEach((s, i) => {
+    const playMark = playingSheetId === s.id
       ? el("span", { class: "tab-playing", title: "Playing" }, "▶")
-      : (pausedSectionId === s.id ? el("span", { class: "tab-playing", title: "Paused" }, "⏸") : null);
-    const tab = el("div", { class: "tab" + (s.id === activeSectionId ? " active" : "") },
-      el("span", { class: "tab-label" }, s.title || `Section ${i + 1}`),
+      : (pausedSheetId === s.id ? el("span", { class: "tab-playing", title: "Paused" }, "⏸") : null);
+    const tab = el("div", { class: "tab" + (s.id === activeSheetId ? " active" : "") },
+      el("span", { class: "tab-label" }, s.title || `Sheet ${i + 1}`),
       playMark,
     );
-    tab.dataset.sectionId = s.id;
+    tab.dataset.sheetId = s.id;
     tab.addEventListener("click", () => {
-      if (activeSectionId !== s.id) {
-        activeSectionId = s.id;
-        lastFocusedSectionId = s.id;
+      if (activeSheetId !== s.id) {
+        activeSheetId = s.id;
+        lastFocusedSheetId = s.id;
         renderAll();
       }
     });
     tabstripEl.appendChild(tab);
   });
-  const addBtn = el("button", { class: "tab-add", title: "Add section" }, "+");
+  const addBtn = el("button", { class: "tab-add", title: "Add sheet" }, "+");
   addBtn.addEventListener("click", () => {
-    const s = makeSection(`Section ${project.sections.length + 1}`);
-    project.sections.push(s);
-    activeSectionId = s.id;
-    lastFocusedSectionId = s.id;
+    const s = makeSheet(`Sheet ${project.sheets.length + 1}`);
+    project.sheets.push(s);
+    activeSheetId = s.id;
+    lastFocusedSheetId = s.id;
     renderAll();
   });
   tabstripEl.appendChild(addBtn);
 }
 
 function renderAll() {
-  ensureActiveSection();
+  ensureActiveSheet();
   renderTabs();
-  sectionsEl.innerHTML = "";
-  const idx = project.sections.findIndex(s => s.id === activeSectionId);
+  sheetsEl.innerHTML = "";
+  const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
-    sectionsEl.appendChild(renderSection(project.sections[idx], idx));
-    updatePlayheadDom(project.sections[idx]);
+    sheetsEl.appendChild(renderSheet(project.sheets[idx], idx));
+    updatePlayheadDom(project.sheets[idx]);
   }
   persist();
 }
 
-// Position the ruler marker(s) at section.playStart and clear any grid lines.
-function updatePlayheadDom(section) {
-  const absStep = section.playStart || 0;
+// Position the ruler marker(s) at sheet.playStart and clear any grid lines.
+function updatePlayheadDom(sheet) {
+  const absStep = sheet.playStart || 0;
   const startBar = Math.floor(absStep / STEPS_PER_BAR);
   const startStepInBar = absStep % STEPS_PER_BAR;
-  const isPaused = pausedSectionId === section.id;
+  const isPaused = pausedSheetId === sheet.id;
   const liveStep = isPaused ? pausedStep : -1;
   const liveBar = isPaused ? Math.floor(liveStep / STEPS_PER_BAR) : -1;
   const liveStepInBar = isPaused ? liveStep - liveBar * STEPS_PER_BAR : 0;
@@ -703,14 +703,14 @@ function updatePlayheadDom(section) {
 }
 
 // Move playhead during playback: live marker follows current position,
-// start marker remains visible (translucent) at section.playStart, plus a
+// start marker remains visible (translucent) at sheet.playStart, plus a
 // line in the currently-playing bar's grids (one per part).
-function updatePlaybackPlayhead(absStep, section) {
+function updatePlaybackPlayhead(absStep, sheet) {
   const liveBar = Math.floor(absStep / STEPS_PER_BAR);
   const liveStepInBar = absStep - liveBar * STEPS_PER_BAR;
   const cellW = getCellW();
   const liveX = liveStepInBar * cellW;
-  const startStep = section ? (section.playStart || 0) : -1;
+  const startStep = sheet ? (sheet.playStart || 0) : -1;
   const startBar = Math.floor(startStep / STEPS_PER_BAR);
   const startStepInBar = startStep - startBar * STEPS_PER_BAR;
   document.querySelectorAll(".ruler-track").forEach(track => {
@@ -748,34 +748,34 @@ function updatePlaybackPlayhead(absStep, section) {
   });
 }
 
-function renderSection(section, idx) {
-  const sectionEl = el("div", { class: "section" });
-  sectionEl.dataset.sectionId = section.id;
-  sectionEl.addEventListener("pointerdown", () => { lastFocusedSectionId = section.id; }, true);
+function renderSheet(sheet, idx) {
+  const sheetEl = el("div", { class: "sheet" });
+  sheetEl.dataset.sheetId = sheet.id;
+  sheetEl.addEventListener("pointerdown", () => { lastFocusedSheetId = sheet.id; }, true);
 
   // Header
   const titleInput = el("input", {
-    class: "section-title", type: "text", value: section.title,
+    class: "sheet-title", type: "text", value: sheet.title,
     oninput: (e) => {
-      section.title = e.target.value;
-      const tab = tabstripEl.querySelector(`[data-section-id="${section.id}"] .tab-label`);
-      if (tab) tab.textContent = section.title || `Section ${project.sections.indexOf(section) + 1}`;
+      sheet.title = e.target.value;
+      const tab = tabstripEl.querySelector(`[data-sheet-id="${sheet.id}"] .tab-label`);
+      if (tab) tab.textContent = sheet.title || `Sheet ${project.sheets.indexOf(sheet) + 1}`;
       persist();
     },
   });
   const bpmInput = el("input", {
-    type: "number", min: 20, max: 300, value: section.bpm,
-    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) section.bpm = v; persist(); },
+    type: "number", min: 20, max: 300, value: sheet.bpm,
+    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) sheet.bpm = v; persist(); },
   });
-  const rootSelect = el("select", { onchange: (e) => { section.scale.root = parseInt(e.target.value, 10); renderAll(); } });
-  PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === section.scale.root }, n)));
-  const modeSelect = el("select", { onchange: (e) => { section.scale.mode = e.target.value; renderAll(); } });
-  SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === section.scale.mode }, label)));
-  const displaySelect = el("select", { onchange: (e) => { section.pitchDisplay = e.target.value; renderAll(); } });
+  const rootSelect = el("select", { onchange: (e) => { sheet.scale.root = parseInt(e.target.value, 10); renderAll(); } });
+  PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === sheet.scale.root }, n)));
+  const modeSelect = el("select", { onchange: (e) => { sheet.scale.mode = e.target.value; renderAll(); } });
+  SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === sheet.scale.mode }, label)));
+  const displaySelect = el("select", { onchange: (e) => { sheet.pitchDisplay = e.target.value; renderAll(); } });
   [["note","Note"],["degree","Degree"]].forEach(([v,label]) =>
-    displaySelect.appendChild(el("option", { value: v, selected: v === (section.pitchDisplay || "note") }, label)));
+    displaySelect.appendChild(el("option", { value: v, selected: v === (sheet.pitchDisplay || "note") }, label)));
 
-  const metaRow = el("div", { class: "section-meta-row" },
+  const metaRow = el("div", { class: "sheet-meta-row" },
     titleInput,
     el("label", {}, "BPM ", bpmInput),
     el("label", {}, "Root ", rootSelect),
@@ -784,96 +784,96 @@ function renderSection(section, idx) {
   );
 
   const notesArea = el("textarea", {
-    class: "section-notes", placeholder: "Notes for this section…",
-    oninput: (e) => { section.notes = e.target.value; persist(); },
-  }, section.notes || "");
+    class: "sheet-notes", placeholder: "Notes for this sheet…",
+    oninput: (e) => { sheet.notes = e.target.value; persist(); },
+  }, sheet.notes || "");
 
-  const isPlayingThis = playingSectionId === section.id;
-  const isPausedThis = pausedSectionId === section.id;
+  const isPlayingThis = playingSheetId === sheet.id;
+  const isPausedThis = pausedSheetId === sheet.id;
   const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
   const playBtn = el("button", { class: "play" + (isPlayingThis ? " playing" : "") }, playLabel);
   playBtn.addEventListener("click", () => {
-    if (playingSectionId === section.id) pausePlayback();
-    else if (pausedSectionId === section.id) resumePlayback(section);
-    else playSection(section);
+    if (playingSheetId === sheet.id) pausePlayback();
+    else if (pausedSheetId === sheet.id) resumePlayback(sheet);
+    else playSheet(sheet);
   });
   const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis }, "■ Stop");
   stopBtn.addEventListener("click", () => {
-    if (playingSectionId === section.id || pausedSectionId === section.id) stopPlayback();
+    if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
   });
 
-  const actions = el("div", { class: "section-actions" },
-    el("button", { onclick: () => { section.partsPanelOpen = !section.partsPanelOpen; renderAll(); } }, "Parts…"),
-    el("button", { onclick: () => { section.bars.push(makeBar()); renderAll(); } }, "+ Bar"),
+  const actions = el("div", { class: "sheet-actions" },
+    el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
+    el("button", { onclick: () => { sheet.bars.push(makeBar()); renderAll(); } }, "+ Bar"),
     playBtn, stopBtn,
-    el("button", { onclick: () => exportSectionMidi(section) }, "Export MIDI"),
+    el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
     el("button", {
       onclick: async () => {
-        if (project.sections.length <= 1) { alert("At least one section is required."); return; }
-        if (await confirmAsync("Delete this section and all its bars?")) {
-          if (playingSectionId === section.id) stopPlayback();
-          const removedIdx = project.sections.findIndex(s => s.id === section.id);
-          project.sections.splice(removedIdx, 1);
+        if (project.sheets.length <= 1) { alert("At least one sheet is required."); return; }
+        if (await confirmAsync("Delete this sheet and all its bars?")) {
+          if (playingSheetId === sheet.id) stopPlayback();
+          const removedIdx = project.sheets.findIndex(s => s.id === sheet.id);
+          project.sheets.splice(removedIdx, 1);
           // pick neighbor as new active
-          const next = project.sections[removedIdx] || project.sections[removedIdx - 1] || project.sections[0];
-          activeSectionId = next ? next.id : null;
-          lastFocusedSectionId = activeSectionId;
+          const next = project.sheets[removedIdx] || project.sheets[removedIdx - 1] || project.sheets[0];
+          activeSheetId = next ? next.id : null;
+          lastFocusedSheetId = activeSheetId;
           renderAll();
         }
       },
-    }, "✕ Section"),
+    }, "✕ Sheet"),
   );
 
-  const header = el("div", { class: "section-header" }, metaRow, notesArea, actions);
-  sectionEl.appendChild(header);
+  const header = el("div", { class: "sheet-header" }, metaRow, notesArea, actions);
+  sheetEl.appendChild(header);
 
   // Parts panel
-  if (section.partsPanelOpen) sectionEl.appendChild(renderPartsPanel(section));
+  if (sheet.partsPanelOpen) sheetEl.appendChild(renderPartsPanel(sheet));
 
   // Bands
-  sectionEl.appendChild(renderBands(section));
-  return sectionEl;
+  sheetEl.appendChild(renderBands(sheet));
+  return sheetEl;
 }
 
-function renderPartsPanel(section) {
+function renderPartsPanel(sheet) {
   const panel = el("div", { class: "parts-panel" });
-  panel.appendChild(el("h4", {}, "Parts for this section (visible pitch range; hidden notes still play and export)"));
-  section.parts.forEach((p, idx) => {
+  panel.appendChild(el("h4", {}, "Parts for this sheet (visible pitch range; hidden notes still play and export)"));
+  sheet.parts.forEach((p, idx) => {
     const row = el("div", { class: "part-row" },
-      el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(section.id, p.id, p.name); } }),
+      el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(sheet.id, p.id, p.name); } }),
       el("div", { class: "range-controls" },
         el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
-        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, section),
+        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
         el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
         el("span", { class: "range-sep" }, "–"),
         el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
-        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, section),
+        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, sheet),
         el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
       ),
-      el("button", { onclick: () => movePart(section, idx, -1) }, "▲"),
-      el("button", { onclick: () => movePart(section, idx, +1) }, "▼"),
-      el("button", { disabled: section.parts.length <= 1, onclick: () => deletePart(section, idx) }, "✕"),
+      el("button", { onclick: () => movePart(sheet, idx, -1) }, "▲"),
+      el("button", { onclick: () => movePart(sheet, idx, +1) }, "▼"),
+      el("button", { disabled: sheet.parts.length <= 1, onclick: () => deletePart(sheet, idx) }, "✕"),
     );
     panel.appendChild(row);
   });
   panel.appendChild(el("button", {
-    onclick: () => { section.parts.push(makePart(`Part ${section.parts.length + 1}`)); renderAll(); },
+    onclick: () => { sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`)); renderAll(); },
   }, "+ Add Part"));
   return panel;
 }
 
-function makePitchSelect(min, max, value, onChange, section) {
+function makePitchSelect(min, max, value, onChange, sheet) {
   const sel = el("select");
   for (let m = max; m >= min; m--) {
-    const label = section ? pitchDisplayName(m, section, true) : pitchName(m);
+    const label = sheet ? pitchDisplayName(m, sheet, true) : pitchName(m);
     sel.appendChild(el("option", { value: String(m), selected: m === value }, label));
   }
   sel.addEventListener("change", (e) => onChange(parseInt(e.target.value, 10)));
   return sel;
 }
 
-function updatePartSideLabels(sectionId, partId, name) {
-  document.querySelectorAll(`[data-section-id="${sectionId}"] [data-part-id="${partId}"] .part-side`).forEach(e => e.textContent = name);
+function updatePartSideLabels(sheetId, partId, name) {
+  document.querySelectorAll(`[data-sheet-id="${sheetId}"] [data-part-id="${partId}"] .part-side`).forEach(e => e.textContent = name);
 }
 
 function stepRange(part, which, delta) {
@@ -889,36 +889,36 @@ function stepRange(part, which, delta) {
   renderAll();
 }
 
-function movePart(section, idx, dir) {
+function movePart(sheet, idx, dir) {
   const j = idx + dir;
-  if (j < 0 || j >= section.parts.length) return;
-  const [p] = section.parts.splice(idx, 1);
-  section.parts.splice(j, 0, p);
+  if (j < 0 || j >= sheet.parts.length) return;
+  const [p] = sheet.parts.splice(idx, 1);
+  sheet.parts.splice(j, 0, p);
   renderAll();
 }
 
-async function deletePart(section, idx) {
-  if (section.parts.length <= 1) return;
-  const part = section.parts[idx];
+async function deletePart(sheet, idx) {
+  if (sheet.parts.length <= 1) return;
+  const part = sheet.parts[idx];
   let count = 0;
-  for (const b of section.bars) for (const n of b.notes) if (n.partId === part.id) count++;
+  for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) count++;
   if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
-  section.parts.splice(idx, 1);
-  for (const b of section.bars) b.notes = b.notes.filter(n => n.partId !== part.id);
+  sheet.parts.splice(idx, 1);
+  for (const b of sheet.bars) b.notes = b.notes.filter(n => n.partId !== part.id);
   renderAll();
 }
 
-function renderBands(section) {
+function renderBands(sheet) {
   const bandsEl = el("div", { class: "bands" });
-  const N = Math.max(1, Math.min(barsPerBand(), section.bars.length));
-  for (let bandStart = 0; bandStart < section.bars.length; bandStart += N) {
-    const bandBars = section.bars.slice(bandStart, bandStart + N);
-    bandsEl.appendChild(renderBand(section, bandStart, bandBars));
+  const N = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
+  for (let bandStart = 0; bandStart < sheet.bars.length; bandStart += N) {
+    const bandBars = sheet.bars.slice(bandStart, bandStart + N);
+    bandsEl.appendChild(renderBand(sheet, bandStart, bandBars));
   }
   return bandsEl;
 }
 
-function renderBand(section, bandStart, bandBars) {
+function renderBand(sheet, bandStart, bandBars) {
   const cellW = getCellW();
   const cellH = getCellH();
   const bandEl = el("div", { class: "band" });
@@ -928,14 +928,14 @@ function renderBand(section, bandStart, bandBars) {
   numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
   bandBars.forEach((bar, i) => {
     const span = el("span", {}, `Bar ${bandStart + i + 1}`);
-    if (section.bars.length > 1) {
+    if (sheet.bars.length > 1) {
       const delBtn = el("button", {
         style: "margin-left:6px; font-size:10px; padding:0 4px; cursor:pointer;",
         onclick: async () => {
           if (await confirmAsync("Delete this bar?")) {
             const idx = bandStart + i;
-            section.bars.splice(idx, 1);
-            if (section.bars.length === 0) section.bars.push(makeBar());
+            sheet.bars.splice(idx, 1);
+            if (sheet.bars.length === 0) sheet.bars.push(makeBar());
             renderAll();
           }
         },
@@ -967,16 +967,16 @@ function renderBand(section, bandStart, bandBars) {
       if (step < 0) step = 0;
       if (step > STEPS_PER_BAR - 1) step = STEPS_PER_BAR - 1;
       const newAbs = absBarIdx * STEPS_PER_BAR + step;
-      section.playStart = newAbs;
-      if (playingSectionId === section.id) {
+      sheet.playStart = newAbs;
+      if (playingSheetId === sheet.id) {
         // Seek mid-playback: restart playback from the new step.
-        playSection(section, newAbs);
-      } else if (pausedSectionId === section.id) {
+        playSheet(sheet, newAbs);
+      } else if (pausedSheetId === sheet.id) {
         // While paused, keep the freeze/resume point aligned with the cursor.
         pausedStep = newAbs;
-        updatePlayheadDom(section);
+        updatePlayheadDom(sheet);
       } else {
-        updatePlayheadDom(section);
+        updatePlayheadDom(sheet);
       }
     });
     rulerBar.appendChild(track);
@@ -985,8 +985,8 @@ function renderBand(section, bandStart, bandBars) {
   bandEl.appendChild(rulerRow);
 
   // Rows: one per part
-  const scaleSet = inScaleSet(section);
-  section.parts.forEach(part => {
+  const scaleSet = inScaleSet(sheet);
+  sheet.parts.forEach(part => {
     const partRow = el("div", { class: "band-row" });
     partRow.dataset.partId = part.id;
     const side = el("div", { class: "part-side" }, part.name);
@@ -1022,15 +1022,15 @@ function renderBand(section, bandStart, bandBars) {
         const pitch = part.hi - i;
         const pc = ((pitch % 12) + 12) % 12;
         const rowEl = el("div", { class: "grid-row" });
-        if (pc === section.scale.root) rowEl.classList.add("in-scale-root");
+        if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
         else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
         wrap.appendChild(rowEl);
 
         const isBoundary = pitch === part.lo || pitch === part.hi;
         const inScale = scaleSet.has(pc);
         let labelHtml = "";
-        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, section, true);
-        else if (inScale) labelHtml = pitchDisplayHtml(pitch, section, false);
+        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
+        else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
         const labelDiv = el("div", { class: "label-row" });
         labelDiv.innerHTML = labelHtml;
         labelCol.appendChild(labelDiv);
@@ -1040,7 +1040,7 @@ function renderBand(section, bandStart, bandBars) {
 
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
-        const noteEl = el("div", { class: "note" + (n.id === section.selectedNoteId ? " selected" : "") });
+        const noteEl = el("div", { class: "note" + (n.id === sheet.selectedNoteId ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
         noteEl.dataset.vel = String(n.vel);
         noteEl.dataset.len = String(n.length);
@@ -1055,7 +1055,7 @@ function renderBand(section, bandStart, bandBars) {
       const playLine = el("div", { class: "playhead-line" });
       wrap.appendChild(playLine);
 
-      wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, section, part, wrap, bar));
+      wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap, bar));
       cell.appendChild(gridRow);
       strip.appendChild(cell);
     });
@@ -1072,9 +1072,9 @@ const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
 let drag = null;
 
-function handlePointerDown(ev, section, part, wrap, bar) {
+function handlePointerDown(ev, sheet, part, wrap, bar) {
   if (ev.button !== 0) return;
-  lastFocusedSectionId = section.id;
+  lastFocusedSheetId = sheet.id;
   const rect = wrap.getBoundingClientRect();
   const cellW = getCellW();
   const cellH = getCellH();
@@ -1098,15 +1098,15 @@ function handlePointerDown(ev, section, part, wrap, bar) {
     let mode = "move";
     if (relLeft <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
     else if (relRight <= RESIZE_EDGE) mode = "resize-right";
-    const wasSelected = section.selectedNoteId === note.id;
+    const wasSelected = sheet.selectedNoteId === note.id;
     if (!wasSelected) {
-      const sectionEl = wrap.closest(".section");
-      if (sectionEl) sectionEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+      const sheetEl = wrap.closest(".sheet");
+      if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
       target.classList.add("selected");
-      section.selectedNoteId = note.id;
+      sheet.selectedNoteId = note.id;
     }
     drag = {
-      mode, note, bar: noteBar, part, section, wrap,
+      mode, note, bar: noteBar, part, sheet, wrap,
       startX: ev.clientX,
       startY: ev.clientY,
       origStart: note.start,
@@ -1124,14 +1124,14 @@ function handlePointerDown(ev, section, part, wrap, bar) {
   // Create note
   const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
   if (existing) return;
-  // clear existing selection visuals within this section
-  if (section.selectedNoteId) {
-    const sectionEl = wrap.closest(".section");
-    if (sectionEl) sectionEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+  // clear existing selection visuals within this sheet
+  if (sheet.selectedNoteId) {
+    const sheetEl = wrap.closest(".sheet");
+    if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
   }
   const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
   bar.notes.push(note);
-  section.selectedNoteId = note.id;
+  sheet.selectedNoteId = note.id;
 
   const noteEl = document.createElement("div");
   noteEl.className = "note selected";
@@ -1143,7 +1143,7 @@ function handlePointerDown(ev, section, part, wrap, bar) {
   wrap.appendChild(noteEl);
 
   drag = {
-    mode: "move", note, bar, part, section, wrap,
+    mode: "move", note, bar, part, sheet, wrap,
     startX: ev.clientX,
     startY: ev.clientY,
     origStart: note.start,
@@ -1333,7 +1333,7 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-  const sec = project.sections.find(s => s.id === lastFocusedSectionId) || project.sections[0];
+  const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
   if (!sec || !sec.selectedNoteId) return;
   for (const b of sec.bars) {
     const i = b.notes.findIndex(n => n.id === sec.selectedNoteId);
@@ -1347,13 +1347,13 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-// click empty area within a section deselects that section's note
-sectionsEl.addEventListener("pointerdown", (ev) => {
+// click empty area within a sheet deselects that sheet's note
+sheetsEl.addEventListener("pointerdown", (ev) => {
   if (ev.target.closest(".note") || ev.target.closest(".grid-wrap")) return;
-  const sec = ev.target.closest(".section");
+  const sec = ev.target.closest(".sheet");
   if (!sec) return;
-  const id = sec.dataset.sectionId;
-  const s = project.sections.find(x => x.id === id);
+  const id = sec.dataset.sheetId;
+  const s = project.sheets.find(x => x.id === id);
   if (s && s.selectedNoteId) {
     s.selectedNoteId = null;
     renderAll();
@@ -1378,9 +1378,9 @@ document.getElementById("file-load").addEventListener("change", (e) => {
       }
       const obj = deserializeProject(parsed);
       if (!obj) throw new Error("Invalid format");
-      project.sections = obj.sections;
-      activeSectionId = project.sections[0]?.id ?? null;
-      lastFocusedSectionId = activeSectionId;
+      project.sheets = obj.sheets;
+      activeSheetId = project.sheets[0]?.id ?? null;
+      lastFocusedSheetId = activeSheetId;
       renderAll();
     } catch (err) {
       alert("Failed to load JSON: " + err.message);
@@ -1399,7 +1399,7 @@ function triggerDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ---------- Playback (per section, exclusive) ----------
+// ---------- Playback (per sheet, exclusive) ----------
 function ensureAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === "suspended") audioCtx.resume();
@@ -1413,10 +1413,10 @@ function teardownPlayback() {
 }
 
 function stopPlayback() {
-  // Full stop: clear playing and paused state. section.playStart unchanged.
+  // Full stop: clear playing and paused state. sheet.playStart unchanged.
   teardownPlayback();
-  playingSectionId = null;
-  pausedSectionId = null;
+  playingSheetId = null;
+  pausedSheetId = null;
   pausedStep = 0;
   renderAll();
 }
@@ -1424,22 +1424,22 @@ function stopPlayback() {
 const playbackEndedNaturally = stopPlayback;
 
 function pausePlayback() {
-  if (!playingSectionId || !audioCtx) return;
+  if (!playingSheetId || !audioCtx) return;
   const elapsed = audioCtx.currentTime - playbackT0;
   const step = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
   const clamped = Math.max(0, Math.min(playbackTotalSteps - 0.0001, step));
   teardownPlayback();
-  pausedSectionId = playingSectionId;
+  pausedSheetId = playingSheetId;
   pausedStep = clamped;
-  playingSectionId = null;
+  playingSheetId = null;
   renderAll();
 }
 
-function resumePlayback(section) {
+function resumePlayback(sheet) {
   const fromStep = Math.floor(pausedStep);
-  pausedSectionId = null;
+  pausedSheetId = null;
   pausedStep = 0;
-  playSection(section, fromStep);
+  playSheet(sheet, fromStep);
 }
 
 function scheduleNote(when, durSec, midi, vel) {
@@ -1459,22 +1459,22 @@ function scheduleNote(when, durSec, midi, vel) {
   activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
 }
 
-function playSection(section, fromStep) {
+function playSheet(sheet, fromStep) {
   ensureAudio();
   // exclusive: stop any current playback (playing or paused)
   teardownPlayback();
-  pausedSectionId = null;
+  pausedSheetId = null;
   pausedStep = 0;
-  playingSectionId = section.id;
-  const secPerStep = 60 / section.bpm / 4;
-  const totalSteps = section.bars.length * STEPS_PER_BAR;
-  const wantedStart = (fromStep != null) ? fromStep : (section.playStart || 0);
+  playingSheetId = sheet.id;
+  const secPerStep = 60 / sheet.bpm / 4;
+  const totalSteps = sheet.bars.length * STEPS_PER_BAR;
+  const wantedStart = (fromStep != null) ? fromStep : (sheet.playStart || 0);
   const startStep = Math.max(0, Math.min(totalSteps - 1, wantedStart));
   // Wrap to 0 if cursor is past the end
   const effectiveStart = startStep >= totalSteps ? 0 : startStep;
   const t0 = audioCtx.currentTime + 0.05;
   let lastEnd = t0;
-  section.bars.forEach((bar, bi) => {
+  sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
       const absStart = bi * STEPS_PER_BAR + n.start;
       if (absStart < effectiveStart) continue;
@@ -1491,20 +1491,20 @@ function playSection(section, fromStep) {
   const endStepTime = t0 + (totalSteps - effectiveStart) * secPerStep;
   const endTime = Math.max(lastEnd, endStepTime);
   const totalMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
-  const myId = section.id;
-  playStopTimer = setTimeout(() => { if (playingSectionId === myId) playbackEndedNaturally(); }, totalMs);
+  const myId = sheet.id;
+  playStopTimer = setTimeout(() => { if (playingSheetId === myId) playbackEndedNaturally(); }, totalMs);
 
   const tick = () => {
-    if (playingSectionId !== section.id || !audioCtx) return;
-    // Only animate DOM when the playing section is the visible tab; the
+    if (playingSheetId !== sheet.id || !audioCtx) return;
+    // Only animate DOM when the playing sheet is the visible tab; the
     // other tab's DOM has the same selectors and would otherwise animate too.
-    if (activeSectionId === section.id) {
+    if (activeSheetId === sheet.id) {
       const elapsed = audioCtx.currentTime - playbackT0;
       const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
       if (cur >= playbackTotalSteps) {
-        updatePlaybackPlayhead(playbackTotalSteps - 0.0001, section);
+        updatePlaybackPlayhead(playbackTotalSteps - 0.0001, sheet);
       } else {
-        updatePlaybackPlayhead(cur, section);
+        updatePlaybackPlayhead(cur, sheet);
       }
     }
     playbackRaf = requestAnimationFrame(tick);
@@ -1513,7 +1513,7 @@ function playSection(section, fromStep) {
   playbackRaf = requestAnimationFrame(tick);
 }
 
-// ---------- MIDI export (per section) ----------
+// ---------- MIDI export (per sheet) ----------
 function writeVarLen(n) {
   const bytes = [n & 0x7f];
   n >>= 7;
@@ -1522,15 +1522,15 @@ function writeVarLen(n) {
 }
 function strBytes(s) { return Array.from(new TextEncoder().encode(s)); }
 
-function buildSectionTrack(section, part, isFirstTrack) {
+function buildSheetTrack(sheet, part, isFirstTrack) {
   const events = [];
   if (isFirstTrack) {
-    const mpq = Math.round(60000000 / section.bpm);
+    const mpq = Math.round(60000000 / sheet.bpm);
     events.push({ tick: 0, order: 0, bytes: [0xff, 0x51, 0x03, (mpq >> 16) & 0xff, (mpq >> 8) & 0xff, mpq & 0xff] });
   }
   const nameBytes = strBytes(part.name);
   events.push({ tick: 0, order: 0, bytes: [0xff, 0x03, nameBytes.length, ...nameBytes] });
-  section.bars.forEach((bar, bi) => {
+  sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
       if (n.partId !== part.id) continue;
       const onTick = (bi * STEPS_PER_BAR + n.start) * TICKS_PER_STEP;
@@ -1552,8 +1552,8 @@ function buildSectionTrack(section, part, isFirstTrack) {
   return out;
 }
 
-function exportSectionMidi(section) {
-  const tracks = section.parts.map((p, i) => buildSectionTrack(section, p, i === 0));
+function exportSheetMidi(sheet) {
+  const tracks = sheet.parts.map((p, i) => buildSheetTrack(sheet, p, i === 0));
   const numTracks = tracks.length;
   const header = [
     0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1,
@@ -1568,7 +1568,7 @@ function exportSectionMidi(section) {
     bytes.push(...t);
   }
   const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
-  const safe = (section.title || "section").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 40) || "section";
+  const safe = (sheet.title || "sheet").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 40) || "sheet";
   triggerDownload(blob, `${safe}.mid`);
 }
 
