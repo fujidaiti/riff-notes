@@ -289,6 +289,46 @@ function makeSection(title = "Section") {
 const project = { sections: [makeSection("Section 1")] };
 let activeSectionId = project.sections[0].id;
 let lastFocusedSectionId = project.sections[0].id;
+
+// ---------- Local persistence ----------
+const STORAGE_KEY = "midi-editor:state";
+let persistTimer = null;
+function persist() {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ project, activeSectionId }));
+    } catch {}
+  }, 300);
+}
+function normalizeProject(obj) {
+  if (!obj || !Array.isArray(obj.sections) || obj.sections.length === 0) return null;
+  obj.sections.forEach(s => {
+    s.bpm = s.bpm ?? 120;
+    s.scale = s.scale ?? { root: 0, mode: "major" };
+    s.parts = Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")];
+    s.bars = Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()];
+    s.bars.forEach(b => { b.notes = Array.isArray(b.notes) ? b.notes : []; b.partNotes = b.partNotes || {}; });
+    s.selectedNoteId = null;
+    s.partsPanelOpen = false;
+  });
+  return obj;
+}
+(function restoreFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    const proj = normalizeProject(saved && saved.project);
+    if (!proj) return;
+    project.sections = proj.sections;
+    activeSectionId = saved.activeSectionId && project.sections.some(s => s.id === saved.activeSectionId)
+      ? saved.activeSectionId
+      : project.sections[0].id;
+    lastFocusedSectionId = activeSectionId;
+  } catch {}
+})();
 let playingSectionId = null;
 let audioCtx = null;
 let activeOscillators = [];
@@ -398,6 +438,7 @@ function renderAll() {
   sectionsEl.innerHTML = "";
   const idx = project.sections.findIndex(s => s.id === activeSectionId);
   if (idx >= 0) sectionsEl.appendChild(renderSection(project.sections[idx], idx));
+  persist();
 }
 
 function renderSection(section, idx) {
@@ -412,11 +453,12 @@ function renderSection(section, idx) {
       section.title = e.target.value;
       const tab = tabstripEl.querySelector(`[data-section-id="${section.id}"] .tab-label`);
       if (tab) tab.textContent = section.title || `Section ${project.sections.indexOf(section) + 1}`;
+      persist();
     },
   });
   const bpmInput = el("input", {
     type: "number", min: 20, max: 300, value: section.bpm,
-    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) section.bpm = v; },
+    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) section.bpm = v; persist(); },
   });
   const rootSelect = el("select", { onchange: (e) => { section.scale.root = parseInt(e.target.value, 10); renderAll(); } });
   PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === section.scale.root }, n)));
@@ -432,7 +474,7 @@ function renderSection(section, idx) {
 
   const notesArea = el("textarea", {
     class: "section-notes", placeholder: "Notes for this section…",
-    oninput: (e) => { section.notes = e.target.value; },
+    oninput: (e) => { section.notes = e.target.value; persist(); },
   }, section.notes || "");
 
   const playBtn = el("button", { class: "play" + (playingSectionId === section.id ? " playing" : "") }, "▶ Play");
@@ -604,6 +646,7 @@ function renderBand(section, bandStart, bandBars) {
       noteInput.addEventListener("input", (e) => {
         if (!bar.partNotes) bar.partNotes = {};
         bar.partNotes[part.id] = e.target.value;
+        persist();
       });
       cell.appendChild(noteInput);
       const wrap = el("div", { class: "grid-wrap" });
@@ -815,17 +858,8 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   const fr = new FileReader();
   fr.onload = () => {
     try {
-      const obj = JSON.parse(fr.result);
-      if (!obj || !Array.isArray(obj.sections)) throw new Error("Invalid format");
-      // basic shape normalization for older saves
-      obj.sections.forEach(s => {
-        s.bpm = s.bpm ?? 120;
-        s.scale = s.scale ?? { root: 0, mode: "major" };
-        s.parts = Array.isArray(s.parts) ? s.parts : [makePart("Part 1")];
-        s.bars = Array.isArray(s.bars) ? s.bars : [makeBar()];
-        s.selectedNoteId = null;
-        s.partsPanelOpen = false;
-      });
+      const obj = normalizeProject(JSON.parse(fr.result));
+      if (!obj) throw new Error("Invalid format");
       project.sections = obj.sections;
       activeSectionId = project.sections[0]?.id ?? null;
       lastFocusedSectionId = activeSectionId;
