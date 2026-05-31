@@ -1202,6 +1202,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       moved: false,
       isExisting: true,
       wasSoleSelection,
+      wasInMultiSelection: wasInSelection && prevSize > 1,
     };
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
@@ -1452,11 +1453,14 @@ document.addEventListener("pointerup", () => {
   if (!d.moved && d.isExisting) {
     if (d.wasSoleSelection) {
       d.primaryNote.vel = (d.primaryNote.vel + 1) % VEL_LABELS.length;
-    } else {
-      // Plain click on a note that was part of a multi-selection
-      // (or a fresh select on an unselected note): collapse to it.
-      setSingleSelection(d.sheet, d.primaryNote.id);
+    } else if (d.wasInMultiSelection) {
+      // Click on a member of a multi-selection: advance every selected
+      // note's velocity independently — selection is preserved.
+      for (const g of d.group) {
+        g.note.vel = (g.note.vel + 1) % VEL_LABELS.length;
+      }
     }
+    // else: fresh single-note selection — no cycle this click.
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
