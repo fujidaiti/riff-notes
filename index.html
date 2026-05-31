@@ -351,6 +351,7 @@ function makeSection(title = "Section") {
   return {
     id: uid(), title, notes: "", bpm: 120,
     scale: { root: 0, mode: "major" },
+    pitchDisplay: "note",
     parts: [makePart("Part 1")],
     bars: [makeBar()],
     selectedNoteId: null,
@@ -380,6 +381,7 @@ function serializeProject(p) {
       notes: s.notes,
       bpm: s.bpm,
       scale: { root: s.scale.root, mode: s.scale.mode },
+      pitchDisplay: s.pitchDisplay || "note",
       parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi })),
       bars: s.bars.map(b => ({
         id: b.id,
@@ -405,6 +407,7 @@ function deserializeProject(doc) {
       root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
       mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
     },
+    pitchDisplay: s.pitchDisplay === "degree" ? "degree" : "note",
     parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
       .map(pt => ({ id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72 })),
     bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
@@ -499,6 +502,16 @@ let playbackTotalSteps = 0;
 function pitchName(midi) {
   const n = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[n] + (Math.floor(midi / 12) - 1);
+}
+const DEGREE_NAMES = ["I","♭II","II","♭III","III","IV","♭V","V","♭VI","VI","♭VII","VII"];
+function pitchDisplayName(midi, section, withOctave) {
+  const octave = Math.floor(midi / 12) - 1;
+  if (section.pitchDisplay === "degree") {
+    const offset = (((midi - section.scale.root) % 12) + 12) % 12;
+    return DEGREE_NAMES[offset] + (withOctave ? octave : "");
+  }
+  const pc = ((midi % 12) + 12) % 12;
+  return PITCH_NAMES[pc] + (withOctave ? octave : "");
 }
 function inScaleSet(section) {
   const intervals = SCALES[section.scale.mode] || SCALES.major;
@@ -722,12 +735,16 @@ function renderSection(section, idx) {
   PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === section.scale.root }, n)));
   const modeSelect = el("select", { onchange: (e) => { section.scale.mode = e.target.value; renderAll(); } });
   SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === section.scale.mode }, label)));
+  const displaySelect = el("select", { onchange: (e) => { section.pitchDisplay = e.target.value; renderAll(); } });
+  [["note","Note"],["degree","Degree"]].forEach(([v,label]) =>
+    displaySelect.appendChild(el("option", { value: v, selected: v === (section.pitchDisplay || "note") }, label)));
 
   const metaRow = el("div", { class: "section-meta-row" },
     titleInput,
     el("label", {}, "BPM ", bpmInput),
     el("label", {}, "Root ", rootSelect),
     el("label", {}, "Mode ", modeSelect),
+    el("label", {}, "Display ", displaySelect),
   );
 
   const notesArea = el("textarea", {
@@ -790,11 +807,11 @@ function renderPartsPanel(section) {
       el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(section.id, p.id, p.name); } }),
       el("div", { class: "range-controls" },
         el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
-        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }),
+        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, section),
         el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
         el("span", { class: "range-sep" }, "–"),
         el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
-        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }),
+        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, section),
         el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
       ),
       el("button", { onclick: () => movePart(section, idx, -1) }, "▲"),
@@ -809,10 +826,11 @@ function renderPartsPanel(section) {
   return panel;
 }
 
-function makePitchSelect(min, max, value, onChange) {
+function makePitchSelect(min, max, value, onChange, section) {
   const sel = el("select");
   for (let m = max; m >= min; m--) {
-    sel.appendChild(el("option", { value: String(m), selected: m === value }, pitchName(m)));
+    const label = section ? pitchDisplayName(m, section, true) : pitchName(m);
+    sel.appendChild(el("option", { value: String(m), selected: m === value }, label));
   }
   sel.addEventListener("change", (e) => onChange(parseInt(e.target.value, 10)));
   return sel;
@@ -973,8 +991,8 @@ function renderBand(section, bandStart, bandBars) {
         const isBoundary = pitch === part.lo || pitch === part.hi;
         const inScale = scaleSet.has(pc);
         let labelText = "";
-        if (isBoundary) labelText = pitchName(pitch);
-        else if (inScale) labelText = PITCH_NAMES[pc];
+        if (isBoundary) labelText = pitchDisplayName(pitch, section, true);
+        else if (inScale) labelText = pitchDisplayName(pitch, section, false);
         labelCol.appendChild(el("div", { class: "label-row" }, labelText));
       }
       gridRow.appendChild(labelCol);
