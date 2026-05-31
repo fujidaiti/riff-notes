@@ -218,7 +218,7 @@
   <button id="btn-load">Load JSON</button>
   <input type="file" id="file-load" accept="application/json,.json" class="hidden">
   <span class="spacer"></span>
-  <span class="hint">click empty cell = add · click note = select · click selected note = cycle velocity · drag = move/resize · backspace = delete</span>
+  <span class="hint" id="saved-indicator">Not saved yet</span>
 </div>
 <div class="tabstrip" id="tabstrip"></div>
 <div class="sections" id="sections"></div>
@@ -347,9 +347,22 @@ function deserializeProject(doc) {
 }
 
 let persistTimer = null;
+const SAVED_AT_KEY = "midi-editor:saved-at";
+function formatSavedAt(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `Saved ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function updateSavedIndicator(ts) {
+  const el = document.getElementById("saved-indicator");
+  if (el) el.textContent = ts ? formatSavedAt(ts) : "Not saved yet";
+}
 function writePersist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeProject(project)));
+    const now = Date.now();
+    localStorage.setItem(SAVED_AT_KEY, String(now));
+    updateSavedIndicator(now);
   } catch {}
 }
 function persist() {
@@ -392,6 +405,10 @@ let restoreError = null;
   }
 })();
 if (restoreError) setTimeout(() => alert(restoreError), 0);
+setTimeout(() => {
+  const ts = parseInt(localStorage.getItem(SAVED_AT_KEY) || "", 10);
+  updateSavedIndicator(Number.isFinite(ts) ? ts : null);
+}, 0);
 let playingSectionId = null;
 let audioCtx = null;
 let activeOscillators = [];
