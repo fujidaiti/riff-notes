@@ -289,6 +289,14 @@
     z-index: 1;
     display: none;
   }
+  .rubber-band {
+    position: absolute;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 1px solid var(--note-hover);
+    background: rgba(10, 163, 155, 0.12);
+    z-index: 3;
+  }
 
   .cell-tooltip {
     position: fixed;
@@ -383,11 +391,14 @@ function makeSheet(title = "Sheet") {
     pitchDisplay: "note",
     parts: [makePart("Part 1")],
     bars: [makeBar()],
-    selectedNoteId: null,
+    selectedNoteIds: new Set(),
     partsPanelOpen: false,
     playStart: 0,
   };
 }
+function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId); }
+function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); }
+function clearSelection(sheet) { sheet.selectedNoteIds = new Set(); }
 
 const project = { sheets: [makeSheet("Sheet 1")] };
 let activeSheetId = project.sheets[0].id;
@@ -395,7 +406,7 @@ let lastFocusedSheetId = project.sheets[0].id;
 
 // ---------- Persistence schema ----------
 // The persisted document is intentionally decoupled from the runtime project
-// model. View/runtime state (selectedNoteId, partsPanelOpen, activeSheetId,
+// model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
 const SCHEMA_VERSION = 1;
@@ -445,7 +456,7 @@ function deserializeProject(doc) {
       partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
     })),
     // runtime/view state — never persisted, always defaulted
-    selectedNoteId: null,
+    selectedNoteIds: new Set(),
     partsPanelOpen: false,
     playStart: 0,
   }));
@@ -1040,7 +1051,7 @@ function renderBand(sheet, bandStart, bandBars) {
 
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
-        const noteEl = el("div", { class: "note" + (n.id === sheet.selectedNoteId ? " selected" : "") });
+        const noteEl = el("div", { class: "note" + (isNoteSelected(sheet, n.id) ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
         noteEl.dataset.vel = String(n.vel);
         noteEl.dataset.len = String(n.length);
@@ -1091,51 +1102,92 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     const noteId = target.dataset.noteId;
     const note = bar.notes.find(n => n.id === noteId);
     if (!note) return;
-    const noteBar = bar;
     const noteRect = target.getBoundingClientRect();
     const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
     let mode = "move";
     if (relLeft <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
     else if (relRight <= RESIZE_EDGE) mode = "resize-right";
-    const wasSelected = sheet.selectedNoteId === note.id;
-    if (!wasSelected) {
+
+    const wasInSelection = isNoteSelected(sheet, note.id);
+    const prevSize = sheet.selectedNoteIds.size;
+
+    if (ev.shiftKey) {
+      // Toggle membership; no drag.
+      if (wasInSelection) sheet.selectedNoteIds.delete(note.id);
+      else sheet.selectedNoteIds.add(note.id);
+      renderAll();
+      ev.preventDefault();
+      return;
+    }
+
+    // Plain click on a note.
+    const wasSoleSelection = wasInSelection && prevSize === 1;
+    if (!wasInSelection) {
       const sheetEl = wrap.closest(".sheet");
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+      setSingleSelection(sheet, note.id);
       target.classList.add("selected");
-      sheet.selectedNoteId = note.id;
+    } else if (!wasSoleSelection) {
+      // Note is one of several selected — drag the whole group;
+      // selection-collapse happens on a no-move pointerup.
+    }
+
+    // Snapshot every selected note in this bar/part as the drag group.
+    const group = [];
+    for (const n of bar.notes) {
+      if (n.partId !== part.id) continue;
+      if (!isNoteSelected(sheet, n.id)) continue;
+      group.push({ note: n, origStart: n.start, origLength: n.length, origPitch: n.pitch });
     }
     drag = {
-      mode, note, bar: noteBar, part, sheet, wrap,
+      mode, primaryNote: note, group,
+      bar, part, sheet, wrap,
       startX: ev.clientX,
       startY: ev.clientY,
-      origStart: note.start,
-      origLength: note.length,
-      origPitch: note.pitch,
       moved: false,
       isExisting: true,
-      wasSelected,
+      wasSoleSelection,
     };
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
     return;
   }
 
-  // Create note
+  // Empty cell: shift-drag starts rubber-band immediately; plain
+  // pointerdown creates a 1-step note that becomes a rubber-band if
+  // the pointer moves before pointerup.
   const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
   if (existing) return;
+
+  if (ev.shiftKey) {
+    drag = {
+      mode: "rubber-band",
+      bar, part, sheet, wrap,
+      startX: ev.clientX, startY: ev.clientY,
+      anchorX: x, anchorY: y,
+      moved: false,
+      additive: true,
+      bandEl: null,
+    };
+    try { wrap.setPointerCapture(ev.pointerId); } catch {}
+    ev.preventDefault();
+    return;
+  }
+
   // clear existing selection visuals within this sheet
-  if (sheet.selectedNoteId) {
+  if (sheet.selectedNoteIds.size > 0) {
     const sheetEl = wrap.closest(".sheet");
     if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
   }
   const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
   bar.notes.push(note);
-  sheet.selectedNoteId = note.id;
+  setSingleSelection(sheet, note.id);
 
   const noteEl = document.createElement("div");
   noteEl.className = "note selected";
   noteEl.dataset.noteId = note.id;
+  noteEl.dataset.len = "1";
   noteEl.style.left = (note.start * cellW) + "px";
   noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
   noteEl.style.width = (note.length * cellW - 1) + "px";
@@ -1143,16 +1195,75 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
   wrap.appendChild(noteEl);
 
   drag = {
-    mode: "move", note, bar, part, sheet, wrap,
-    startX: ev.clientX,
-    startY: ev.clientY,
-    origStart: note.start,
-    origLength: note.length,
-    origPitch: note.pitch,
-    moved: false, isExisting: false, wasSelected: false,
+    mode: "create-or-band",
+    newNote: note, newNoteEl: noteEl,
+    bar, part, sheet, wrap,
+    startX: ev.clientX, startY: ev.clientY,
+    anchorX: x, anchorY: y,
+    moved: false,
+    additive: false,
+    bandEl: null,
   };
   try { wrap.setPointerCapture(ev.pointerId); } catch {}
   ev.preventDefault();
+}
+
+function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function ensureBandEl(d) {
+  if (d.bandEl) return d.bandEl;
+  const band = el("div", { class: "rubber-band" });
+  d.wrap.appendChild(band);
+  d.bandEl = band;
+  return band;
+}
+
+function updateRubberBand(d, ev) {
+  const rect = d.wrap.getBoundingClientRect();
+  const curX = clampNum(ev.clientX - rect.left, 0, rect.width);
+  const curY = clampNum(ev.clientY - rect.top, 0, rect.height);
+  const left = Math.min(d.anchorX, curX);
+  const top = Math.min(d.anchorY, curY);
+  const w = Math.abs(curX - d.anchorX);
+  const h = Math.abs(curY - d.anchorY);
+  const band = ensureBandEl(d);
+  band.style.left = left + "px";
+  band.style.top = top + "px";
+  band.style.width = w + "px";
+  band.style.height = h + "px";
+}
+
+function commitRubberBand(d) {
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const rect = d.wrap.getBoundingClientRect();
+  // anchor/cur are in wrap-local coords
+  const band = d.bandEl;
+  let x0, y0, x1, y1;
+  if (band) {
+    x0 = parseFloat(band.style.left);
+    y0 = parseFloat(band.style.top);
+    x1 = x0 + parseFloat(band.style.width);
+    y1 = y0 + parseFloat(band.style.height);
+  } else {
+    return new Set();
+  }
+  const stepA = Math.floor(x0 / cellW);
+  const stepB = Math.ceil(x1 / cellW);
+  const rowA = Math.floor(y0 / cellH);
+  const rowB = Math.ceil(y1 / cellH);
+  const pitchHi = d.part.hi - rowA;
+  const pitchLo = d.part.hi - (rowB - 1);
+  const hits = new Set();
+  for (const n of d.bar.notes) {
+    if (n.partId !== d.part.id) continue;
+    if (n.pitch < pitchLo || n.pitch > pitchHi) continue;
+    // step intersection
+    if (n.start + n.length <= stepA) continue;
+    if (n.start >= stepB) continue;
+    hits.add(n.id);
+  }
+  return hits;
 }
 
 document.addEventListener("pointermove", (ev) => {
@@ -1161,36 +1272,121 @@ document.addEventListener("pointermove", (ev) => {
   const cellH = getCellH();
   const dx = ev.clientX - drag.startX;
   const dy = ev.clientY - drag.startY;
+  const overThreshold = Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE;
+  if (overThreshold) drag.moved = true;
+
+  // create-or-band: morph into rubber-band on first real movement.
+  if (drag.mode === "create-or-band" && overThreshold) {
+    // cancel the candidate note
+    const idx = drag.bar.notes.indexOf(drag.newNote);
+    if (idx >= 0) drag.bar.notes.splice(idx, 1);
+    if (drag.newNoteEl && drag.newNoteEl.parentNode) drag.newNoteEl.parentNode.removeChild(drag.newNoteEl);
+    drag.sheet.selectedNoteIds.delete(drag.newNote.id);
+    drag.mode = "rubber-band";
+  }
+
+  if (drag.mode === "rubber-band") {
+    updateRubberBand(drag, ev);
+    return;
+  }
+
+  if (!drag.group) return;
   const dSteps = Math.round(dx / cellW);
   const dRows = Math.round(dy / cellH);
-  if (Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE) drag.moved = true;
-  let changed = false;
+
   if (drag.mode === "move") {
-    const newStart = Math.max(0, Math.min(STEPS_PER_BAR - drag.note.length, drag.origStart + dSteps));
-    if (newStart !== drag.note.start) { drag.note.start = newStart; changed = true; }
-    const newPitch = Math.max(drag.part.lo, Math.min(drag.part.hi, drag.origPitch - dRows));
-    if (newPitch !== drag.note.pitch) { drag.note.pitch = newPitch; changed = true; }
-  } else if (drag.mode === "resize-right") {
-    const newLen = Math.max(1, Math.min(STEPS_PER_BAR - drag.note.start, drag.origLength + dSteps));
-    if (newLen !== drag.note.length) { drag.note.length = newLen; changed = true; }
-  } else if (drag.mode === "resize-left") {
-    let newStart = drag.origStart + dSteps;
-    let newLen = drag.origLength - dSteps;
-    if (newLen < 1) { newStart = drag.origStart + drag.origLength - 1; newLen = 1; }
-    if (newStart < 0) { newLen = newLen + newStart; newStart = 0; }
-    if (newStart !== drag.note.start || newLen !== drag.note.length) {
-      drag.note.start = newStart; drag.note.length = newLen; changed = true;
+    let minStart = Infinity, maxEnd = -Infinity, minPitch = Infinity, maxPitch = -Infinity;
+    for (const g of drag.group) {
+      if (g.origStart < minStart) minStart = g.origStart;
+      if (g.origStart + g.origLength > maxEnd) maxEnd = g.origStart + g.origLength;
+      if (g.origPitch < minPitch) minPitch = g.origPitch;
+      if (g.origPitch > maxPitch) maxPitch = g.origPitch;
     }
+    const ds = clampNum(dSteps, -minStart, STEPS_PER_BAR - maxEnd);
+    // dRows is in screen-row units; pitch = origPitch - dRows.
+    // Allowed: origPitch - dRows ∈ [part.lo, part.hi] for all → dRows ∈ [maxPitch - part.hi, minPitch - part.lo].
+    const dr = clampNum(dRows, maxPitch - drag.part.hi, minPitch - drag.part.lo);
+    let changed = false;
+    for (const g of drag.group) {
+      const ns = g.origStart + ds;
+      const np = g.origPitch - dr;
+      if (g.note.start !== ns || g.note.pitch !== np) {
+        g.note.start = ns;
+        g.note.pitch = np;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
+  } else if (drag.mode === "resize-right") {
+    let minLen = Infinity, maxEnd = -Infinity;
+    for (const g of drag.group) {
+      if (g.origLength < minLen) minLen = g.origLength;
+      if (g.origStart + g.origLength > maxEnd) maxEnd = g.origStart + g.origLength;
+    }
+    const dl = clampNum(dSteps, 1 - minLen, STEPS_PER_BAR - maxEnd);
+    let changed = false;
+    for (const g of drag.group) {
+      const nl = g.origLength + dl;
+      if (g.note.length !== nl) {
+        g.note.length = nl;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
+  } else if (drag.mode === "resize-left") {
+    let minStart = Infinity, minLen = Infinity;
+    for (const g of drag.group) {
+      if (g.origStart < minStart) minStart = g.origStart;
+      if (g.origLength < minLen) minLen = g.origLength;
+    }
+    // dStart applied uniformly: newStart = origStart + ds, newLen = origLength - ds.
+    // newStart >= 0 → ds >= -minStart. newLen >= 1 → ds <= minLen - 1.
+    const ds = clampNum(dSteps, -minStart, minLen - 1);
+    let changed = false;
+    for (const g of drag.group) {
+      const ns = g.origStart + ds;
+      const nl = g.origLength - ds;
+      if (g.note.start !== ns || g.note.length !== nl) {
+        g.note.start = ns;
+        g.note.length = nl;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(drag.wrap, g.note, drag.part);
   }
-  if (changed) updateNoteDom(drag);
 });
 
 document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null;
+
+  if (d.mode === "rubber-band") {
+    const hits = commitRubberBand(d);
+    if (d.additive) {
+      for (const id of hits) d.sheet.selectedNoteIds.add(id);
+    } else {
+      d.sheet.selectedNoteIds = hits;
+    }
+    if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+    return;
+  }
+
+  if (d.mode === "create-or-band") {
+    // No movement → the candidate note stays; behave like a single click on empty cell.
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+    return;
+  }
+
   if (!d.moved && d.isExisting) {
-    if (d.wasSelected) {
-      d.note.vel = (d.note.vel + 1) % VEL_LABELS.length;
+    if (d.wasSoleSelection) {
+      d.primaryNote.vel = (d.primaryNote.vel + 1) % VEL_LABELS.length;
+    } else {
+      // Plain click on a note that was part of a multi-selection
+      // (or a fresh select on an unselected note): collapse to it.
+      setSingleSelection(d.sheet, d.primaryNote.id);
     }
     renderAll();
     refreshCellTooltipAtLastPointer();
@@ -1200,14 +1396,14 @@ document.addEventListener("pointerup", () => {
   }
 });
 
-function updateNoteDom(d) {
-  const noteEl = d.wrap.querySelector(`[data-note-id="${d.note.id}"]`);
+function updateNoteDom2(wrap, note, part) {
+  const noteEl = wrap.querySelector(`[data-note-id="${note.id}"]`);
   if (!noteEl) return;
   const cellW = getCellW();
   const cellH = getCellH();
-  noteEl.style.left = (d.note.start * cellW) + "px";
-  noteEl.style.top = ((d.part.hi - d.note.pitch) * cellH) + "px";
-  noteEl.style.width = (d.note.length * cellW - 1) + "px";
+  noteEl.style.left = (note.start * cellW) + "px";
+  noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
+  noteEl.style.width = (note.length * cellW - 1) + "px";
 }
 
 // ---------- Hover tooltip ----------
@@ -1334,16 +1530,19 @@ document.addEventListener("keydown", (ev) => {
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
-  if (!sec || !sec.selectedNoteId) return;
+  if (!sec || sec.selectedNoteIds.size === 0) return;
+  const ids = sec.selectedNoteIds;
+  let removed = 0;
   for (const b of sec.bars) {
-    const i = b.notes.findIndex(n => n.id === sec.selectedNoteId);
-    if (i >= 0) {
-      b.notes.splice(i, 1);
-      sec.selectedNoteId = null;
-      renderAll();
-      ev.preventDefault();
-      return;
-    }
+    b.notes = b.notes.filter(n => {
+      if (ids.has(n.id)) { removed++; return false; }
+      return true;
+    });
+  }
+  if (removed > 0) {
+    clearSelection(sec);
+    renderAll();
+    ev.preventDefault();
   }
 });
 
@@ -1354,8 +1553,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   if (!sec) return;
   const id = sec.dataset.sheetId;
   const s = project.sheets.find(x => x.id === id);
-  if (s && s.selectedNoteId) {
-    s.selectedNoteId = null;
+  if (s && s.selectedNoteIds.size > 0) {
+    clearSelection(s);
     renderAll();
   }
 });
