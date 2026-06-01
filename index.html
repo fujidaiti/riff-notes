@@ -581,6 +581,7 @@ function isCreateModifier(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey; }
 const project = { name: "", sheets: [makeSheet("Sheet 1")] };
 let activeSheetId = project.sheets[0].id;
 let lastFocusedSheetId = project.sheets[0].id;
+let annotationsVisible = true;
 
 // ---------- Persistence schema ----------
 // The persisted document is intentionally decoupled from the runtime project
@@ -1451,6 +1452,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   // Tear down any previous overlay.
   const prev = bandsEl.querySelector(":scope > .annot-overlay");
   if (prev) prev.remove();
+  if (!annotationsVisible) return;
   if (!sheet.annotations || sheet.annotations.length === 0) return;
 
   const bandsRect = bandsEl.getBoundingClientRect();
@@ -2253,6 +2255,12 @@ document.addEventListener("keydown", (ev) => {
     ev.preventDefault();
     return;
   }
+  if (isCreateModifier(ev) && (ev.key === "a" || ev.key === "A")) {
+    annotationsVisible = !annotationsVisible;
+    renderAll();
+    ev.preventDefault();
+    return;
+  }
   if (isCreateModifier(ev) && (ev.key === "v" || ev.key === "V")) {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec) return;
@@ -2325,6 +2333,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + C`, "Copy selected notes"],
     [`${MOD} + X`, "Cut selected notes"],
     [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
+    [`${MOD} + A`, "Show / hide all annotations"],
     ["Backspace / Delete", "Delete selected notes"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
     [`${MOD} + Click empty cell`, "Create a new note"],
