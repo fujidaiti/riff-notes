@@ -126,7 +126,7 @@
   .range-controls .range-sep { color: #888; padding: 0 4px; }
 
   /* Bands of bars */
-  .bands { display: flex; flex-direction: column; gap: 100px; margin-top: 10px; }
+  .bands { display: flex; flex-direction: column; gap: 100px; margin-top: 10px; position: relative; }
   .band {
     display: grid;
     grid-template-columns: 22px auto;
@@ -333,6 +333,84 @@
   }
   .cell-tooltip .pitch { font-weight: 600; }
   .cell-tooltip .vel { color: #888; margin-left: 6px; }
+  /* Annotations */
+  .annot-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .annot-overlay svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .annot-line {
+    stroke: #555; stroke-width: 2; fill: none;
+    opacity: 0.28; transition: opacity 80ms;
+  }
+  .annot-line.active { opacity: 0.9; }
+  .annot-card {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #222;
+    opacity: 0.6;
+    pointer-events: auto;
+    cursor: default;
+    white-space: nowrap;
+    user-select: none;
+    transition: opacity 80ms;
+    max-width: 320px;
+  }
+  .annot-card.active { opacity: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .annot-card.expanded {
+    white-space: pre-wrap;
+    word-break: break-word;
+    z-index: 5;
+    min-width: 140px;
+  }
+  .annot-card .annot-actions {
+    display: none;
+    gap: 4px; margin-top: 6px; justify-content: flex-end;
+  }
+  .annot-card.expanded .annot-actions { display: flex; }
+  .annot-card .annot-actions button {
+    font-size: 11px; padding: 2px 6px; cursor: pointer;
+  }
+  .note.annot-active {
+    outline: 2px solid #555; outline-offset: 1px; z-index: 2;
+  }
+  .ctx-menu {
+    position: fixed;
+    background: #fff;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    padding: 4px 0;
+    font-size: 12px;
+    min-width: 160px;
+    z-index: 10000;
+    display: none;
+  }
+  .ctx-menu .ctx-item {
+    padding: 4px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .ctx-menu .ctx-item:hover { background: #eef2ff; }
+  .ctx-menu .ctx-sep { height: 1px; background: var(--line); margin: 4px 0; }
+  #annotation-dialog { max-width: 420px; }
+  #annotation-dialog textarea {
+    width: 100%; min-height: 120px; box-sizing: border-box;
+    font: inherit; padding: 6px; resize: vertical;
+  }
+  #annotation-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  #annotation-dialog .actions .del { margin-right: auto; }
+
   dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; }
   dialog::backdrop { background: rgba(0,0,0,0.25); }
   .hidden { display: none; }
@@ -370,6 +448,16 @@
     <button id="help-close">Close</button>
   </div>
 </dialog>
+<dialog id="annotation-dialog">
+  <h3 id="annotation-title" style="margin:0 0 8px; font-size:14px;">Annotation</h3>
+  <textarea id="annotation-text" placeholder="Enter annotation text…" autocomplete="off"></textarea>
+  <div class="actions">
+    <button id="annotation-delete" class="del" type="button">Delete</button>
+    <button id="annotation-cancel" type="button">Cancel</button>
+    <button id="annotation-save" type="button">Save</button>
+  </div>
+</dialog>
+<div id="ctx-menu" class="ctx-menu"></div>
 <dialog id="confirm-dialog">
   <p id="confirm-message"></p>
   <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -430,6 +518,7 @@ function makeSheet(title = "Sheet") {
     pitchDisplay: "note",
     parts: [makePart("Part 1")],
     bars: [makeBar()],
+    annotations: [],
     selectedNoteIds: new Set(),
     selectedCell: null,
     partsPanelOpen: false,
@@ -464,6 +553,28 @@ function toggleNoteSelection(sheet, note) {
   sheet.selectedNoteIds.add(note.id);
   sheet.selectedCell = null;
 }
+// Remove notes whose ids are in `idSet` from every bar of `sheet`, then prune
+// any annotations whose noteIds become empty after the removal. Returns the
+// number of notes actually removed.
+function removeNotesByIds(sheet, idSet) {
+  if (!idSet || idSet.size === 0) return 0;
+  let removed = 0;
+  for (const b of sheet.bars) {
+    const before = b.notes.length;
+    b.notes = b.notes.filter(n => {
+      if (idSet.has(n.id)) { removed++; return false; }
+      return true;
+    });
+    if (b.notes.length !== before) { /* noop, just for clarity */ }
+  }
+  if (sheet.annotations && sheet.annotations.length > 0) {
+    sheet.annotations = sheet.annotations
+      .map(a => ({ ...a, noteIds: a.noteIds.filter(id => !idSet.has(id)) }))
+      .filter(a => a.noteIds.length > 0);
+  }
+  return removed;
+}
+
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 function isCreateModifier(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey; }
 
@@ -476,7 +587,7 @@ let lastFocusedSheetId = project.sheets[0].id;
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -499,13 +610,17 @@ function serializeProject(p) {
         })),
         partNotes: { ...(b.partNotes || {}) },
       })),
+      annotations: (s.annotations || []).map(a => ({
+        id: a.id, text: a.text, noteIds: [...a.noteIds],
+      })),
     })),
   };
 }
 
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
-  if (doc.version !== SCHEMA_VERSION) return null;
+  // Accept v1 (no annotations) and v2 (with annotations). Reject unknown versions.
+  if (doc.version !== 1 && doc.version !== SCHEMA_VERSION) return null;
   const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Sheet",
@@ -523,6 +638,11 @@ function deserializeProject(doc) {
       notes: Array.isArray(b.notes) ? b.notes : [],
       partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
     })),
+    annotations: Array.isArray(s.annotations)
+      ? s.annotations
+          .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
+          .map(a => ({ id: a.id || uid(), text: a.text, noteIds: a.noteIds.filter(x => typeof x === "string") }))
+      : [],
     // runtime/view state — never persisted, always defaulted
     selectedNoteIds: new Set(),
     selectedCell: null,
@@ -581,7 +701,7 @@ let restoreError = null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.version !== SCHEMA_VERSION) {
+    if (parsed && parsed.version !== 1 && parsed.version !== SCHEMA_VERSION) {
       restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -681,6 +801,138 @@ function confirmAsync(msg) {
   });
 }
 
+// ---------- Custom context menu ----------
+const ctxMenuEl = document.getElementById("ctx-menu");
+document.addEventListener("contextmenu", (ev) => { ev.preventDefault(); });
+
+function openContextMenu(x, y, items) {
+  ctxMenuEl.innerHTML = "";
+  items.forEach(it => {
+    if (it.sep) { ctxMenuEl.appendChild(el("div", { class: "ctx-sep" })); return; }
+    const node = el("div", { class: "ctx-item" }, it.label);
+    node.addEventListener("click", () => {
+      closeContextMenu();
+      try { it.onClick(); } catch (e) { console.error(e); }
+    });
+    ctxMenuEl.appendChild(node);
+  });
+  ctxMenuEl.style.display = "block";
+  // Clamp inside viewport
+  const w = ctxMenuEl.offsetWidth, h = ctxMenuEl.offsetHeight;
+  let nx = x, ny = y;
+  if (nx + w > window.innerWidth - 4) nx = Math.max(4, window.innerWidth - w - 4);
+  if (ny + h > window.innerHeight - 4) ny = Math.max(4, window.innerHeight - h - 4);
+  ctxMenuEl.style.left = nx + "px";
+  ctxMenuEl.style.top = ny + "px";
+}
+function closeContextMenu() {
+  ctxMenuEl.style.display = "none";
+  ctxMenuEl.innerHTML = "";
+}
+document.addEventListener("pointerdown", (ev) => {
+  if (ctxMenuEl.style.display === "block" && !ctxMenuEl.contains(ev.target)) closeContextMenu();
+}, true);
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && ctxMenuEl.style.display === "block") closeContextMenu();
+});
+window.addEventListener("scroll", closeContextMenu, true);
+window.addEventListener("blur", closeContextMenu);
+
+// ---------- Annotation dialog ----------
+const annotationDialog = document.getElementById("annotation-dialog");
+const annotationTextEl = document.getElementById("annotation-text");
+const annotationTitleEl = document.getElementById("annotation-title");
+const annotationSaveBtn = document.getElementById("annotation-save");
+const annotationCancelBtn = document.getElementById("annotation-cancel");
+const annotationDeleteBtn = document.getElementById("annotation-delete");
+
+function editAnnotation({ initialText = "", isEdit = false } = {}) {
+  return new Promise(resolve => {
+    annotationTitleEl.textContent = isEdit ? "Edit annotation" : "New annotation";
+    annotationTextEl.value = initialText;
+    annotationDeleteBtn.style.display = isEdit ? "inline-block" : "none";
+    const onSave = () => {
+      const text = annotationTextEl.value;
+      if (!text.trim()) return; // require non-empty
+      cleanup(); resolve({ action: "save", text });
+    };
+    const onCancel = () => { cleanup(); resolve({ action: "cancel" }); };
+    const onDelete = () => { cleanup(); resolve({ action: "delete" }); };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    const cleanup = () => {
+      annotationSaveBtn.removeEventListener("click", onSave);
+      annotationCancelBtn.removeEventListener("click", onCancel);
+      annotationDeleteBtn.removeEventListener("click", onDelete);
+      annotationDialog.removeEventListener("keydown", onKey);
+      annotationDialog.close();
+    };
+    annotationSaveBtn.addEventListener("click", onSave);
+    annotationCancelBtn.addEventListener("click", onCancel);
+    annotationDeleteBtn.addEventListener("click", onDelete);
+    annotationDialog.addEventListener("keydown", onKey);
+    annotationDialog.showModal();
+    setTimeout(() => annotationTextEl.focus(), 0);
+  });
+}
+
+// ---------- Annotation operations ----------
+function annotationsContaining(sheet, noteId) {
+  return (sheet.annotations || []).filter(a => a.noteIds.includes(noteId));
+}
+
+async function createAnnotation(sheet, noteIds) {
+  if (!noteIds || noteIds.length === 0) return;
+  const res = await editAnnotation({ isEdit: false });
+  if (res.action !== "save") return;
+  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds] });
+  renderAll();
+  persist();
+}
+
+async function editAnnotationOnSheet(sheet, annotationId) {
+  const a = sheet.annotations.find(x => x.id === annotationId);
+  if (!a) return;
+  const res = await editAnnotation({ initialText: a.text, isEdit: true });
+  if (res.action === "save") {
+    a.text = res.text;
+    renderAll();
+    persist();
+  } else if (res.action === "delete") {
+    sheet.annotations = sheet.annotations.filter(x => x.id !== annotationId);
+    renderAll();
+    persist();
+  }
+}
+
+function deleteAnnotation(sheet, annotationId) {
+  sheet.annotations = sheet.annotations.filter(x => x.id !== annotationId);
+  renderAll();
+  persist();
+}
+
+function openNoteContextMenu(ev, sheet, note) {
+  // If right-clicked note isn't in the current selection, replace selection.
+  if (!sheet.selectedNoteIds.has(note.id)) {
+    setSingleSelection(sheet, note.id);
+    renderAll();
+  }
+  const existing = annotationsContaining(sheet, note.id);
+  const items = [];
+  existing.forEach(a => {
+    const preview = a.text.replace(/\s+/g, " ").slice(0, 16);
+    items.push({
+      label: `Edit "${preview}${a.text.length > 16 ? "…" : ""}"`,
+      onClick: () => editAnnotationOnSheet(sheet, a.id),
+    });
+  });
+  if (existing.length > 0) items.push({ sep: true });
+  items.push({
+    label: "Annotate",
+    onClick: () => createAnnotation(sheet, [...sheet.selectedNoteIds]),
+  });
+  openContextMenu(ev.clientX, ev.clientY, items);
+}
+
 // ---------- Responsive bar grouping (N bars per band) ----------
 function barsPerBand() {
   const w = window.innerWidth;
@@ -740,8 +992,13 @@ function renderAll() {
   sheetsEl.innerHTML = "";
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
-    sheetsEl.appendChild(renderSheet(project.sheets[idx], idx));
-    updatePlayheadDom(project.sheets[idx]);
+    const sheet = project.sheets[idx];
+    const sheetEl = renderSheet(sheet, idx);
+    sheetsEl.appendChild(sheetEl);
+    updatePlayheadDom(sheet);
+    // Layout has happened now that the sheet is in the document.
+    const bandsEl = sheetEl.querySelector(".bands");
+    if (bandsEl) renderAnnotationOverlay(sheet, bandsEl);
   }
   persist();
 }
@@ -993,7 +1250,9 @@ async function deletePart(sheet, idx) {
   for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) count++;
   if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
   sheet.parts.splice(idx, 1);
-  for (const b of sheet.bars) b.notes = b.notes.filter(n => n.partId !== part.id);
+  const doomed = new Set();
+  for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) doomed.add(n.id);
+  removeNotesByIds(sheet, doomed);
   renderAll();
 }
 
@@ -1023,8 +1282,10 @@ function renderBand(sheet, bandStart, bandBars) {
         onclick: async () => {
           if (await confirmAsync("Delete this bar?")) {
             const idx = bandStart + i;
+            const doomed = new Set(sheet.bars[idx].notes.map(n => n.id));
             sheet.bars.splice(idx, 1);
             if (sheet.bars.length === 0) sheet.bars.push(makeBar());
+            if (doomed.size > 0) removeNotesByIds(sheet, doomed);
             renderAll();
           }
         },
@@ -1138,6 +1399,10 @@ function renderBand(sheet, bandStart, bandBars) {
         noteEl.style.top = top + "px";
         noteEl.style.width = (n.length * cellW - 1) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
+        noteEl.addEventListener("contextmenu", (ev) => {
+          ev.stopPropagation();
+          openNoteContextMenu(ev, sheet, n);
+        });
         wrap.appendChild(noteEl);
       });
 
@@ -1167,6 +1432,142 @@ function renderBand(sheet, bandStart, bandBars) {
     bandEl.appendChild(partRow);
   });
   return bandEl;
+}
+
+// ---------- Annotation overlay ----------
+// Strategy hook: where to place the floating card. Swap implementations here
+// to experiment with different positioning rules (e.g. polyline midpoint,
+// above the topmost note, etc.). Receives the array of {x, y} note centers
+// (already sorted by pitch desc, then x asc) in bands-relative coordinates.
+function computeCardPosition(centers) {
+  // Default: centroid of note centers.
+  let sx = 0, sy = 0;
+  for (const c of centers) { sx += c.x; sy += c.y; }
+  return { x: sx / centers.length, y: sy / centers.length };
+}
+
+function renderAnnotationOverlay(sheet, bandsEl) {
+  // Tear down any previous overlay.
+  const prev = bandsEl.querySelector(":scope > .annot-overlay");
+  if (prev) prev.remove();
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+
+  const bandsRect = bandsEl.getBoundingClientRect();
+
+  // Look up each note's model and DOM element once.
+  const noteById = new Map();
+  for (const b of sheet.bars) for (const n of b.notes) noteById.set(n.id, n);
+  const elByNoteId = new Map();
+  bandsEl.querySelectorAll(".note").forEach(el => {
+    const id = el.dataset.noteId;
+    if (id) elByNoteId.set(id, el);
+  });
+
+  const overlay = el("div", { class: "annot-overlay" });
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(SVG_NS, "svg");
+  overlay.appendChild(svg);
+
+  // Per-annotation entries used for hover wiring.
+  const entries = []; // { id, card, line|null, noteEls:[] }
+
+  sheet.annotations.forEach(a => {
+    const members = a.noteIds
+      .map(id => ({ note: noteById.get(id), domEl: elByNoteId.get(id) }))
+      .filter(m => m.note && m.domEl);
+    if (members.length === 0) return;
+    // Sort: pitch desc, then start asc.
+    members.sort((p, q) =>
+      (q.note.pitch - p.note.pitch) || (p.note.start - q.note.start)
+    );
+    const centers = members.map(m => {
+      const r = m.domEl.getBoundingClientRect();
+      return {
+        x: (r.left + r.right) / 2 - bandsRect.left,
+        y: (r.top + r.bottom) / 2 - bandsRect.top,
+      };
+    });
+
+    // Polyline (only when 2+ notes).
+    let lineEl = null;
+    if (centers.length >= 2) {
+      const points = centers.map(c => `${c.x},${c.y}`).join(" ");
+      lineEl = document.createElementNS(SVG_NS, "polyline");
+      lineEl.setAttribute("class", "annot-line");
+      lineEl.setAttribute("points", points);
+      svg.appendChild(lineEl);
+    }
+
+    // Card.
+    const pos = computeCardPosition(centers);
+    const card = el("div", { class: "annot-card" });
+    card.dataset.annotationId = a.id;
+    const preview = a.text.replace(/\s+/g, " ").slice(0, 10);
+    const previewLabel = el("span", { class: "annot-preview" }, preview + (a.text.length > 10 ? "…" : ""));
+    const fullBody = el("div", { class: "annot-full" });
+    fullBody.textContent = a.text;
+    fullBody.style.display = "none";
+    const actions = el("div", { class: "annot-actions" },
+      el("button", {
+        onclick: (ev) => { ev.stopPropagation(); editAnnotationOnSheet(sheet, a.id); },
+      }, "Edit"),
+      el("button", {
+        onclick: (ev) => { ev.stopPropagation(); deleteAnnotation(sheet, a.id); },
+      }, "Delete"),
+    );
+    card.appendChild(previewLabel);
+    card.appendChild(fullBody);
+    card.appendChild(actions);
+    card.style.left = pos.x + "px";
+    card.style.top = pos.y + "px";
+    overlay.appendChild(card);
+
+    entries.push({ id: a.id, card, line: lineEl, noteEls: members.map(m => m.domEl), previewLabel, fullBody });
+  });
+
+  bandsEl.appendChild(overlay);
+
+  // Hover activation: hovering a card or any member note opacifies the
+  // card, its line, and all member notes. Hovering the card additionally
+  // expands it (small delay) to show full text and actions.
+  const noteToEntries = new Map();
+  entries.forEach(e => {
+    e.noteEls.forEach(noteEl => {
+      let arr = noteToEntries.get(noteEl);
+      if (!arr) { arr = []; noteToEntries.set(noteEl, arr); }
+      arr.push(e);
+    });
+  });
+
+  function setActive(e, on) {
+    e.card.classList.toggle("active", on);
+    if (e.line) e.line.classList.toggle("active", on);
+    e.noteEls.forEach(el => el.classList.toggle("annot-active", on));
+  }
+  function setExpanded(e, on) {
+    e.card.classList.toggle("expanded", on);
+    e.previewLabel.style.display = on ? "none" : "";
+    e.fullBody.style.display = on ? "block" : "none";
+  }
+
+  entries.forEach(e => {
+    let expandTimer = null;
+    e.card.addEventListener("mouseenter", () => {
+      setActive(e, true);
+      if (expandTimer) clearTimeout(expandTimer);
+      expandTimer = setTimeout(() => setExpanded(e, true), 200);
+    });
+    e.card.addEventListener("mouseleave", () => {
+      setActive(e, false);
+      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      setExpanded(e, false);
+    });
+  });
+
+  noteToEntries.forEach((es, noteEl) => {
+    noteEl.addEventListener("mouseenter", () => { es.forEach(e => setActive(e, true)); });
+    noteEl.addEventListener("mouseleave", () => { es.forEach(e => setActive(e, false)); });
+  });
 }
 
 // ---------- Pointer interactions ----------
@@ -1670,15 +2071,17 @@ window.addEventListener("blur", () => { hideCellTooltip(); hideCellHover(); });
 
 // ---------- Clipboard (copy/paste) ----------
 let clipboard = null;
-// shape: { notes: [{ dStart, dRow, length, vel }, ...] }
+// shape: {
+//   notes: [{ key, dStart, dRow, length, vel }, ...],
+//   annotations: [{ text, noteKeys: [key, ...] }, ...]
+// }
+// `key` is the source note's id at copy time. Annotations refer to copied
+// notes by key so paste can rebind them to freshly-minted ids.
 
 function cutSelection(sheet) {
   if (!sheet || sheet.selectedNoteIds.size === 0) return;
   copySelection(sheet);
-  const ids = sheet.selectedNoteIds;
-  for (const b of sheet.bars) {
-    b.notes = b.notes.filter(n => !ids.has(n.id));
-  }
+  removeNotesByIds(sheet, sheet.selectedNoteIds);
   clearSelection(sheet);
   sheet.selectedCell = null;
   renderAll();
@@ -1700,13 +2103,21 @@ function copySelection(sheet) {
     if (n.start < minStart) minStart = n.start;
     if (n.pitch > maxPitch) maxPitch = n.pitch;
   }
+  const pickedIdSet = new Set(picked.map(n => n.id));
+  const annotations = [];
+  for (const a of (sheet.annotations || [])) {
+    const noteKeys = a.noteIds.filter(id => pickedIdSet.has(id));
+    if (noteKeys.length > 0) annotations.push({ text: a.text, noteKeys });
+  }
   clipboard = {
     notes: picked.map(n => ({
+      key: n.id,
       dStart: n.start - minStart,
       dRow: maxPitch - n.pitch,
       length: n.length,
       vel: n.vel,
     })),
+    annotations,
   };
 }
 
@@ -1735,9 +2146,7 @@ async function pasteClipboard(sheet) {
     targetStep = minStart;
     targetPitch = maxPitch;
     // Delete the selection
-    for (const b of sheet.bars) {
-      b.notes = b.notes.filter(n => !ids.has(n.id));
-    }
+    removeNotesByIds(sheet, ids);
     sheet.selectedNoteIds = new Set();
   } else if (sheet.selectedNoteIds.size === 1) {
     const onlyId = sheet.selectedNoteIds.values().next().value;
@@ -1765,6 +2174,7 @@ async function pasteClipboard(sheet) {
   }
 
   const newIds = [];
+  const keyToNewId = new Map();
   let outOfRangeMin = Infinity, outOfRangeMax = -Infinity, outOfRangeCount = 0;
   for (const cn of clipboard.notes) {
     const absStart = targetBarIndex * STEPS_PER_BAR + targetStep + cn.dStart;
@@ -1785,10 +2195,21 @@ async function pasteClipboard(sheet) {
     };
     sheet.bars[newBarIx].notes.push(note);
     newIds.push(note.id);
+    if (cn.key != null) keyToNewId.set(cn.key, note.id);
     if (newPitch < targetPart.lo || newPitch > targetPart.hi) {
       outOfRangeCount++;
       if (newPitch < outOfRangeMin) outOfRangeMin = newPitch;
       if (newPitch > outOfRangeMax) outOfRangeMax = newPitch;
+    }
+  }
+
+  // Recreate annotations bound to the surviving pasted notes. Annotations
+  // whose noteKeys all dropped out of range are not recreated.
+  if (newIds.length > 0 && Array.isArray(clipboard.annotations)) {
+    for (const ca of clipboard.annotations) {
+      const mapped = ca.noteKeys.map(k => keyToNewId.get(k)).filter(Boolean);
+      if (mapped.length === 0) continue;
+      sheet.annotations.push({ id: uid(), text: ca.text, noteIds: mapped });
     }
   }
 
@@ -1842,14 +2263,7 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
   if (!sec || sec.selectedNoteIds.size === 0) return;
-  const ids = sec.selectedNoteIds;
-  let removed = 0;
-  for (const b of sec.bars) {
-    b.notes = b.notes.filter(n => {
-      if (ids.has(n.id)) { removed++; return false; }
-      return true;
-    });
-  }
+  const removed = removeNotesByIds(sec, sec.selectedNoteIds);
   if (removed > 0) {
     clearSelection(sec);
     sec.selectedCell = null;
@@ -1918,6 +2332,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     ["Shift + Click note", "Toggle that note in the selection"],
     ["Drag note", "Move (group-aware if multi-selected); vertical drag changes pitch"],
     ["Drag note edge", "Resize (group-aware if multi-selected)"],
+    ["Right-click note", "Open annotate menu (replaces selection with the clicked note if needed)"],
+    ["Hover annotation card", "Expand to full text with Edit / Delete buttons"],
   ];
   const table = document.getElementById("help-table");
   table.innerHTML = ROWS.map(([k, d]) =>
@@ -1963,7 +2379,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const parsed = JSON.parse(fr.result);
-      if (parsed && parsed.version !== SCHEMA_VERSION) {
+      if (parsed && parsed.version !== 1 && parsed.version !== SCHEMA_VERSION) {
         throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
       }
       const obj = deserializeProject(parsed);
