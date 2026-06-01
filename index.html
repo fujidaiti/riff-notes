@@ -1869,8 +1869,9 @@ document.addEventListener("pointerdown", (ev) => {
   if (t.closest(".toolbar")) return;
   if (t.closest("dialog")) return;
   if (t.closest(".tabstrip")) return;
-  if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+  if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.tagName === "OPTION" || t.isContentEditable) return;
   if (t.tagName === "BUTTON") return;
+  if (t.closest("label")) return;
   if (t.closest(".note")) return;
   if (t.closest(".grid-wrap")) return;
   const sheetEl = t.closest(".sheet");
