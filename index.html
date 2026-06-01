@@ -1477,19 +1477,19 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   sheet.annotations.forEach(a => {
     const members = a.noteIds
       .map(id => ({ note: noteById.get(id), domEl: elByNoteId.get(id) }))
-      .filter(m => m.note && m.domEl);
+      .filter(m => m.note && m.domEl)
+      .map(m => {
+        const r = m.domEl.getBoundingClientRect();
+        return {
+          ...m,
+          x: (r.left + r.right) / 2 - bandsRect.left,
+          y: (r.top + r.bottom) / 2 - bandsRect.top,
+        };
+      });
     if (members.length === 0) return;
-    // Sort: pitch desc, then start asc.
-    members.sort((p, q) =>
-      (q.note.pitch - p.note.pitch) || (p.note.start - q.note.start)
-    );
-    const centers = members.map(m => {
-      const r = m.domEl.getBoundingClientRect();
-      return {
-        x: (r.left + r.right) / 2 - bandsRect.left,
-        y: (r.top + r.bottom) / 2 - bandsRect.top,
-      };
-    });
+    // Sort visually: left-to-right, then top-to-bottom within the same column.
+    members.sort((p, q) => (p.x - q.x) || (p.y - q.y));
+    const centers = members.map(m => ({ x: m.x, y: m.y }));
 
     // Polyline (only when 2+ notes).
     let lineEl = null;
