@@ -1400,6 +1400,7 @@ function renderBand(sheet, bandStart, bandBars) {
         noteEl.style.width = (n.length * cellW - 1) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
         noteEl.addEventListener("contextmenu", (ev) => {
+          ev.preventDefault();
           ev.stopPropagation();
           openNoteContextMenu(ev, sheet, n);
         });
@@ -2283,6 +2284,8 @@ document.addEventListener("pointerdown", (ev) => {
   if (t.closest(".toolbar")) return;
   if (t.closest("dialog")) return;
   if (t.closest(".tabstrip")) return;
+  if (t.closest(".ctx-menu")) return;
+  if (t.closest(".annot-card")) return;
   if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.tagName === "OPTION" || t.isContentEditable) return;
   if (t.tagName === "BUTTON") return;
   if (t.closest("label")) return;
