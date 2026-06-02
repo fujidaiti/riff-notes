@@ -2317,6 +2317,7 @@ document.addEventListener("pointerdown", (ev) => {
   if (t.closest("label")) return;
   if (t.closest(".note")) return;
   if (t.closest(".grid-wrap")) return;
+  if (t.closest(".ruler-track")) return;
   const sheetEl = t.closest(".sheet");
   let sheet;
   if (sheetEl) {
