@@ -352,7 +352,6 @@
   .annot-line.active { opacity: 0.9; }
   .annot-card {
     position: absolute;
-    transform: translate(-50%, -50%);
     background: #fff;
     border: 1px solid #aaa;
     border-radius: 4px;
@@ -368,6 +367,8 @@
     transition: opacity 80ms;
     max-width: 320px;
   }
+  .annot-card.annot-side-top    { transform: translate(-50%, -100%); transform-origin: bottom center; }
+  .annot-card.annot-side-bottom { transform: translate(-50%, 0);     transform-origin: top center; }
   .annot-card.active { opacity: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
   .annot-card.expanded {
     white-space: pre-wrap;
@@ -1437,15 +1438,27 @@ function renderBand(sheet, bandStart, bandBars) {
 }
 
 // ---------- Annotation overlay ----------
-// Strategy hook: where to place the floating card. Swap implementations here
-// to experiment with different positioning rules (e.g. polyline midpoint,
-// above the topmost note, etc.). Receives the array of {x, y} note centers
-// (already sorted by pitch desc, then x asc) in bands-relative coordinates.
-function computeCardPosition(centers) {
-  // Default: centroid of note centers.
-  let sx = 0, sy = 0;
-  for (const c of centers) { sx += c.x; sy += c.y; }
-  return { x: sx / centers.length, y: sy / centers.length };
+// Strategy hook: where to place the floating card. Receives the array of
+// member descriptors (each with bands-relative x/y center and left/top/right/
+// bottom rect). Returns { x, y, side } where side ∈ {"top","bottom","left",
+// "right"} and the card is anchored just outside the member-bbox on that side,
+// so expansion can grow away from the notes without overlapping them.
+function computeCardPosition(members) {
+  const GAP = 6;
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  let sy = 0;
+  for (const m of members) {
+    if (m.left   < left)   left   = m.left;
+    if (m.top    < top)    top    = m.top;
+    if (m.right  > right)  right  = m.right;
+    if (m.bottom > bottom) bottom = m.bottom;
+    sy += m.y;
+  }
+  const cy = sy / members.length;
+  const midX = (left + right) / 2;
+  const side = (cy - top) <= (bottom - cy) ? "top" : "bottom";
+  if (side === "top") return { x: midX, y: top - GAP, side };
+  return { x: midX, y: bottom + GAP, side };
 }
 
 function renderAnnotationOverlay(sheet, bandsEl) {
@@ -1480,10 +1493,15 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       .filter(m => m.note && m.domEl)
       .map(m => {
         const r = m.domEl.getBoundingClientRect();
+        const left = r.left - bandsRect.left;
+        const top = r.top - bandsRect.top;
+        const right = r.right - bandsRect.left;
+        const bottom = r.bottom - bandsRect.top;
         return {
           ...m,
-          x: (r.left + r.right) / 2 - bandsRect.left,
-          y: (r.top + r.bottom) / 2 - bandsRect.top,
+          left, top, right, bottom,
+          x: (left + right) / 2,
+          y: (top + bottom) / 2,
         };
       });
     if (members.length === 0) return;
@@ -1502,8 +1520,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     }
 
     // Card.
-    const pos = computeCardPosition(centers);
-    const card = el("div", { class: "annot-card" });
+    const pos = computeCardPosition(members);
+    const card = el("div", { class: "annot-card annot-side-" + pos.side });
     card.dataset.annotationId = a.id;
     const preview = a.text.replace(/\s+/g, " ").slice(0, 10);
     const previewLabel = el("span", { class: "annot-preview" }, preview + (a.text.length > 10 ? "…" : ""));
