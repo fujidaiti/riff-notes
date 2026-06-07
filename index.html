@@ -266,14 +266,37 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     font-size: 10px;
     color: var(--ink-soft);
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
     padding: 4px 0;
     line-height: 1.1;
     user-select: none;
   }
+  .part-side .part-name {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+  .part-rec-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: #d23;
+    font-size: 11px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-rec-btn:hover:not(:disabled) { border-color: #d23; }
+  .part-rec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .part-rec-btn.recording { background: #d23; color: #fff; border-color: #d23; animation: rec-pulse 1s ease-in-out infinite; }
+  .part-rec-btn.count-in { background: #f5a623; color: #fff; border-color: #f5a623; animation: rec-pulse 0.6s ease-in-out infinite; }
+  @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
   .grid-wrap {
     position: relative;
     background: var(--sheet-bg);
@@ -557,6 +580,12 @@
   <div style="display:flex; gap:8px; justify-content:flex-end;">
     <button id="confirm-no">Cancel</button>
     <button id="confirm-yes">OK</button>
+  </div>
+</dialog>
+<dialog id="alert-dialog">
+  <p id="alert-message"></p>
+  <div style="display:flex; gap:8px; justify-content:flex-end;">
+    <button id="alert-ok">OK</button>
   </div>
 </dialog>
 
@@ -876,6 +905,22 @@ let playbackStartStep = 0;
 let playbackSecPerStep = 0;
 let playbackTotalSteps = 0;
 
+// ---------- MIDI recording state (runtime only) ----------
+let recordingSheetId = null;
+let recordingPartId = null;
+let recordingState = "idle"; // "idle" | "count-in" | "recording"
+let recordingT0 = 0;
+let recordingStartStep = 0;
+let recordingSecPerStep = 0;
+let recordingTotalSteps = 0;
+let recordingHeld = new Map(); // midiPitch -> { startStep, velIdx }
+let recordingUndoSnap = null;
+let recordingRaf = null;
+let recordingCountInTimer = null;
+let metronomeNextBeat = 0; // next absolute step index to schedule a click for
+let midiAccess = null;
+let midiInputDisposers = [];
+
 // ---------- Pitch helpers ----------
 function pitchName(midi) {
   const n = ((midi % 12) + 12) % 12;
@@ -938,6 +983,19 @@ function confirmAsync(msg) {
     confirmYes.addEventListener("click", onYes);
     confirmNo.addEventListener("click", onNo);
     confirmDialog.showModal();
+  });
+}
+
+// ---------- Alert ----------
+const alertDialog = document.getElementById("alert-dialog");
+const alertMessage = document.getElementById("alert-message");
+const alertOk = document.getElementById("alert-ok");
+function alertAsync(msg) {
+  return new Promise(resolve => {
+    alertMessage.textContent = msg;
+    const onOk = () => { alertOk.removeEventListener("click", onOk); alertDialog.close(); resolve(); };
+    alertOk.addEventListener("click", onOk);
+    alertDialog.showModal();
   });
 }
 
@@ -1293,14 +1351,20 @@ function renderSheet(sheet, idx) {
   const isPlayingThis = playingSheetId === sheet.id;
   const isPausedThis = pausedSheetId === sheet.id;
   const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
-  const playBtn = el("button", { class: "play" + (isPlayingThis ? " playing" : "") }, playLabel);
+  const isRecordingThis = recordingSheetId === sheet.id;
+  const playBtn = el("button", {
+    class: "play" + (isPlayingThis ? " playing" : ""),
+    disabled: isRecordingThis,
+  }, playLabel);
   playBtn.addEventListener("click", () => {
+    if (recordingState !== "idle") return;
     if (playingSheetId === sheet.id) pausePlayback();
     else if (pausedSheetId === sheet.id) resumePlayback(sheet);
     else playSheet(sheet);
   });
-  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis }, "■ Stop");
+  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis && !isRecordingThis }, "■ Stop");
   stopBtn.addEventListener("click", () => {
+    if (isRecordingThis) { finishRecording("stop"); return; }
     if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
   });
 
@@ -1375,7 +1439,7 @@ function makePitchSelect(min, max, value, onChange, sheet) {
 }
 
 function updatePartSideLabels(sheetId, partId, name) {
-  document.querySelectorAll(`[data-sheet-id="${sheetId}"] [data-part-id="${partId}"] .part-side`).forEach(e => e.textContent = name);
+  document.querySelectorAll(`[data-sheet-id="${sheetId}"] [data-part-id="${partId}"] .part-side .part-name`).forEach(e => e.textContent = name);
 }
 
 function stepRange(part, which, delta) {
@@ -1469,6 +1533,7 @@ function renderBand(sheet, bandStart, bandBars) {
     liveMarker.style.display = "none";
     track.appendChild(liveMarker);
     track.addEventListener("click", (ev) => {
+      if (recordingState !== "idle") return;
       const rect = track.getBoundingClientRect();
       const cw = getCellW();
       let step = Math.floor((ev.clientX - rect.left) / cw);
@@ -1497,7 +1562,22 @@ function renderBand(sheet, bandStart, bandBars) {
   sheet.parts.forEach(part => {
     const partRow = el("div", { class: "band-row" });
     partRow.dataset.partId = part.id;
-    const side = el("div", { class: "part-side" }, part.name);
+    const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
+    const recDisabled = recordingState !== "idle" && !isRecHere;
+    const recBtn = el("button", {
+      class: "part-rec-btn" + (isRecHere ? (recordingState === "count-in" ? " count-in" : " recording") : ""),
+      title: isRecHere ? "Stop recording" : "Record MIDI input into this part",
+      disabled: recDisabled,
+    }, isRecHere ? "■" : "●");
+    recBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (isRecHere) finishRecording("stop");
+      else startRecording(sheet, part);
+    });
+    const side = el("div", { class: "part-side" },
+      el("span", { class: "part-name" }, part.name),
+      recBtn,
+    );
     const strip = el("div", { class: "bars-strip" });
     strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
     const numRows = part.hi - part.lo + 1;
@@ -2513,6 +2593,7 @@ async function pasteClipboard(sheet) {
 document.addEventListener("keydown", (ev) => {
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (recordingState !== "idle") return; // disable shortcuts during recording
 
   if (isCreateModifier(ev) && (ev.key === "z" || ev.key === "Z")) {
     if (ev.shiftKey) redo(); else undo();
@@ -2873,6 +2954,250 @@ function playSheet(sheet, fromStep) {
   };
   renderAll();
   playbackRaf = requestAnimationFrame(tick);
+}
+
+// ---------- MIDI live recording ----------
+function scheduleMetronomeClick(when, accent) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(accent ? 1500 : 900, when);
+  const peak = 0.18;
+  gain.gain.setValueAtTime(0, when);
+  gain.gain.linearRampToValueAtTime(peak, when + 0.002);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+  osc.connect(gain).connect(masterGain || audioCtx.destination);
+  osc.start(when);
+  osc.stop(when + 0.07);
+}
+
+function currentRecordingStep() {
+  const elapsed = (performance.now() - recordingT0) / 1000;
+  return recordingStartStep + elapsed / recordingSecPerStep;
+}
+
+async function startRecording(sheet, part) {
+  if (recordingState !== "idle") return;
+  if (playingSheetId || pausedSheetId) stopPlayback();
+  if (!navigator.requestMIDIAccess) {
+    await alertAsync("Live MIDI recording requires a Chromium-based browser (Chrome, Edge, Opera).");
+    return;
+  }
+  try {
+    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+  } catch (e) {
+    await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
+    return;
+  }
+  if (midiAccess.inputs.size === 0) {
+    await alertAsync("No MIDI input devices detected. Connect a MIDI keyboard and try again.");
+    return;
+  }
+
+  ensureAudio();
+
+  const startStepWanted = sheet.playStart || 0;
+  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
+  const effectiveStart = startStepWanted >= totalSheetSteps ? 0 : startStepWanted;
+  if (totalSheetSteps - effectiveStart <= 0) {
+    await alertAsync("Nothing to record into — add a bar first.");
+    return;
+  }
+
+  recordingUndoSnap = snapshotProject();
+  recordingSheetId = sheet.id;
+  recordingPartId = part.id;
+  recordingStartStep = effectiveStart;
+  recordingSecPerStep = 60 / sheet.bpm / 4;
+  recordingTotalSteps = totalSheetSteps - effectiveStart;
+  recordingHeld = new Map();
+  recordingState = "count-in";
+
+  // Subscribe to all MIDI inputs.
+  midiInputDisposers = [];
+  midiAccess.inputs.forEach(input => {
+    const handler = onMidiMessage;
+    input.addEventListener("midimessage", handler);
+    midiInputDisposers.push(() => input.removeEventListener("midimessage", handler));
+  });
+
+  // Schedule 1-bar (4-beat) count-in clicks.
+  const stepsPerBeat = 4;
+  const beatSec = recordingSecPerStep * stepsPerBeat;
+  const countInStart = audioCtx.currentTime + 0.05;
+  for (let i = 0; i < 4; i++) {
+    scheduleMetronomeClick(countInStart + i * beatSec, i === 0);
+  }
+  const countInDurationMs = beatSec * 4 * 1000;
+
+  renderAll();
+
+  recordingCountInTimer = setTimeout(() => {
+    recordingCountInTimer = null;
+    beginRecordingPhase(sheet);
+  }, countInDurationMs);
+}
+
+function beginRecordingPhase(sheet) {
+  if (recordingState !== "count-in") return;
+  recordingState = "recording";
+  recordingT0 = performance.now();
+  // Schedule metronome clicks during recording — every beat from startStep onward.
+  metronomeNextBeat = Math.ceil(recordingStartStep / 4) * 4;
+  scheduleUpcomingMetronome();
+
+  const tick = () => {
+    if (recordingState !== "recording") return;
+    const cur = currentRecordingStep();
+    if (activeSheetId === sheet.id) {
+      const clamped = Math.min(cur, recordingStartStep + recordingTotalSteps - 0.0001);
+      updatePlaybackPlayhead(clamped, sheet);
+    }
+    scheduleUpcomingMetronome();
+    growHeldNotes();
+    if (cur >= recordingStartStep + recordingTotalSteps) {
+      finishRecording("end");
+      return;
+    }
+    recordingRaf = requestAnimationFrame(tick);
+  };
+  renderAll();
+  recordingRaf = requestAnimationFrame(tick);
+}
+
+function scheduleUpcomingMetronome() {
+  if (!audioCtx) return;
+  const lookaheadSec = 0.25;
+  const cur = currentRecordingStep();
+  const horizon = cur + lookaheadSec / recordingSecPerStep;
+  const endStep = recordingStartStep + recordingTotalSteps;
+  while (metronomeNextBeat <= horizon && metronomeNextBeat < endStep) {
+    const offsetSec = (metronomeNextBeat - cur) * recordingSecPerStep;
+    const when = audioCtx.currentTime + Math.max(0, offsetSec);
+    const accent = (metronomeNextBeat % STEPS_PER_BAR) === 0;
+    scheduleMetronomeClick(when, accent);
+    metronomeNextBeat += 4;
+  }
+}
+
+function onMidiMessage(ev) {
+  if (recordingState !== "recording") return; // ignore during count-in / idle
+  const data = ev.data;
+  if (!data || data.length < 2) return;
+  const status = data[0] & 0xf0;
+  const pitch = data[1];
+  const vel = data.length > 2 ? data[2] : 0;
+  if (status === 0x90 && vel > 0) {
+    handleNoteOn(pitch, vel);
+  } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+    handleNoteOff(pitch);
+  }
+}
+
+function handleNoteOn(pitch, midiVel) {
+  const sheet = project.sheets.find(s => s.id === recordingSheetId);
+  if (!sheet) return;
+  const cur = currentRecordingStep();
+  const endStep = recordingStartStep + recordingTotalSteps;
+  let step = Math.round(cur);
+  if (step < recordingStartStep) step = recordingStartStep;
+  if (step >= endStep) step = endStep - 1;
+  const velIdx = Math.max(0, Math.min(VEL_LABELS.length - 1, Math.round((midiVel - 1) / 126 * (VEL_LABELS.length - 1))));
+  if (recordingHeld.has(pitch)) {
+    // Duplicate noteOn while still held: finalize the previous note first.
+    finalizeHeldNote(pitch, step);
+  }
+  const bi = Math.floor(step / STEPS_PER_BAR);
+  if (bi < 0 || bi >= sheet.bars.length) return;
+  const note = {
+    id: uid(),
+    partId: recordingPartId,
+    pitch,
+    start: step % STEPS_PER_BAR,
+    length: 1,
+    vel: velIdx,
+  };
+  sheet.bars[bi].notes.push(note);
+  recordingHeld.set(pitch, { note, bi, startStep: step });
+  renderAll();
+}
+
+function handleNoteOff(pitch) {
+  if (!recordingHeld.has(pitch)) return;
+  const cur = currentRecordingStep();
+  const endStep = recordingStartStep + recordingTotalSteps;
+  let step = Math.round(cur);
+  if (step > endStep) step = endStep;
+  finalizeHeldNote(pitch, step);
+}
+
+function finalizeHeldNote(pitch, endStepAbs) {
+  const entry = recordingHeld.get(pitch);
+  if (!entry) return;
+  recordingHeld.delete(pitch);
+  updateHeldNoteLength(entry, endStepAbs);
+}
+
+function updateHeldNoteLength(entry, endStepAbs) {
+  const sheet = project.sheets.find(s => s.id === recordingSheetId);
+  if (!sheet) return;
+  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
+  const endCapped = Math.min(endStepAbs, totalSheetSteps);
+  const maxLen = totalSheetSteps - entry.startStep;
+  const newLen = Math.max(1, Math.min(endCapped - entry.startStep, maxLen));
+  if (newLen === entry.note.length) return;
+  entry.note.length = newLen;
+  // Targeted DOM update — avoids a full renderAll per frame.
+  const part = sheet.parts.find(p => p.id === entry.note.partId);
+  if (!part) return;
+  if (entry.note.pitch < part.lo || entry.note.pitch > part.hi) return; // out-of-range: not rendered
+  const wrap = document.querySelector(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${part.id}"] .grid-wrap[data-bar-index="${entry.bi}"]`
+  );
+  if (wrap) updateNoteDom2(wrap, entry.note, part);
+}
+
+function growHeldNotes() {
+  if (recordingHeld.size === 0) return;
+  const cur = currentRecordingStep();
+  const endStep = recordingStartStep + recordingTotalSteps;
+  const step = Math.min(Math.round(cur), endStep);
+  for (const entry of recordingHeld.values()) {
+    updateHeldNoteLength(entry, step);
+  }
+}
+
+function finishRecording(reason) {
+  if (recordingState === "idle") return;
+  // Close any still-held notes at the current step (clamped to end).
+  const endStep = recordingStartStep + recordingTotalSteps;
+  let closeStep;
+  if (recordingState === "recording") {
+    const cur = currentRecordingStep();
+    closeStep = Math.min(Math.round(cur), endStep);
+  } else {
+    // Stopped during count-in: no notes were recorded.
+    closeStep = recordingStartStep;
+  }
+  for (const pitch of Array.from(recordingHeld.keys())) {
+    finalizeHeldNote(pitch, closeStep);
+  }
+  if (recordingRaf) { cancelAnimationFrame(recordingRaf); recordingRaf = null; }
+  if (recordingCountInTimer) { clearTimeout(recordingCountInTimer); recordingCountInTimer = null; }
+  for (const dispose of midiInputDisposers) { try { dispose(); } catch {} }
+  midiInputDisposers = [];
+  // Commit the whole recording as one undo entry.
+  if (recordingUndoSnap) {
+    commitUndoSnapshot(recordingUndoSnap);
+    recordingUndoSnap = null;
+  }
+  recordingSheetId = null;
+  recordingPartId = null;
+  recordingState = "idle";
+  recordingHeld = new Map();
+  renderAll();
+  persist();
 }
 
 // ---------- MIDI export (per sheet) ----------
