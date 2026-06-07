@@ -273,7 +273,7 @@
     margin-left: -1px;
     background: rgba(217, 122, 58, 0.85);
     pointer-events: none;
-    z-index: 3;
+    z-index: 4;
     display: none;
   }
   .playhead-line.active { display: block; }
@@ -286,9 +286,10 @@
     cursor: grab;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
     touch-action: none;
+    z-index: 1;
   }
-  .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 2; }
-  .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 1; }
+  .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 3; }
+  .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 2; }
   .cell-hover {
     position: fixed;
     pointer-events: none;
@@ -337,7 +338,7 @@
   .annot-overlay {
     position: absolute; inset: 0;
     pointer-events: none;
-    z-index: 4;
+    z-index: 5;
   }
   body.dragging-notes .annot-overlay { display: none; }
   .annot-overlay svg {
@@ -951,6 +952,22 @@ const tabstripEl = document.getElementById("tabstrip");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
+// Pixel distance from one bar's grid-wrap right edge to the next bar's
+// grid-wrap left edge — the inter-bar label column plus the bars-strip gap.
+// Kept in sync with the CSS values for --label-w and .bars-strip { gap: 12px }.
+const INTER_BAR_GAP_PX = 12;
+function getBarBridgePx() {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--label-w")) + INTER_BAR_GAP_PX;
+}
+// Visual width of a note that may overflow into one or more following bars.
+// Each crossed bar boundary contributes one bridge of empty space (label-col +
+// gap) that the note must visually cover so that step k after the boundary
+// lands on cell k of the next bar's grid.
+function noteWidthPx(start, length, cellW, bridgePx) {
+  const end = start + length;
+  const boundariesCrossed = Math.max(0, Math.ceil(end / STEPS_PER_BAR) - 1);
+  return length * cellW - 1 + boundariesCrossed * bridgePx;
+}
 
 function ensureActiveSheet() {
   if (!project.sheets.find(s => s.id === activeSheetId)) {
@@ -1391,6 +1408,7 @@ function renderBand(sheet, bandStart, bandBars) {
       gridRow.appendChild(labelCol);
       gridRow.appendChild(wrap);
 
+      const bridgePx = getBarBridgePx();
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
         const noteEl = el("div", { class: "note" + (isNoteSelected(sheet, n.id) ? " selected" : "") });
@@ -1400,7 +1418,7 @@ function renderBand(sheet, bandStart, bandBars) {
         const top = (part.hi - n.pitch) * cellH;
         noteEl.style.left = (n.start * cellW) + "px";
         noteEl.style.top = top + "px";
-        noteEl.style.width = (n.length * cellW - 1) + "px";
+        noteEl.style.width = noteWidthPx(n.start, n.length, cellW, bridgePx) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
         noteEl.addEventListener("contextmenu", (ev) => {
           ev.preventDefault();
@@ -1608,10 +1626,13 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
   const stepInBar = Math.floor(x / cellW);
   const rowIdx = Math.floor(y / cellH);
   const numRows = part.hi - part.lo + 1;
-  if (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows) return;
+  const target = ev.target.closest(".note");
+  // For empty-cell interactions the pointer must be within this bar's grid.
+  // For a note-hit we skip the bounds check so clicks on the visual overflow
+  // (which sits over the next bar) still register on the owning note.
+  if (!target && (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows)) return;
   const pitch = part.hi - rowIdx;
 
-  const target = ev.target.closest(".note");
   if (target) {
     const noteId = target.dataset.noteId;
     const note = bar.notes.find(n => n.id === noteId);
@@ -1648,8 +1669,10 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
 
     // Snapshot every selected note in this part (possibly across multiple bars).
     const sheetElForGroup = wrap.closest(".sheet");
+    const dragN = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
     const group = [];
-    for (const b of sheet.bars) {
+    for (let bi = 0; bi < sheet.bars.length; bi++) {
+      const b = sheet.bars[bi];
       for (const n of b.notes) {
         if (n.partId !== part.id) continue;
         if (!isNoteSelected(sheet, n.id)) continue;
@@ -1658,7 +1681,14 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
           const noteEl = sheetElForGroup.querySelector(`[data-note-id="${n.id}"]`);
           if (noteEl) noteWrap = noteEl.closest(".grid-wrap") || wrap;
         }
-        group.push({ note: n, wrap: noteWrap, origStart: n.start, origLength: n.length, origPitch: n.pitch });
+        const bandStart_g = Math.floor(bi / dragN) * dragN;
+        const bandEnd_g = Math.min(bandStart_g + dragN, sheet.bars.length);
+        group.push({
+          note: n, wrap: noteWrap,
+          barIndex: bi, curBarIndex: bi,
+          bandStart: bandStart_g, bandEnd: bandEnd_g,
+          origStart: n.start, origLength: n.length, origPitch: n.pitch,
+        });
       }
     }
     drag = {
@@ -1700,14 +1730,25 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     noteEl.dataset.vel = String(note.vel);
     noteEl.style.left = (note.start * cellW) + "px";
     noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-    noteEl.style.width = (note.length * cellW - 1) + "px";
+    noteEl.style.width = noteWidthPx(note.start, note.length, cellW, getBarBridgePx()) + "px";
     noteEl.style.opacity = VEL_OPACITY[note.vel];
     wrap.appendChild(noteEl);
 
     drag = {
       mode: "move",
       primaryNote: note,
-      group: [{ note, origStart: note.start, origLength: note.length, origPitch: note.pitch }],
+      group: (() => {
+        const bi = sheet.bars.indexOf(bar);
+        const dragN = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
+        const bs = Math.floor(bi / dragN) * dragN;
+        const be = Math.min(bs + dragN, sheet.bars.length);
+        return [{
+          note, wrap,
+          barIndex: bi, curBarIndex: bi,
+          bandStart: bs, bandEnd: be,
+          origStart: note.start, origLength: note.length, origPitch: note.pitch,
+        }];
+      })(),
       bar, part, sheet, wrap,
       startX: ev.clientX, startY: ev.clientY,
       moved: false,
@@ -1861,21 +1902,48 @@ document.addEventListener("pointermove", (ev) => {
   const dRows = Math.round(dy / cellH);
 
   if (drag.mode === "move") {
-    let minStart = Infinity, maxEnd = -Infinity, minPitch = Infinity, maxPitch = -Infinity;
+    let minPitch = Infinity, maxPitch = -Infinity;
+    let dsLo = -Infinity, dsHi = Infinity;
     for (const g of drag.group) {
-      if (g.origStart < minStart) minStart = g.origStart;
-      if (g.origStart + g.origLength > maxEnd) maxEnd = g.origStart + g.origLength;
       if (g.origPitch < minPitch) minPitch = g.origPitch;
       if (g.origPitch > maxPitch) maxPitch = g.origPitch;
+      // Absolute-step constraints relative to the note's band: start ≥ band
+      // start, end ≤ band end.
+      const origAbs = g.barIndex * STEPS_PER_BAR + g.origStart;
+      const bandLo = g.bandStart * STEPS_PER_BAR;
+      const bandHi = g.bandEnd * STEPS_PER_BAR;
+      if (bandLo - origAbs > dsLo) dsLo = bandLo - origAbs;
+      if (bandHi - origAbs - g.origLength < dsHi) dsHi = bandHi - origAbs - g.origLength;
     }
-    const ds = clampNum(dSteps, -minStart, STEPS_PER_BAR - maxEnd);
+    const ds = clampNum(dSteps, dsLo, dsHi);
     // dRows is in screen-row units; pitch = origPitch - dRows.
     // Allowed: origPitch - dRows ∈ [part.lo, part.hi] for all → dRows ∈ [maxPitch - part.hi, minPitch - part.lo].
     const dr = clampNum(dRows, maxPitch - drag.part.hi, minPitch - drag.part.lo);
     let changed = false;
+    const sheetElForMove = drag.wrap.closest(".sheet");
     for (const g of drag.group) {
-      const ns = g.origStart + ds;
+      const newAbs = g.barIndex * STEPS_PER_BAR + g.origStart + ds;
+      const newBarIndex = Math.floor(newAbs / STEPS_PER_BAR);
+      const ns = newAbs - newBarIndex * STEPS_PER_BAR;
       const np = g.origPitch - dr;
+      if (newBarIndex !== g.curBarIndex) {
+        // Transfer ownership to the bar at newBarIndex (within same band).
+        const oldBar = drag.sheet.bars[g.curBarIndex];
+        const newBar = drag.sheet.bars[newBarIndex];
+        const ix = oldBar.notes.indexOf(g.note);
+        if (ix >= 0) oldBar.notes.splice(ix, 1);
+        newBar.notes.push(g.note);
+        const newWrap = sheetElForMove && sheetElForMove.querySelector(
+          `.grid-wrap[data-bar-index="${newBarIndex}"][data-part-id="${drag.part.id}"]`
+        );
+        if (newWrap) {
+          const noteEl = g.wrap.querySelector(`[data-note-id="${g.note.id}"]`);
+          if (noteEl) newWrap.appendChild(noteEl);
+          g.wrap = newWrap;
+        }
+        g.curBarIndex = newBarIndex;
+        changed = true;
+      }
       if (g.note.start !== ns || g.note.pitch !== np) {
         g.note.start = ns;
         g.note.pitch = np;
@@ -1884,12 +1952,16 @@ document.addEventListener("pointermove", (ev) => {
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-right") {
-    let minLen = Infinity, maxEnd = -Infinity;
+    let minLen = Infinity;
+    let dlHi = Infinity;
     for (const g of drag.group) {
       if (g.origLength < minLen) minLen = g.origLength;
-      if (g.origStart + g.origLength > maxEnd) maxEnd = g.origStart + g.origLength;
+      // End must not exceed end of the note's band.
+      const remainingFromBarStart = (g.bandEnd - g.barIndex) * STEPS_PER_BAR;
+      const slack = remainingFromBarStart - g.origStart - g.origLength;
+      if (slack < dlHi) dlHi = slack;
     }
-    const dl = clampNum(dSteps, 1 - minLen, STEPS_PER_BAR - maxEnd);
+    const dl = clampNum(dSteps, 1 - minLen, dlHi);
     let changed = false;
     for (const g of drag.group) {
       const nl = g.origLength + dl;
@@ -1900,18 +1972,42 @@ document.addEventListener("pointermove", (ev) => {
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-left") {
-    let minStart = Infinity, minLen = Infinity;
+    let minLen = Infinity;
+    let dsLo = -Infinity, dsHi = Infinity;
     for (const g of drag.group) {
-      if (g.origStart < minStart) minStart = g.origStart;
       if (g.origLength < minLen) minLen = g.origLength;
+      // newStart in absolute steps must be ≥ band start.
+      const origAbs = g.barIndex * STEPS_PER_BAR + g.origStart;
+      const bandLo = g.bandStart * STEPS_PER_BAR;
+      if (bandLo - origAbs > dsLo) dsLo = bandLo - origAbs;
     }
-    // dStart applied uniformly: newStart = origStart + ds, newLen = origLength - ds.
-    // newStart >= 0 → ds >= -minStart. newLen >= 1 → ds <= minLen - 1.
-    const ds = clampNum(dSteps, -minStart, minLen - 1);
+    // newLen = origLength - ds ≥ 1 → ds ≤ minLen - 1.
+    dsHi = Math.min(dsHi, minLen - 1);
+    const ds = clampNum(dSteps, dsLo, dsHi);
     let changed = false;
+    const sheetElForResize = drag.wrap.closest(".sheet");
     for (const g of drag.group) {
-      const ns = g.origStart + ds;
+      const newAbs = g.barIndex * STEPS_PER_BAR + g.origStart + ds;
+      const newBarIndex = Math.floor(newAbs / STEPS_PER_BAR);
+      const ns = newAbs - newBarIndex * STEPS_PER_BAR;
       const nl = g.origLength - ds;
+      if (newBarIndex !== g.curBarIndex) {
+        const oldBar = drag.sheet.bars[g.curBarIndex];
+        const newBar = drag.sheet.bars[newBarIndex];
+        const ix = oldBar.notes.indexOf(g.note);
+        if (ix >= 0) oldBar.notes.splice(ix, 1);
+        newBar.notes.push(g.note);
+        const newWrap = sheetElForResize && sheetElForResize.querySelector(
+          `.grid-wrap[data-bar-index="${newBarIndex}"][data-part-id="${drag.part.id}"]`
+        );
+        if (newWrap) {
+          const noteEl = g.wrap.querySelector(`[data-note-id="${g.note.id}"]`);
+          if (noteEl) newWrap.appendChild(noteEl);
+          g.wrap = newWrap;
+        }
+        g.curBarIndex = newBarIndex;
+        changed = true;
+      }
       if (g.note.start !== ns || g.note.length !== nl) {
         g.note.start = ns;
         g.note.length = nl;
@@ -1969,7 +2065,7 @@ function updateNoteDom2(wrap, note, part) {
   const cellH = getCellH();
   noteEl.style.left = (note.start * cellW) + "px";
   noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-  noteEl.style.width = (note.length * cellW - 1) + "px";
+  noteEl.style.width = noteWidthPx(note.start, note.length, cellW, getBarBridgePx()) + "px";
 }
 
 // ---------- Hover tooltip ----------
@@ -2208,7 +2304,8 @@ async function pasteClipboard(sheet) {
     const stepInBar = absStart - newBarIx * STEPS_PER_BAR;
     if (newBarIx < 0 || newBarIx >= sheet.bars.length) continue;
     if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
-    let newLength = Math.min(cn.length, STEPS_PER_BAR - stepInBar);
+    const remainingFromBarStart = (sheet.bars.length - newBarIx) * STEPS_PER_BAR;
+    let newLength = Math.min(cn.length, remainingFromBarStart - stepInBar);
     if (newLength < 1) newLength = 1;
     const note = {
       id: uid(),
