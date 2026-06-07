@@ -339,6 +339,7 @@
     pointer-events: none;
     z-index: 4;
   }
+  body.dragging-notes .annot-overlay { display: none; }
   .annot-overlay svg {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
@@ -1670,6 +1671,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       wasSoleSelection,
       wasInMultiSelection: wasInSelection && prevSize > 1,
     };
+    document.body.classList.add("dragging-notes");
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
     return;
@@ -1712,6 +1714,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       isExisting: false,
       wasSoleSelection: false,
     };
+    document.body.classList.add("dragging-notes");
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
     ev.preventDefault();
     return;
@@ -1922,6 +1925,7 @@ document.addEventListener("pointermove", (ev) => {
 document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null;
+  document.body.classList.remove("dragging-notes");
 
   if (d.mode === "rubber-band") {
     if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
