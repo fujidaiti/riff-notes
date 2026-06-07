@@ -586,6 +586,51 @@ let activeSheetId = project.sheets[0].id;
 let lastFocusedSheetId = project.sheets[0].id;
 let annotationsVisible = true;
 
+// ---------- Undo / redo history ----------
+// In-memory only; covers note-mutating operations (create, move, resize,
+// velocity cycle, cut, paste, delete, and the cascading note removals when a
+// part or bar is deleted). Snapshots are full serialized projects so the
+// restore path matches the "Load JSON" flow. Not persisted across reloads.
+const HISTORY_CAP = 200;
+const undoStack = [];
+const redoStack = [];
+
+function snapshotProject() {
+  return serializeProject(project);
+}
+function commitUndoSnapshot(snap) {
+  if (!snap) return;
+  undoStack.push(snap);
+  if (undoStack.length > HISTORY_CAP) undoStack.shift();
+  redoStack.length = 0;
+}
+function pushUndo() {
+  commitUndoSnapshot(snapshotProject());
+}
+function restoreSnapshot(snap) {
+  const obj = deserializeProject(snap);
+  if (!obj) return;
+  project.name = obj.name || "";
+  project.sheets = obj.sheets;
+  if (!project.sheets.some(s => s.id === activeSheetId)) {
+    activeSheetId = project.sheets[0].id;
+  }
+  lastFocusedSheetId = project.sheets.some(s => s.id === lastFocusedSheetId)
+    ? lastFocusedSheetId
+    : activeSheetId;
+  renderAll();
+}
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(snapshotProject());
+  restoreSnapshot(undoStack.pop());
+}
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(snapshotProject());
+  restoreSnapshot(redoStack.pop());
+}
+
 // ---------- Persistence schema ----------
 // The persisted document is intentionally decoupled from the runtime project
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
@@ -1269,6 +1314,7 @@ async function deletePart(sheet, idx) {
   let count = 0;
   for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) count++;
   if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
+  pushUndo();
   sheet.parts.splice(idx, 1);
   const doomed = new Set();
   for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) doomed.add(n.id);
@@ -1301,6 +1347,7 @@ function renderBand(sheet, bandStart, bandBars) {
         style: "margin-left:6px; font-size:10px; padding:0 4px; cursor:pointer;",
         onclick: async () => {
           if (await confirmAsync("Delete this bar?")) {
+            pushUndo();
             const idx = bandStart + i;
             const doomed = new Set(sheet.bars[idx].notes.map(n => n.id));
             sheet.bars.splice(idx, 1);
@@ -1637,6 +1684,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     const noteId = target.dataset.noteId;
     const note = bar.notes.find(n => n.id === noteId);
     if (!note) return;
+    const pendingUndo = snapshotProject();
     const noteRect = target.getBoundingClientRect();
     const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
@@ -1700,6 +1748,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       isExisting: true,
       wasSoleSelection,
       wasInMultiSelection: wasInSelection && prevSize > 1,
+      pendingUndo,
     };
     document.body.classList.add("dragging-notes");
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
@@ -1715,6 +1764,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
   if (existing) return;
 
   if (isCreateModifier(ev)) {
+    const pendingUndo = snapshotProject();
     if (sheet.selectedNoteIds.size > 0) {
       const sheetEl = wrap.closest(".sheet");
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
@@ -1754,6 +1804,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       moved: false,
       isExisting: false,
       wasSoleSelection: false,
+      pendingUndo,
     };
     document.body.classList.add("dragging-notes");
     try { wrap.setPointerCapture(ev.pointerId); } catch {}
@@ -2041,10 +2092,12 @@ document.addEventListener("pointerup", () => {
 
   if (!d.moved && d.isExisting) {
     if (d.wasSoleSelection) {
+      commitUndoSnapshot(d.pendingUndo);
       d.primaryNote.vel = (d.primaryNote.vel + 1) % VEL_LABELS.length;
     } else if (d.wasInMultiSelection) {
       // Click on a member of a multi-selection: advance every selected
       // note's velocity independently — selection is preserved.
+      commitUndoSnapshot(d.pendingUndo);
       for (const g of d.group) {
         g.note.vel = (g.note.vel + 1) % VEL_LABELS.length;
       }
@@ -2053,6 +2106,12 @@ document.addEventListener("pointerup", () => {
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
+    commitUndoSnapshot(d.pendingUndo);
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+  } else if (!d.isExisting) {
+    // Modifier+click that created a note but never moved — still a mutation.
+    commitUndoSnapshot(d.pendingUndo);
     renderAll();
     refreshCellTooltipAtLastPointer();
   }
@@ -2203,6 +2262,7 @@ let clipboard = null;
 
 function cutSelection(sheet) {
   if (!sheet || sheet.selectedNoteIds.size === 0) return;
+  pushUndo();
   copySelection(sheet);
   removeNotesByIds(sheet, sheet.selectedNoteIds);
   clearSelection(sheet);
@@ -2246,6 +2306,7 @@ function copySelection(sheet) {
 
 async function pasteClipboard(sheet) {
   if (!sheet || !clipboard || clipboard.notes.length === 0) return;
+  pushUndo();
 
   let targetBarIndex = -1, targetStep = 0, targetPitch = 0, targetPart = null;
 
@@ -2362,6 +2423,11 @@ document.addEventListener("keydown", (ev) => {
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
 
+  if (isCreateModifier(ev) && (ev.key === "z" || ev.key === "Z")) {
+    if (ev.shiftKey) redo(); else undo();
+    ev.preventDefault();
+    return;
+  }
   if (isCreateModifier(ev) && (ev.key === "c" || ev.key === "C")) {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec) return;
@@ -2393,8 +2459,10 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
   if (!sec || sec.selectedNoteIds.size === 0) return;
+  const snap = snapshotProject();
   const removed = removeNotesByIds(sec, sec.selectedNoteIds);
   if (removed > 0) {
+    commitUndoSnapshot(snap);
     clearSelection(sec);
     sec.selectedCell = null;
     renderAll();
@@ -2452,6 +2520,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
 {
   const MOD = IS_MAC ? "⌘" : "Ctrl";
   const ROWS = [
+    [`${MOD} + Z`, "Undo last note edit"],
+    [`Shift + ${MOD} + Z`, "Redo last undone note edit"],
     [`${MOD} + C`, "Copy selected notes"],
     [`${MOD} + X`, "Cut selected notes"],
     [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
