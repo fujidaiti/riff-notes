@@ -2397,10 +2397,27 @@ document.getElementById("project-name").addEventListener("input", (e) => {
 });
 
 // ---------- Save / Load JSON ----------
-document.getElementById("btn-save").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(serializeProject(project), null, 2)], { type: "application/json" });
+document.getElementById("btn-save").addEventListener("click", async () => {
+  const json = JSON.stringify(serializeProject(project), null, 2);
+  const blob = new Blob([json], { type: "application/json" });
   const safe = (project.name || "score").trim().replace(/[\\/:*?"<>|]+/g, "_") || "score";
-  triggerDownload(blob, safe + ".json");
+  const filename = safe + ".json";
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      alert("Failed to save JSON: " + err.message);
+    }
+  } else {
+    triggerDownload(blob, filename);
+  }
 });
 document.getElementById("btn-load").addEventListener("click", () => document.getElementById("file-load").click());
 document.getElementById("file-load").addEventListener("change", (e) => {
