@@ -2083,17 +2083,20 @@ function hideCellTooltip() {
 function showCellTooltipAt(ev, wrap) {
   const rect = wrap.getBoundingClientRect();
   const cellH = getCellH();
-  const y = ev.clientY - rect.top;
   const partHi = parseInt(wrap.dataset.partHi, 10);
   const partLo = parseInt(wrap.dataset.partLo, 10);
   const numRows = partHi - partLo + 1;
-  const rowIdx = Math.floor(y / cellH);
-  if (rowIdx < 0 || rowIdx >= numRows) { hideCellTooltip(); return; }
-  const pitch = partHi - rowIdx;
+  let pitch;
   let velLabel = null;
-  if (drag && drag.note) {
-    velLabel = VEL_LABELS[drag.note.vel];
+  const isNoteDrag = drag && drag.primaryNote && (drag.mode === "move" || drag.mode === "resize-left" || drag.mode === "resize-right");
+  if (isNoteDrag) {
+    pitch = drag.primaryNote.pitch;
+    velLabel = VEL_LABELS[drag.primaryNote.vel];
   } else {
+    const y = ev.clientY - rect.top;
+    const rowIdx = Math.floor(y / cellH);
+    if (rowIdx < 0 || rowIdx >= numRows) { hideCellTooltip(); return; }
+    pitch = partHi - rowIdx;
     const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
     if (noteTarget && wrap.contains(noteTarget)) {
       const v = parseInt(noteTarget.dataset.vel, 10);
