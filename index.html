@@ -1641,7 +1641,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
     let mode = "move";
-    if (relLeft <= RESIZE_EDGE && note.length > 1) mode = "resize-left";
+    if (relLeft <= RESIZE_EDGE) mode = "resize-left";
     else if (relRight <= RESIZE_EDGE) mode = "resize-right";
 
     const wasInSelection = isNoteSelected(sheet, note.id);
@@ -2156,8 +2156,7 @@ function updateNoteCursor(ev) {
   const rect = noteTarget.getBoundingClientRect();
   const relLeft = ev.clientX - rect.left;
   const relRight = rect.right - ev.clientX;
-  const len = parseInt(noteTarget.dataset.len, 10) || 1;
-  const canResizeLeft = len > 1 && relLeft <= RESIZE_EDGE;
+  const canResizeLeft = relLeft <= RESIZE_EDGE;
   const canResizeRight = relRight <= RESIZE_EDGE;
   noteTarget.style.cursor = (canResizeLeft || canResizeRight) ? "ew-resize" : "";
 }
