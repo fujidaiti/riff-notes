@@ -2233,6 +2233,10 @@ document.addEventListener("pointermove", (ev) => {
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-right") {
+    // Resize moves the edge in integer-step increments by default; hold
+    // Cmd/Ctrl for sub-step granularity. Any pre-existing sub-offset or
+    // sub-length on the note is preserved either way.
+    const useSub = isCreateModifier(ev);
     let minLenSub = Infinity;
     let dlHi = Infinity;
     for (const g of drag.group) {
@@ -2243,7 +2247,8 @@ document.addEventListener("pointermove", (ev) => {
       const slack = remainingFromBarStart - origStartSub - origLenSub;
       if (slack < dlHi) dlHi = slack;
     }
-    const dl = clampNum(dSubSteps, 1 - minLenSub, dlHi);
+    let dl = clampNum(dSubSteps, 1 - minLenSub, dlHi);
+    if (!useSub) dl = Math.round(dl / SUB_PER_STEP) * SUB_PER_STEP;
     let changed = false;
     for (const g of drag.group) {
       const newLenSub = g.origLength * SUB_PER_STEP + g.origSubLength + dl;
@@ -2256,6 +2261,7 @@ document.addEventListener("pointermove", (ev) => {
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-left") {
+    const useSub = isCreateModifier(ev);
     let minLenSub = Infinity;
     let dsLo = -Infinity, dsHi = Infinity;
     for (const g of drag.group) {
@@ -2266,16 +2272,18 @@ document.addEventListener("pointermove", (ev) => {
       if (bandLoSub - origAbsSub > dsLo) dsLo = bandLoSub - origAbsSub;
     }
     dsHi = Math.min(dsHi, minLenSub - 1);
-    const ds = clampNum(dSubSteps, dsLo, dsHi);
+    let ds = clampNum(dSubSteps, dsLo, dsHi);
+    if (!useSub) ds = Math.round(ds / SUB_PER_STEP) * SUB_PER_STEP;
     let changed = false;
     const sheetElForResize = drag.wrap.closest(".sheet");
     for (const g of drag.group) {
       const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
       const newAbsSub = origAbsSub + ds;
+      const newLenSub = origLenSub - ds;
       const newBarIndex = Math.floor(newAbsSub / SUB_PER_BAR);
       const { start: ns, subOffset: nso } = splitInBar(newAbsSub - newBarIndex * SUB_PER_BAR);
-      const { length: nl, subLength: nsl } = splitLen(origLenSub - ds);
+      const { length: nl, subLength: nsl } = splitLen(newLenSub);
       if (newBarIndex !== g.curBarIndex) {
         const oldBar = drag.sheet.bars[g.curBarIndex];
         const newBar = drag.sheet.bars[newBarIndex];
