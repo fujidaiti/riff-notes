@@ -595,6 +595,7 @@
 
 // ---------- Constants ----------
 const STEPS_PER_BAR = 16;
+const SUB_PER_STEP = 4;
 const TICKS_PER_QUARTER = 480;
 const TICKS_PER_STEP = TICKS_PER_QUARTER / 4;
 const VEL_LABELS = ["pp", "p", "mf", "f", "ff"];
@@ -756,7 +757,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -776,6 +777,7 @@ function serializeProject(p) {
         notes: b.notes.map(n => ({
           id: n.id, partId: n.partId, pitch: n.pitch,
           start: n.start, length: n.length, vel: n.vel,
+          subOffset: n.subOffset || 0,
         })),
         partNotes: { ...(b.partNotes || {}) },
       })),
@@ -788,8 +790,8 @@ function serializeProject(p) {
 
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
-  // Accept v1 (no annotations) and v2 (with annotations). Reject unknown versions.
-  if (doc.version !== 1 && doc.version !== SCHEMA_VERSION) return null;
+  // Accept v1 (no annotations), v2 (with annotations), v3 (with note subOffset).
+  if (doc.version !== 1 && doc.version !== 2 && doc.version !== SCHEMA_VERSION) return null;
   const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Sheet",
@@ -804,7 +806,12 @@ function deserializeProject(doc) {
       .map(pt => ({ id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72 })),
     bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
       id: b.id || uid(),
-      notes: Array.isArray(b.notes) ? b.notes : [],
+      notes: Array.isArray(b.notes) ? b.notes.map(n => {
+        let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
+        if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
+        if (so >  (SUB_PER_STEP - 1)) so =  (SUB_PER_STEP - 1);
+        return { ...n, subOffset: so };
+      }) : [],
       partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
     })),
     annotations: Array.isArray(s.annotations)
@@ -870,7 +877,7 @@ let restoreError = null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.version !== 1 && parsed.version !== SCHEMA_VERSION) {
+    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== SCHEMA_VERSION) {
       restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -1161,6 +1168,39 @@ function noteWidthPx(start, length, cellW, bridgePx) {
   const end = start + length;
   const boundariesCrossed = Math.max(0, Math.ceil(end / STEPS_PER_BAR) - 1);
   return length * cellW - 1 + boundariesCrossed * bridgePx;
+}
+// Fractional step position of a note, including its syncopation sub-offset.
+function noteFracStart(n) { return n.start + (n.subOffset || 0) / SUB_PER_STEP; }
+// Shift a single selected note's sub-offset by `delta` sub-steps. Carries into
+// `start` (and across bar boundaries) when |subOffset| reaches SUB_PER_STEP.
+// Clamps so the note never crosses the sheet's first/last absolute sub-position.
+// Returns true iff the note actually moved. The note's owning bar may change;
+// caller is responsible for resolving it via `barOf`.
+function shiftNoteSubOffset(sheet, barOf, note, delta) {
+  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
+  const curBarIx = sheet.bars.indexOf(barOf);
+  if (curBarIx < 0) return false;
+  // Express position as absolute sub-step.
+  let absSub = (curBarIx * STEPS_PER_BAR + note.start) * SUB_PER_STEP + (note.subOffset || 0);
+  const lenSub = note.length * SUB_PER_STEP;
+  const maxAbsSub = totalSheetSteps * SUB_PER_STEP - lenSub;
+  let target = absSub + delta;
+  if (target < 0) target = 0;
+  if (target > maxAbsSub) target = maxAbsSub;
+  if (target === absSub) return false;
+  const newBarIx = Math.floor(target / (STEPS_PER_BAR * SUB_PER_STEP));
+  const inBarSub = target - newBarIx * STEPS_PER_BAR * SUB_PER_STEP;
+  const newStart = Math.floor(inBarSub / SUB_PER_STEP);
+  const newSub = inBarSub - newStart * SUB_PER_STEP;
+  note.start = newStart;
+  note.subOffset = newSub;
+  if (newBarIx !== curBarIx) {
+    const oldBar = sheet.bars[curBarIx];
+    const ix = oldBar.notes.indexOf(note);
+    if (ix >= 0) oldBar.notes.splice(ix, 1);
+    sheet.bars[newBarIx].notes.push(note);
+  }
+  return true;
 }
 
 function ensureActiveSheet() {
@@ -1634,7 +1674,7 @@ function renderBand(sheet, bandStart, bandBars) {
         noteEl.dataset.vel = String(n.vel);
         noteEl.dataset.len = String(n.length);
         const top = (part.hi - n.pitch) * cellH;
-        noteEl.style.left = (n.start * cellW) + "px";
+        noteEl.style.left = (noteFracStart(n) * cellW) + "px";
         noteEl.style.top = top + "px";
         noteEl.style.width = noteWidthPx(n.start, n.length, cellW, bridgePx) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
@@ -1940,7 +1980,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       const sheetEl = wrap.closest(".sheet");
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
     }
-    const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL };
+    const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL, subOffset: 0 };
     bar.notes.push(note);
     setSingleSelection(sheet, note.id);
 
@@ -1949,7 +1989,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     noteEl.dataset.noteId = note.id;
     noteEl.dataset.len = "1";
     noteEl.dataset.vel = String(note.vel);
-    noteEl.style.left = (note.start * cellW) + "px";
+    noteEl.style.left = (noteFracStart(note) * cellW) + "px";
     noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
     noteEl.style.width = noteWidthPx(note.start, note.length, cellW, getBarBridgePx()) + "px";
     noteEl.style.opacity = VEL_OPACITY[note.vel];
@@ -2166,9 +2206,11 @@ document.addEventListener("pointermove", (ev) => {
         g.curBarIndex = newBarIndex;
         changed = true;
       }
-      if (g.note.start !== ns || g.note.pitch !== np) {
+      const resetSub = drag.moved && (g.note.subOffset || 0) !== 0;
+      if (g.note.start !== ns || g.note.pitch !== np || resetSub) {
         g.note.start = ns;
         g.note.pitch = np;
+        if (resetSub) g.note.subOffset = 0;
         changed = true;
       }
     }
@@ -2230,9 +2272,11 @@ document.addEventListener("pointermove", (ev) => {
         g.curBarIndex = newBarIndex;
         changed = true;
       }
-      if (g.note.start !== ns || g.note.length !== nl) {
+      const resetSub = drag.moved && (g.note.subOffset || 0) !== 0;
+      if (g.note.start !== ns || g.note.length !== nl || resetSub) {
         g.note.start = ns;
         g.note.length = nl;
+        if (resetSub) g.note.subOffset = 0;
         changed = true;
       }
     }
@@ -2293,7 +2337,7 @@ function updateNoteDom2(wrap, note, part) {
   if (!noteEl) return;
   const cellW = getCellW();
   const cellH = getCellH();
-  noteEl.style.left = (note.start * cellW) + "px";
+  noteEl.style.left = (noteFracStart(note) * cellW) + "px";
   noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
   noteEl.style.width = noteWidthPx(note.start, note.length, cellW, getBarBridgePx()) + "px";
 }
@@ -2470,6 +2514,7 @@ function copySelection(sheet) {
       dRow: maxPitch - n.pitch,
       length: n.length,
       vel: n.vel,
+      subOffset: n.subOffset || 0,
     })),
     annotations,
   };
@@ -2548,6 +2593,7 @@ async function pasteClipboard(sheet) {
       start: stepInBar,
       length: newLength,
       vel: cn.vel,
+      subOffset: cn.subOffset || 0,
     };
     sheet.bars[newBarIx].notes.push(note);
     newIds.push(note.id);
@@ -2627,6 +2673,30 @@ document.addEventListener("keydown", (ev) => {
     ev.preventDefault();
     return;
   }
+  if (isCreateModifier(ev) && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec || sec.selectedNoteIds.size === 0) return;
+    const delta = ev.key === "ArrowRight" ? 1 : -1;
+    // Snapshot {note, bar} pairs first so bar migrations during shifting
+    // don't disturb the iteration.
+    const pairs = [];
+    for (const b of sec.bars) {
+      for (const n of b.notes) if (sec.selectedNoteIds.has(n.id)) pairs.push({ note: n, bar: b });
+    }
+    if (pairs.length === 0) return;
+    const snap = snapshotProject();
+    let moved = false;
+    for (const p of pairs) {
+      if (shiftNoteSubOffset(sec, p.bar, p.note, delta)) moved = true;
+    }
+    if (moved) {
+      commitUndoSnapshot(snap);
+      renderAll();
+      persist();
+    }
+    ev.preventDefault();
+    return;
+  }
 
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
@@ -2698,6 +2768,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + X`, "Cut selected notes"],
     [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
     [`${MOD} + A`, "Show / hide all annotations"],
+    [`${MOD} + ←`, "Shift selected notes back by 1/4 step (syncopation)"],
+    [`${MOD} + →`, "Shift selected notes forward by 1/4 step (syncopation)"],
     ["Backspace / Delete", "Delete selected notes"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
     [`${MOD} + Click empty cell`, "Create a new note"],
@@ -2807,7 +2879,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const parsed = JSON.parse(fr.result);
-      if (parsed && parsed.version !== 1 && parsed.version !== SCHEMA_VERSION) {
+      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== SCHEMA_VERSION) {
         throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
       }
       const obj = deserializeProject(parsed);
@@ -2919,7 +2991,7 @@ function playSheet(sheet, fromStep) {
   let lastEnd = t0;
   sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
-      const absStart = bi * STEPS_PER_BAR + n.start;
+      const absStart = bi * STEPS_PER_BAR + noteFracStart(n);
       if (absStart < effectiveStart) continue;
       const start = t0 + (absStart - effectiveStart) * secPerStep;
       const dur = n.length * secPerStep * 0.95;
@@ -3117,6 +3189,7 @@ function handleNoteOn(pitch, midiVel) {
     start: step % STEPS_PER_BAR,
     length: 1,
     vel: velIdx,
+    subOffset: 0,
   };
   sheet.bars[bi].notes.push(note);
   recordingHeld.set(pitch, { note, bi, startStep: step });
@@ -3220,8 +3293,8 @@ function buildSheetTrack(sheet, part, isFirstTrack) {
   sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
       if (n.partId !== part.id) continue;
-      const onTick = (bi * STEPS_PER_BAR + n.start) * TICKS_PER_STEP;
-      const offTick = (bi * STEPS_PER_BAR + n.start + n.length) * TICKS_PER_STEP;
+      const onTick = Math.round((bi * STEPS_PER_BAR + noteFracStart(n)) * TICKS_PER_STEP);
+      const offTick = Math.round((bi * STEPS_PER_BAR + noteFracStart(n) + n.length) * TICKS_PER_STEP);
       events.push({ tick: onTick, order: 1, bytes: [0x90, n.pitch, VEL_MIDI[n.vel]] });
       events.push({ tick: offTick, order: 0, bytes: [0x80, n.pitch, 0] });
     }
