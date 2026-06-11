@@ -2252,7 +2252,10 @@ document.addEventListener("pointermove", (ev) => {
     if (!useSub) dl = Math.round(dl / SUB_PER_STEP) * SUB_PER_STEP;
     let changed = false;
     for (const g of drag.group) {
-      const newLenSub = g.origLength * SUB_PER_STEP + g.origSubLength + dl;
+      let newLenSub = g.origLength * SUB_PER_STEP + g.origSubLength + dl;
+      // Without modifier, force the resulting length to integer steps even
+      // if the note started with a fractional length (e.g. 3+1/2 → 4).
+      if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
       const { length: nl, subLength: nsl } = splitLen(newLenSub);
       if (g.note.length !== nl || (g.note.subLength || 0) !== nsl) {
         g.note.length = nl;
@@ -2281,7 +2284,10 @@ document.addEventListener("pointermove", (ev) => {
       const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
       const newAbsSub = origAbsSub + ds;
-      const newLenSub = origLenSub - ds;
+      let newLenSub = origLenSub - ds;
+      // Without modifier, force the resulting length to integer steps; the
+      // start's subOffset stays put (ds is already a multiple of SUB_PER_STEP).
+      if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
       const newBarIndex = Math.floor(newAbsSub / SUB_PER_BAR);
       const { start: ns, subOffset: nso } = splitInBar(newAbsSub - newBarIndex * SUB_PER_BAR);
       const { length: nl, subLength: nsl } = splitLen(newLenSub);
