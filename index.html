@@ -435,6 +435,7 @@
   }
   .cell-tooltip .pitch { font-weight: 600; }
   .cell-tooltip .vel { color: var(--tooltip-muted); margin-left: 6px; }
+  .cell-tooltip .len { color: var(--tooltip-muted); margin-left: 6px; }
   /* Annotations */
   .annot-overlay {
     position: absolute; inset: 0;
@@ -2373,6 +2374,18 @@ function updateNoteDom2(wrap, note, part) {
 }
 
 // ---------- Hover tooltip ----------
+// Format a length in steps as "N" for whole steps or "N+a/b" when fractional
+// (a/b is the sub-step part reduced; e.g. 1.25 → "1+1/4", 0.5 → "1/2").
+function formatLengthSteps(steps) {
+  const totalSub = Math.round(steps * SUB_PER_STEP);
+  const whole = Math.floor(totalSub / SUB_PER_STEP);
+  const sub = totalSub - whole * SUB_PER_STEP;
+  if (sub === 0) return `${whole}`;
+  const g = (a, b) => b === 0 ? a : g(b, a % b);
+  const d = g(sub, SUB_PER_STEP);
+  const frac = `${sub / d}/${SUB_PER_STEP / d}`;
+  return whole === 0 ? frac : `${whole}+${frac}`;
+}
 let cellTooltipEl = null;
 function getCellTooltip() {
   if (!cellTooltipEl) {
@@ -2392,10 +2405,12 @@ function showCellTooltipAt(ev, wrap) {
   const numRows = partHi - partLo + 1;
   let pitch;
   let velLabel = null;
+  let lenSteps = null;
   const isNoteDrag = drag && drag.primaryNote && (drag.mode === "move" || drag.mode === "resize-left" || drag.mode === "resize-right");
   if (isNoteDrag) {
     pitch = drag.primaryNote.pitch;
     velLabel = VEL_LABELS[drag.primaryNote.vel];
+    lenSteps = noteFracLength(drag.primaryNote);
   } else {
     const y = ev.clientY - rect.top;
     const rowIdx = Math.floor(y / cellH);
@@ -2405,12 +2420,15 @@ function showCellTooltipAt(ev, wrap) {
     if (noteTarget && wrap.contains(noteTarget)) {
       const v = parseInt(noteTarget.dataset.vel, 10);
       if (Number.isFinite(v)) velLabel = VEL_LABELS[v];
+      const l = parseFloat(noteTarget.dataset.len);
+      if (Number.isFinite(l)) lenSteps = l;
     }
   }
   const tip = getCellTooltip();
   const pitchHtml = `<span class="pitch">${escapeHtml(pitchName(pitch))}</span>`;
   const velHtml = velLabel ? `<span class="vel">${escapeHtml(velLabel)}</span>` : "";
-  tip.innerHTML = pitchHtml + velHtml;
+  const lenHtml = lenSteps != null ? `<span class="len">${escapeHtml(formatLengthSteps(lenSteps))}</span>` : "";
+  tip.innerHTML = pitchHtml + velHtml + lenHtml;
   tip.style.display = "block";
   const offX = 12, offY = 14;
   let left = ev.clientX + offX;
