@@ -16,8 +16,6 @@
     --line: #d2d2cc;
     --line-soft: #f0f0ec;
     --line-strong: #555;
-    --scale-tint: #e7f2dc;
-    --scale-root-tint: #cfe8b8;
     --note: #c97a4a;
     --note-sel: #2b6cb0;
     --note-hover: #0aa39b;
@@ -61,8 +59,6 @@
     --line: #3a3a40;
     --line-soft: #232328;
     --line-strong: #c8c8c0;
-    --scale-tint: #233022;
-    --scale-root-tint: #324a2e;
     --note: #d98a55;
     --note-sel: #6aa3e0;
     --note-hover: #2bc4ba;
@@ -316,8 +312,6 @@
     position: relative;
     height: var(--cell-h);
   }
-  .grid-row.in-scale { background: var(--scale-tint); }
-  .grid-row.in-scale-root { background: var(--scale-root-tint); }
   .band-ruler {
     grid-column: 2;
     padding-left: var(--label-w);
@@ -1596,11 +1590,6 @@ function renderBand(sheet) {
     for (let i = 0; i < numRows; i++) {
       const pitch = part.hi - i;
       const rowEl = el("div", { class: "grid-row" });
-      if (!rhythm) {
-        const pc = ((pitch % 12) + 12) % 12;
-        if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
-        else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
-      }
       wrap.appendChild(rowEl);
 
       let labelHtml = "";
