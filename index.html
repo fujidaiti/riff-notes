@@ -2746,11 +2746,13 @@ document.addEventListener("pointerup", () => {
     refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
     commitUndoSnapshot(d.pendingUndo);
+    if (!d.isExisting) auditionNote(d.sheet, d.primaryNote);
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (!d.isExisting) {
     // Modifier+click that created a note but never moved — still a mutation.
     commitUndoSnapshot(d.pendingUndo);
+    auditionNote(d.sheet, d.primaryNote);
     renderAll();
     refreshCellTooltipAtLastPointer();
   }
