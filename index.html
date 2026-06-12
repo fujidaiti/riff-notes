@@ -389,6 +389,9 @@
     touch-action: none;
     z-index: 1;
   }
+  .note.drum-hihat { background: #e3c44a; }
+  .note.drum-snare { background: #d24a4a; }
+  .note.drum-bass  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 2; }
   .cell-hover {
@@ -622,6 +625,13 @@ const SCALES = {
   blues: [0,3,5,6,7,10],
   chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
 };
+// Rhythm part: a special non-pitched lane with three fixed rows. The rhythm
+// part reuses the standard note schema (pitch is reinterpreted as a row index
+// via part.lo=0, part.hi=2). Row index = part.hi - note.pitch, so top→bottom
+// order matches RHYTHM_ROWS.
+const RHYTHM_ROWS = ["H", "S", "B"];
+const RHYTHM_KEYS = ["hihat", "snare", "bass"];
+
 const SCALE_OPTIONS = [
   ["major", "Major"], ["minor", "Natural Minor"], ["harmonicMinor", "Harmonic Minor"],
   ["melodicMinor", "Melodic Minor"], ["dorian", "Dorian"], ["phrygian", "Phrygian"],
@@ -634,7 +644,10 @@ const SCALE_OPTIONS = [
 let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
-function makePart(name = "Part 1", lo = 60, hi = 72) { return { id: uid(), name, lo, hi }; }
+function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return { id: uid(), name, lo, hi, type }; }
+function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm" }; }
+function isRhythmPart(part) { return !!part && part.type === "rhythm"; }
+function getRhythmPart(sheet) { return sheet.parts.find(isRhythmPart); }
 function makeBar() { return { id: uid(), notes: [], partNotes: {} }; }
 function makeSheet(title = "Sheet") {
   return {
@@ -758,7 +771,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -772,7 +785,7 @@ function serializeProject(p) {
       bpm: s.bpm,
       scale: { root: s.scale.root, mode: s.scale.mode },
       pitchDisplay: s.pitchDisplay || "note",
-      parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi })),
+      parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched" })),
       bars: s.bars.map(b => ({
         id: b.id,
         notes: b.notes.map(n => ({
@@ -793,7 +806,7 @@ function serializeProject(p) {
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
   // Accept v1 (no annotations), v2 (with annotations), v3 (with note subOffset).
-  if (doc.version !== 1 && doc.version !== 2 && doc.version !== SCHEMA_VERSION) return null;
+  if (doc.version !== 1 && doc.version !== 2 && doc.version !== 3 && doc.version !== SCHEMA_VERSION) return null;
   const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Sheet",
@@ -805,7 +818,13 @@ function deserializeProject(doc) {
     },
     pitchDisplay: s.pitchDisplay === "degree" ? "degree" : "note",
     parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
-      .map(pt => ({ id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72 })),
+      .map(pt => {
+        const type = pt.type === "rhythm" ? "rhythm" : "pitched";
+        if (type === "rhythm") {
+          return { id: pt.id || uid(), name: pt.name || "Rhythm", lo: 0, hi: 2, type };
+        }
+        return { id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72, type };
+      }),
     bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
       id: b.id || uid(),
       notes: Array.isArray(b.notes) ? b.notes.map(n => {
@@ -882,7 +901,7 @@ let restoreError = null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== SCHEMA_VERSION) {
+    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SCHEMA_VERSION) {
       restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -1452,26 +1471,37 @@ function renderPartsPanel(sheet) {
   const panel = el("div", { class: "parts-panel" });
   panel.appendChild(el("h4", {}, "Parts for this sheet (visible pitch range; hidden notes still play and export)"));
   sheet.parts.forEach((p, idx) => {
+    const rangeOrBadge = isRhythmPart(p)
+      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Rhythm (Hi-hat / Snare / Bass)"))
+      : el("div", { class: "range-controls" },
+          el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
+          makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
+          el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
+          el("span", { class: "range-sep" }, "–"),
+          el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
+          makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, sheet),
+          el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
+        );
     const row = el("div", { class: "part-row" },
       el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(sheet.id, p.id, p.name); } }),
-      el("div", { class: "range-controls" },
-        el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
-        makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
-        el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
-        el("span", { class: "range-sep" }, "–"),
-        el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
-        makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, sheet),
-        el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
-      ),
+      rangeOrBadge,
       el("button", { onclick: () => movePart(sheet, idx, -1) }, "▲"),
       el("button", { onclick: () => movePart(sheet, idx, +1) }, "▼"),
       el("button", { disabled: sheet.parts.length <= 1, onclick: () => deletePart(sheet, idx) }, "✕"),
     );
     panel.appendChild(row);
   });
-  panel.appendChild(el("button", {
-    onclick: () => { sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`)); renderAll(); },
-  }, "+ Add Part"));
+  const addRow = el("div", { class: "part-row" },
+    el("button", {
+      onclick: () => { sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`)); renderAll(); },
+    }, "+ Add Part"),
+    el("button", {
+      disabled: !!getRhythmPart(sheet),
+      title: getRhythmPart(sheet) ? "This sheet already has a rhythm section" : "Add a rhythm section (Hi-hat / Snare / Bass)",
+      onclick: () => { if (getRhythmPart(sheet)) return; sheet.parts.push(makeRhythmPart()); renderAll(); },
+    }, "+ Add Rhythm Section"),
+  );
+  panel.appendChild(addRow);
   return panel;
 }
 
@@ -1610,21 +1640,24 @@ function renderBand(sheet, bandStart, bandBars) {
     const partRow = el("div", { class: "band-row" });
     partRow.dataset.partId = part.id;
     const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
-    const recDisabled = recordingState !== "idle" && !isRecHere;
-    const recBtn = el("button", {
-      class: "part-rec-btn" + (isRecHere ? (recordingState === "count-in" ? " count-in" : " recording") : ""),
-      title: isRecHere ? "Stop recording" : "Record MIDI input into this part",
-      disabled: recDisabled,
-    }, isRecHere ? "■" : "●");
-    recBtn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      if (isRecHere) finishRecording("stop");
-      else startRecording(sheet, part);
-    });
+    const rhythmPart = isRhythmPart(part);
     const side = el("div", { class: "part-side" },
       el("span", { class: "part-name" }, part.name),
-      recBtn,
     );
+    if (!rhythmPart) {
+      const recDisabled = recordingState !== "idle" && !isRecHere;
+      const recBtn = el("button", {
+        class: "part-rec-btn" + (isRecHere ? (recordingState === "count-in" ? " count-in" : " recording") : ""),
+        title: isRecHere ? "Stop recording" : "Record MIDI input into this part",
+        disabled: recDisabled,
+      }, isRecHere ? "■" : "●");
+      recBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (isRecHere) finishRecording("stop");
+        else startRecording(sheet, part);
+      });
+      side.appendChild(recBtn);
+    }
     const strip = el("div", { class: "bars-strip" });
     strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
     const numRows = part.hi - part.lo + 1;
@@ -1653,19 +1686,27 @@ function renderBand(sheet, bandStart, bandBars) {
       wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
       wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
+      const rhythm = isRhythmPart(part);
       for (let i = 0; i < numRows; i++) {
         const pitch = part.hi - i;
-        const pc = ((pitch % 12) + 12) % 12;
         const rowEl = el("div", { class: "grid-row" });
-        if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
-        else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
+        if (!rhythm) {
+          const pc = ((pitch % 12) + 12) % 12;
+          if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
+          else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
+        }
         wrap.appendChild(rowEl);
 
-        const isBoundary = pitch === part.lo || pitch === part.hi;
-        const inScale = scaleSet.has(pc);
         let labelHtml = "";
-        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
-        else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
+        if (rhythm) {
+          labelHtml = RHYTHM_ROWS[i] || "";
+        } else {
+          const pc = ((pitch % 12) + 12) % 12;
+          const isBoundary = pitch === part.lo || pitch === part.hi;
+          const inScale = scaleSet.has(pc);
+          if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
+          else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
+        }
         const labelDiv = el("div", { class: "label-row" });
         labelDiv.innerHTML = labelHtml;
         labelCol.appendChild(labelDiv);
@@ -1676,7 +1717,12 @@ function renderBand(sheet, bandStart, bandBars) {
       const bridgePx = getBarBridgePx();
       bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
-        const noteEl = el("div", { class: "note" + (isNoteSelected(sheet, n.id) ? " selected" : "") });
+        let drumCls = "";
+        if (rhythm) {
+          const key = RHYTHM_KEYS[part.hi - n.pitch];
+          if (key) drumCls = " drum-" + key;
+        }
+        const noteEl = el("div", { class: "note" + drumCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
         noteEl.dataset.noteId = n.id;
         noteEl.dataset.vel = String(n.vel);
         noteEl.dataset.len = String(noteFracLength(n));
@@ -2935,7 +2981,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const parsed = JSON.parse(fr.result);
-      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== SCHEMA_VERSION) {
+      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SCHEMA_VERSION) {
         throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
       }
       const obj = deserializeProject(parsed);
@@ -3013,6 +3059,80 @@ function resumePlayback(sheet) {
   playSheet(sheet, fromStep);
 }
 
+let noiseBuffer = null;
+function getNoiseBuffer() {
+  if (noiseBuffer && noiseBuffer.sampleRate === audioCtx.sampleRate) return noiseBuffer;
+  const len = Math.floor(audioCtx.sampleRate * 0.5);
+  noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const ch = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  return noiseBuffer;
+}
+
+function scheduleDrum(when, durSec, drumKey, vel) {
+  const dest = masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[vel];
+  const stops = [];
+  if (drumKey === "bass") {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(180, when);
+    osc.frequency.exponentialRampToValueAtTime(80, when + 0.08);
+    const bassPeak = Math.min(1.0, peak * 1.8);
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(bassPeak, when + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+    osc.connect(gain).connect(dest);
+    osc.start(when);
+    osc.stop(when + 0.22);
+    stops.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
+  } else if (drumKey === "snare") {
+    const src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1700;
+    bp.Q.value = 0.9;
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0, when);
+    ng.gain.linearRampToValueAtTime(peak * 0.9, when + 0.003);
+    ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.14);
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(when);
+    src.stop(when + 0.18);
+    const body = audioCtx.createOscillator();
+    const bg = audioCtx.createGain();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(220, when);
+    body.frequency.exponentialRampToValueAtTime(140, when + 0.05);
+    bg.gain.setValueAtTime(0, when);
+    bg.gain.linearRampToValueAtTime(peak * 0.4, when + 0.003);
+    bg.gain.exponentialRampToValueAtTime(0.0001, when + 0.09);
+    body.connect(bg).connect(dest);
+    body.start(when);
+    body.stop(when + 0.12);
+    stops.push(() => { try { src.stop(); src.disconnect(); bp.disconnect(); ng.disconnect(); body.stop(); body.disconnect(); bg.disconnect(); } catch {} });
+  } else {
+    // hihat
+    const src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 7000;
+    const ng = audioCtx.createGain();
+    const decay = Math.max(0.04, Math.min(0.25, durSec * 0.6));
+    ng.gain.setValueAtTime(0, when);
+    ng.gain.linearRampToValueAtTime(peak * 0.7, when + 0.002);
+    ng.gain.exponentialRampToValueAtTime(0.0001, when + decay);
+    src.connect(hp).connect(ng).connect(dest);
+    src.start(when);
+    src.stop(when + decay + 0.02);
+    stops.push(() => { try { src.stop(); src.disconnect(); hp.disconnect(); ng.disconnect(); } catch {} });
+  }
+  for (const s of stops) activeOscillators.push(s);
+}
+
 function scheduleNote(when, durSec, midi, vel) {
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
   const osc = audioCtx.createOscillator();
@@ -3045,13 +3165,22 @@ function playSheet(sheet, fromStep) {
   const effectiveStart = startStep >= totalSteps ? 0 : startStep;
   const t0 = audioCtx.currentTime + 0.05;
   let lastEnd = t0;
+  const partsById = {};
+  for (const pt of sheet.parts) partsById[pt.id] = pt;
   sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) {
       const absStart = bi * STEPS_PER_BAR + noteFracStart(n);
       if (absStart < effectiveStart) continue;
       const start = t0 + (absStart - effectiveStart) * secPerStep;
       const dur = noteFracLength(n) * secPerStep * 0.95;
-      scheduleNote(start, dur, n.pitch, n.vel);
+      const part = partsById[n.partId];
+      if (part && part.type === "rhythm") {
+        const rowIdx = part.hi - n.pitch;
+        const key = RHYTHM_KEYS[rowIdx];
+        if (key) scheduleDrum(start, dur, key, n.vel);
+      } else {
+        scheduleNote(start, dur, n.pitch, n.vel);
+      }
       if (start + dur > lastEnd) lastEnd = start + dur;
     }
   });
