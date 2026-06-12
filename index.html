@@ -558,59 +558,10 @@
   #help-dialog .actions { display: flex; justify-content: flex-end; margin-top: 10px; }
   .btn-icon { padding: 4px 8px; cursor: pointer; }
 
-  /* Repeat / bar.part selection */
   .bar-cell-head {
-    display: flex; align-items: center; gap: 2px;
+    display: flex; align-items: center;
     width: calc(var(--label-w) + var(--cell-w) * 16);
   }
-  .barpart-checkbox {
-    width: calc(var(--label-w) - 4px);
-    height: 14px;
-    margin: 0 4px 0 0;
-    cursor: pointer;
-    flex: 0 0 auto;
-  }
-  .barpart-checkbox.invisible { visibility: hidden; pointer-events: none; }
-  .bar-cell.repeat .grid-wrap { position: relative; }
-  .bar-cell.repeat .grid-wrap::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: rgba(224, 176, 33, 0.06);
-    pointer-events: none;
-    z-index: 4;
-  }
-  .bar-cell.repeat .grid-wrap .note { cursor: default; }
-  .repeat-label {
-    flex: 1 1 auto;
-    font-size: 11px;
-    color: #a07a10;
-    padding: 1px 4px;
-    border: 1px solid #e0b021;
-    background: rgba(224, 176, 33, 0.10);
-    border-radius: 3px;
-    box-sizing: border-box;
-    user-select: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .barpart-footer {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    z-index: 50;
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    background: var(--panel-bg);
-    border-top: 1px solid var(--line);
-    box-shadow: 0 -2px 6px var(--shadow-soft);
-  }
-  .barpart-footer .footer-count { font-size: 12px; color: var(--ink-soft); }
-  .barpart-footer button { font-size: 12px; padding: 4px 10px; cursor: pointer; }
-  .barpart-footer .footer-spacer { flex: 1; }
-  #repeat-picker-dialog select { font: inherit; padding: 4px 6px; min-width: 180px; }
-  #repeat-picker-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
-  #repeat-picker-dialog .row { display: flex; align-items: center; gap: 8px; }
 </style>
 <script>
   // Resolve theme before first paint to avoid a light-mode flash.
@@ -665,17 +616,6 @@
   <div style="display:flex; gap:8px; justify-content:flex-end;">
     <button id="confirm-no">Cancel</button>
     <button id="confirm-yes">OK</button>
-  </div>
-</dialog>
-<dialog id="repeat-picker-dialog">
-  <h3 style="margin:0 0 10px; font-size:14px;">Repeat reference</h3>
-  <div class="row">
-    <span>Source bar:</span>
-    <select id="repeat-picker-select"></select>
-  </div>
-  <div class="actions">
-    <button id="repeat-picker-cancel" type="button">Cancel</button>
-    <button id="repeat-picker-apply" type="button">Apply</button>
   </div>
 </dialog>
 <dialog id="alert-dialog">
@@ -741,7 +681,7 @@ function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return 
 function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm" }; }
 function isRhythmPart(part) { return !!part && part.type === "rhythm"; }
 function getRhythmPart(sheet) { return sheet.parts.find(isRhythmPart); }
-function makeBar() { return { id: uid(), name: "", notes: [], partNotes: {}, repeats: {} }; }
+function makeBar() { return { id: uid(), name: "", notes: [], partNotes: {} }; }
 function makeSheet(title = "Sheet") {
   return {
     id: uid(), title, notes: "", bpm: 120,
@@ -754,37 +694,7 @@ function makeSheet(title = "Sheet") {
     selectedCell: null,
     partsPanelOpen: false,
     playStart: 0,
-    barPartSelection: null,
   };
-}
-function isRepeatBarPart(bar, partId) {
-  return !!(bar && bar.repeats && bar.repeats[partId]);
-}
-function resolveRepeatSourceBar(sheet, bar, partId) {
-  const srcId = bar && bar.repeats && bar.repeats[partId];
-  if (!srcId) return null;
-  return sheet.bars.find(b => b.id === srcId) || null;
-}
-// Drop any bar.repeats entries whose source bar no longer exists, whose
-// source's part is gone, or whose source is itself a repeat (defensive). Run
-// before each render to keep stale references from leaking into the UI.
-function pruneRepeats(sheet) {
-  const barIds = new Set(sheet.bars.map(b => b.id));
-  const partIds = new Set(sheet.parts.map(p => p.id));
-  for (const b of sheet.bars) {
-    if (!b.repeats) { b.repeats = {}; continue; }
-    for (const partId of Object.keys(b.repeats)) {
-      const srcId = b.repeats[partId];
-      if (!partIds.has(partId) || !barIds.has(srcId) || srcId === b.id) {
-        delete b.repeats[partId];
-        continue;
-      }
-      const src = sheet.bars.find(x => x.id === srcId);
-      if (!src || (src.repeats && src.repeats[partId])) {
-        delete b.repeats[partId];
-      }
-    }
-  }
 }
 function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId); }
 function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); sheet.selectedCell = null; }
@@ -894,7 +804,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -919,7 +829,6 @@ function serializeProject(p) {
           subLength: n.subLength || 0,
         })),
         partNotes: { ...(b.partNotes || {}) },
-        repeats: { ...(b.repeats || {}) },
       })),
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
@@ -930,8 +839,7 @@ function serializeProject(p) {
 
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
-  // Accept v1 (no annotations), v2 (with annotations), v3 (with note subOffset).
-  if (doc.version !== 1 && doc.version !== 2 && doc.version !== 3 && doc.version !== 4 && doc.version !== 5 && doc.version !== SCHEMA_VERSION) return null;
+  if (doc.version !== SCHEMA_VERSION) return null;
   const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Sheet",
@@ -966,7 +874,6 @@ function deserializeProject(doc) {
         return out;
       }) : [],
       partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
-      repeats: b.repeats && typeof b.repeats === "object" ? { ...b.repeats } : {},
     })),
     annotations: Array.isArray(s.annotations)
       ? s.annotations
@@ -978,7 +885,6 @@ function deserializeProject(doc) {
     selectedCell: null,
     partsPanelOpen: false,
     playStart: 0,
-    barPartSelection: null,
   }));
   return { name: typeof doc.name === "string" ? doc.name : "", sheets };
 }
@@ -1032,7 +938,7 @@ let restoreError = null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== 4 && parsed.version !== 5 && parsed.version !== SCHEMA_VERSION) {
+    if (parsed && parsed.version !== SCHEMA_VERSION) {
       restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -1399,7 +1305,6 @@ function renderTabs() {
 
 function renderAll() {
   ensureActiveSheet();
-  for (const s of project.sheets) pruneRepeats(s);
   renderTabs();
   sheetsEl.innerHTML = "";
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
@@ -1408,12 +1313,8 @@ function renderAll() {
     const sheetEl = renderSheet(sheet, idx);
     sheetsEl.appendChild(sheetEl);
     updatePlayheadDom(sheet);
-    // Layout has happened now that the sheet is in the document.
     const bandsEl = sheetEl.querySelector(".bands");
     if (bandsEl) renderAnnotationOverlay(sheet, bandsEl);
-    renderBarPartFooter(sheet);
-  } else {
-    removeBarPartFooter();
   }
   persist();
 }
@@ -1689,151 +1590,6 @@ async function deletePart(sheet, idx) {
   renderAll();
 }
 
-// ---------- bar.part selection / repeat ----------
-function toggleBarPartSelection(sheet, bar, part) {
-  const sel = sheet.barPartSelection;
-  if (!sel) {
-    sheet.barPartSelection = { partId: part.id, barIds: new Set([bar.id]) };
-  } else if (sel.partId !== part.id) {
-    // Foreign part — ignore (UI should have hidden the checkbox).
-    return;
-  } else {
-    if (sel.barIds.has(bar.id)) {
-      sel.barIds.delete(bar.id);
-      if (sel.barIds.size === 0) sheet.barPartSelection = null;
-    } else {
-      sel.barIds.add(bar.id);
-    }
-  }
-  renderAll();
-}
-function cancelBarPartSelection(sheet) {
-  sheet.barPartSelection = null;
-  renderAll();
-}
-function removeBarPartFooter() {
-  const ex = document.getElementById("barpart-footer");
-  if (ex && ex.parentNode) ex.parentNode.removeChild(ex);
-}
-function renderBarPartFooter(sheet) {
-  removeBarPartFooter();
-  const sel = sheet.barPartSelection;
-  if (!sel || sel.barIds.size === 0) return;
-  const count = sel.barIds.size;
-  const part = sheet.parts.find(p => p.id === sel.partId);
-  const partLabel = part ? part.name : "(unknown part)";
-  let repeatCount = 0;
-  for (const barId of sel.barIds) {
-    const bar = sheet.bars.find(b => b.id === barId);
-    if (isRepeatBarPart(bar, sel.partId)) repeatCount++;
-  }
-  const footer = el("div", { class: "barpart-footer", id: "barpart-footer" },
-    el("span", { class: "footer-count" },
-      `${count} block${count === 1 ? "" : "s"} selected in "${partLabel}"`),
-    el("span", { class: "footer-spacer" }),
-    el("button", { onclick: () => openRepeatPicker(sheet) }, "Repeat…"),
-    el("button", {
-      disabled: repeatCount === 0,
-      onclick: () => clearRepeatsFromSelection(sheet),
-    }, "Stop Repeat"),
-    el("button", { onclick: () => cancelBarPartSelection(sheet) }, "Cancel"),
-  );
-  document.body.appendChild(footer);
-}
-async function clearRepeatsFromSelection(sheet) {
-  const sel = sheet.barPartSelection;
-  if (!sel || sel.barIds.size === 0) return;
-  const partId = sel.partId;
-  const targets = [];
-  for (const barId of sel.barIds) {
-    const bar = sheet.bars.find(b => b.id === barId);
-    if (isRepeatBarPart(bar, partId)) targets.push(bar);
-  }
-  if (targets.length === 0) return;
-  const ok = await confirmAsync(
-    `Stop repeat on ${targets.length} repeat block${targets.length === 1 ? "" : "s"}?`
-  );
-  if (!ok) return;
-  pushUndo();
-  for (const bar of targets) {
-    const src = resolveRepeatSourceBar(sheet, bar, partId);
-    if (src) {
-      for (const n of src.notes) {
-        if (n.partId !== partId) continue;
-        bar.notes.push({
-          ...n,
-          id: uid(),
-          subOffset: n.subOffset || 0,
-          subLength: n.subLength || 0,
-        });
-      }
-    }
-    delete bar.repeats[partId];
-  }
-  sheet.barPartSelection = null;
-  renderAll();
-  persist();
-}
-function openRepeatPicker(sheet) {
-  const sel = sheet.barPartSelection;
-  if (!sel || sel.barIds.size === 0) return;
-  const part = sheet.parts.find(p => p.id === sel.partId);
-  if (!part) return;
-  const dlg = document.getElementById("repeat-picker-dialog");
-  const select = document.getElementById("repeat-picker-select");
-  select.innerHTML = "";
-  // Candidates: every bar in this sheet that is NOT itself selected and NOT
-  // already a repeat for this part.
-  const candidates = [];
-  sheet.bars.forEach((b, i) => {
-    if (sel.barIds.has(b.id)) return;
-    if (isRepeatBarPart(b, part.id)) return;
-    candidates.push({ bar: b, label: barDisplayName(sheet, b) });
-  });
-  if (candidates.length === 0) {
-    select.appendChild(el("option", { value: "" }, "(no eligible source bars)"));
-  } else {
-    candidates.forEach(c => select.appendChild(el("option", { value: c.bar.id }, c.label)));
-  }
-  const cancelBtn = document.getElementById("repeat-picker-cancel");
-  const applyBtn = document.getElementById("repeat-picker-apply");
-  applyBtn.disabled = candidates.length === 0;
-  const onCancel = () => { cleanup(); dlg.close(); };
-  const onApply = () => {
-    const sourceId = select.value;
-    cleanup();
-    dlg.close();
-    if (!sourceId) return;
-    applyRepeat(sheet, sourceId);
-  };
-  const cleanup = () => {
-    cancelBtn.removeEventListener("click", onCancel);
-    applyBtn.removeEventListener("click", onApply);
-  };
-  cancelBtn.addEventListener("click", onCancel);
-  applyBtn.addEventListener("click", onApply);
-  dlg.showModal();
-}
-function applyRepeat(sheet, sourceBarId) {
-  const sel = sheet.barPartSelection;
-  if (!sel || sel.barIds.size === 0) return;
-  const partId = sel.partId;
-  pushUndo();
-  for (const barId of sel.barIds) {
-    const bar = sheet.bars.find(b => b.id === barId);
-    if (!bar) continue;
-    if (!bar.repeats) bar.repeats = {};
-    bar.repeats[partId] = sourceBarId;
-    // Drop any notes the repeat bar.part owned for this part, and any text
-    // description — they're now superseded by the source.
-    bar.notes = bar.notes.filter(n => n.partId !== partId);
-    if (bar.partNotes) delete bar.partNotes[partId];
-  }
-  sheet.barPartSelection = null;
-  renderAll();
-  persist();
-}
-
 function renderBands(sheet) {
   const bandsEl = el("div", { class: "bands" });
   const N = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
@@ -1976,53 +1732,21 @@ function renderBand(sheet, bandStart, bandBars) {
 
     bandBars.forEach((bar, bi) => {
       const absBarIx = bandStart + bi;
-      const isRepeat = isRepeatBarPart(bar, part.id);
-      const sourceBar = isRepeat ? resolveRepeatSourceBar(sheet, bar, part.id) : null;
-      const cell = el("div", { class: "bar-cell" + (isRepeat ? " repeat" : "") });
+      const cell = el("div", { class: "bar-cell" });
 
-      // Top row: selection checkbox + description (or repeat label).
-      const sel = sheet.barPartSelection;
-      const inSession = !!sel;
-      const sameLockedPart = inSession && sel.partId === part.id;
-      const checkboxVisible = !inSession || sameLockedPart;
-      const checked = sameLockedPart && sel.barIds.has(bar.id);
-      const checkbox = el("input", {
-        type: "checkbox",
-        class: "barpart-checkbox" + (checkboxVisible ? "" : " invisible"),
-        title: "Select this repeat block",
-        checked,
+      const descEl = el("input", {
+        class: "bar-note-input",
+        type: "text",
+        placeholder: "",
+        value: (bar.partNotes && bar.partNotes[part.id]) || "",
+        style: "margin-left:0; flex:1 1 auto;",
       });
-      checkbox.addEventListener("change", () => {
-        toggleBarPartSelection(sheet, bar, part);
+      descEl.addEventListener("input", (e) => {
+        if (!bar.partNotes) bar.partNotes = {};
+        bar.partNotes[part.id] = e.target.value;
+        persist();
       });
-
-      let descEl;
-      if (isRepeat) {
-        let label;
-        if (sourceBar) {
-          const srcDesc = ((sourceBar.partNotes && sourceBar.partNotes[part.id]) || "").trim();
-          const name = barDisplayName(sheet, sourceBar);
-          label = srcDesc ? `↻ ${name} - ${srcDesc}` : `↻ ${name}`;
-        } else {
-          label = "↻ (broken)";
-        }
-        descEl = el("div", { class: "repeat-label", title: "Repeat of " + label.replace("↻ ", "") }, label);
-      } else {
-        descEl = el("input", {
-          class: "bar-note-input",
-          type: "text",
-          placeholder: "",
-          value: (bar.partNotes && bar.partNotes[part.id]) || "",
-          style: "margin-left:0; flex:1 1 auto;",
-        });
-        descEl.addEventListener("input", (e) => {
-          if (isRepeatBarPart(bar, part.id)) return;
-          if (!bar.partNotes) bar.partNotes = {};
-          bar.partNotes[part.id] = e.target.value;
-          persist();
-        });
-      }
-      const head = el("div", { class: "bar-cell-head" }, checkbox, descEl);
+      const head = el("div", { class: "bar-cell-head" }, descEl);
       cell.appendChild(head);
 
       const gridRow = el("div", { class: "bar-grid" });
@@ -2033,7 +1757,6 @@ function renderBand(sheet, bandStart, bandBars) {
       wrap.dataset.partLo = String(part.lo);
       wrap.dataset.partType = part.type || "pitched";
       wrap.dataset.barIndex = String(absBarIx);
-      if (isRepeat) wrap.dataset.repeat = "1";
       wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
       wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
@@ -2066,16 +1789,15 @@ function renderBand(sheet, bandStart, bandBars) {
       gridRow.appendChild(wrap);
 
       const bridgePx = getBarBridgePx();
-      const renderSrcBar = isRepeat && sourceBar ? sourceBar : bar;
-      renderSrcBar.notes.filter(n => n.partId === part.id).forEach(n => {
+      bar.notes.filter(n => n.partId === part.id).forEach(n => {
         if (n.pitch < part.lo || n.pitch > part.hi) return;
         let drumCls = "";
         if (rhythm) {
           const key = RHYTHM_KEYS[part.hi - n.pitch];
           if (key) drumCls = " drum-" + key;
         }
-        const noteEl = el("div", { class: "note" + drumCls + (!isRepeat && isNoteSelected(sheet, n.id) ? " selected" : "") });
-        if (!isRepeat) noteEl.dataset.noteId = n.id;
+        const noteEl = el("div", { class: "note" + drumCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
+        noteEl.dataset.noteId = n.id;
         noteEl.dataset.vel = String(n.vel);
         noteEl.dataset.len = String(noteFracLength(n));
         const top = (part.hi - n.pitch) * cellH;
@@ -2083,19 +1805,11 @@ function renderBand(sheet, bandStart, bandBars) {
         noteEl.style.top = top + "px";
         noteEl.style.width = noteWidthPx(noteFracStart(n), noteFracLength(n), cellW, bridgePx) + "px";
         noteEl.style.opacity = VEL_OPACITY[n.vel];
-        if (!isRepeat) {
-          noteEl.addEventListener("contextmenu", (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            openNoteContextMenu(ev, sheet, n);
-          });
-        } else {
-          noteEl.addEventListener("pointerdown", (ev) => {
-            if (ev.button !== 0) return;
-            ev.stopPropagation();
-            auditionNote(sheet, n);
-          });
-        }
+        noteEl.addEventListener("contextmenu", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          openNoteContextMenu(ev, sheet, n);
+        });
         wrap.appendChild(noteEl);
       });
 
@@ -2115,9 +1829,7 @@ function renderBand(sheet, bandStart, bandBars) {
       const playLine = el("div", { class: "playhead-line" });
       wrap.appendChild(playLine);
 
-      if (!isRepeat) {
-        wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap, bar));
-      }
+      wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap, bar));
       cell.appendChild(gridRow);
       strip.appendChild(cell);
     });
@@ -2513,7 +2225,6 @@ function rubberBandTick(ev) {
   if (!sheetEl) return;
   const tickHits = [];
   for (const wrap of sheetEl.querySelectorAll(".grid-wrap")) {
-    if (wrap.dataset.repeat === "1") continue;
     const wr = wrap.getBoundingClientRect();
     if (!rectsOverlap(bandRect, wr)) continue;
     const partId = wrap.dataset.partId;
@@ -3057,10 +2768,6 @@ async function pasteClipboard(sheet) {
   } else {
     return; // nothing selected
   }
-  if (isRepeatBarPart(sheet.bars[targetBarIndex], targetPart.id)) {
-    alert("Can't paste into a repeat block — it mirrors another bar and is read-only.");
-    return;
-  }
 
   const newIds = [];
   const keyToNewId = new Map();
@@ -3222,7 +2929,6 @@ document.addEventListener("pointerdown", (ev) => {
   if (t.closest(".note")) return;
   if (t.closest(".grid-wrap")) return;
   if (t.closest(".ruler-track")) return;
-  if (t.closest(".barpart-footer")) return;
   const sheetEl = t.closest(".sheet");
   let sheet;
   if (sheetEl) {
@@ -3241,7 +2947,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   if (ev.target.closest(".note") || ev.target.closest(".grid-wrap")) return;
   const tt = ev.target.tagName;
   if (tt === "INPUT" || tt === "TEXTAREA" || tt === "SELECT" || tt === "OPTION" || tt === "BUTTON" || tt === "LABEL") return;
-  if (ev.target.closest("label") || ev.target.closest("button") || ev.target.closest(".barpart-checkbox")) return;
+  if (ev.target.closest("label") || ev.target.closest("button")) return;
   const sec = ev.target.closest(".sheet");
   if (!sec) return;
   const id = sec.dataset.sheetId;
@@ -3374,7 +3080,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const parsed = JSON.parse(fr.result);
-      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== 4 && parsed.version !== 5 && parsed.version !== SCHEMA_VERSION) {
+      if (parsed && parsed.version !== SCHEMA_VERSION) {
         throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
       }
       const obj = deserializeProject(parsed);
@@ -3591,17 +3297,6 @@ function playSheet(sheet, fromStep) {
   };
   sheet.bars.forEach((bar, bi) => {
     for (const n of bar.notes) scheduleNoteAt(n, bi);
-    // Mirror source notes for each part this bar repeats.
-    if (bar.repeats) {
-      for (const partId of Object.keys(bar.repeats)) {
-        const src = sheet.bars.find(b => b.id === bar.repeats[partId]);
-        if (!src) continue;
-        for (const n of src.notes) {
-          if (n.partId !== partId) continue;
-          scheduleNoteAt(n, bi);
-        }
-      }
-    }
   });
   playbackT0 = t0;
   playbackStartStep = effectiveStart;
@@ -3786,7 +3481,6 @@ function handleNoteOn(pitch, midiVel) {
   }
   const bi = Math.floor(step / STEPS_PER_BAR);
   if (bi < 0 || bi >= sheet.bars.length) return;
-  if (isRepeatBarPart(sheet.bars[bi], recordingPartId)) return;
   const note = {
     id: uid(),
     partId: recordingPartId,
@@ -3906,16 +3600,6 @@ function buildSheetTrack(sheet, part, isFirstTrack) {
     for (const n of bar.notes) {
       if (n.partId !== part.id) continue;
       emitNote(n, bi);
-    }
-    const srcId = bar.repeats && bar.repeats[part.id];
-    if (srcId) {
-      const src = sheet.bars.find(b => b.id === srcId);
-      if (src) {
-        for (const n of src.notes) {
-          if (n.partId !== part.id) continue;
-          emitNote(n, bi);
-        }
-      }
     }
   });
   events.sort((a, b) => a.tick - b.tick || a.order - b.order);
