@@ -630,6 +630,7 @@ const SCALES = {
 // via part.lo=0, part.hi=2). Row index = part.hi - note.pitch, so top→bottom
 // order matches RHYTHM_ROWS.
 const RHYTHM_ROWS = ["H", "S", "B"];
+const RHYTHM_NAMES = ["Hi-hat", "Snare", "Bass"];
 const RHYTHM_KEYS = ["hihat", "snare", "bass"];
 
 const SCALE_OPTIONS = [
@@ -1682,6 +1683,7 @@ function renderBand(sheet, bandStart, bandBars) {
       wrap.dataset.partId = part.id;
       wrap.dataset.partHi = String(part.hi);
       wrap.dataset.partLo = String(part.lo);
+      wrap.dataset.partType = part.type || "pitched";
       wrap.dataset.barIndex = String(bandStart + bi);
       wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
       wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
@@ -2477,7 +2479,11 @@ function showCellTooltipAt(ev, wrap) {
     }
   }
   const tip = getCellTooltip();
-  const pitchHtml = `<span class="pitch">${escapeHtml(pitchName(pitch))}</span>`;
+  const isRhythm = wrap.dataset.partType === "rhythm";
+  const pitchLabel = isRhythm
+    ? (RHYTHM_NAMES[partHi - pitch] || "")
+    : pitchName(pitch);
+  const pitchHtml = `<span class="pitch">${escapeHtml(pitchLabel)}</span>`;
   const velHtml = velLabel ? `<span class="vel">${escapeHtml(velLabel)}</span>` : "";
   const lenHtml = lenSteps != null ? `<span class="len">${escapeHtml(formatLengthSteps(lenSteps))}</span>` : "";
   tip.innerHTML = pitchHtml + velHtml + lenHtml;
