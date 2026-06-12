@@ -1147,7 +1147,7 @@ const tabstripEl = document.getElementById("tabstrip");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
-function noteWidthPx(length, cellW) { return length * cellW - 1; }
+function noteWidthPx(length, cellW) { return length * cellW + 1; }
 // Absolute fractional step position of a note, including its syncopation sub-offset.
 function noteFracStart(n) { return n.start + (n.subOffset || 0) / SUB_PER_STEP; }
 // Fractional length in steps (1 step = SUB_PER_STEP sub-steps).
@@ -1610,7 +1610,7 @@ function renderBand(sheet) {
       const selEl = el("div", { class: "cell-selected" });
       selEl.style.left = (sheet.selectedCell.step * cellW) + "px";
       selEl.style.top = ((part.hi - sheet.selectedCell.pitch) * cellH) + "px";
-      selEl.style.width = (cellW - 1) + "px";
+      selEl.style.width = (cellW + 1) + "px";
       selEl.style.height = (cellH - 1) + "px";
       wrap.appendChild(selEl);
     }
@@ -2323,7 +2323,7 @@ function updateCellHover(ev, wrap) {
   hover.style.display = "block";
   hover.style.left = (rect.left + stepAbs * cellW) + "px";
   hover.style.top = (rect.top + rowIdx * cellH) + "px";
-  hover.style.width = cellW + "px";
+  hover.style.width = (cellW + 2) + "px";
   hover.style.height = cellH + "px";
 }
 function updateNoteCursor(ev) {
