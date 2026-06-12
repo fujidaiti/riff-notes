@@ -2059,6 +2059,12 @@ function renderBand(sheet, bandStart, bandBars) {
             ev.stopPropagation();
             openNoteContextMenu(ev, sheet, n);
           });
+        } else {
+          noteEl.addEventListener("pointerdown", (ev) => {
+            if (ev.button !== 0) return;
+            ev.stopPropagation();
+            auditionNote(sheet, n);
+          });
         }
         wrap.appendChild(noteEl);
       });
@@ -2735,6 +2741,7 @@ document.addEventListener("pointerup", () => {
     }
     // else: sole-selected plain click, or a fresh single selection from
     // pointerdown — no-op.
+    auditionNote(d.sheet, d.primaryNote);
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
@@ -3477,6 +3484,20 @@ function scheduleDrum(when, durSec, drumKey, vel) {
     stops.push(() => { try { src.stop(); src.disconnect(); hp.disconnect(); ng.disconnect(); } catch {} });
   }
   for (const s of stops) activeOscillators.push(s);
+}
+
+function auditionNote(sheet, note) {
+  ensureAudio();
+  const secPerStep = 60 / sheet.bpm / 4;
+  const dur = secPerStep * 0.95;
+  const when = audioCtx.currentTime + 0.005;
+  const part = sheet.parts.find(p => p.id === note.partId);
+  if (part && part.type === "rhythm") {
+    const key = RHYTHM_KEYS[part.hi - note.pitch];
+    if (key) scheduleDrum(when, dur, key, note.vel);
+  } else {
+    scheduleNote(when, dur, note.pitch, note.vel);
+  }
 }
 
 function scheduleNote(when, durSec, midi, vel) {
