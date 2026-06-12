@@ -222,11 +222,11 @@
   .band-bar-numbers {
     grid-column: 2;
     display: grid;
-    gap: 12px;
+    padding-left: var(--label-w);
     font-size: 10px;
     color: var(--ink-muted);
   }
-  .band-bar-numbers > span { padding: 1px 4px; margin-left: var(--label-w); }
+  .band-bar-numbers > span { padding: 1px 4px; }
   .band-row {
     grid-column: 1 / span 2;
     display: grid;
@@ -235,8 +235,6 @@
     align-items: center;
   }
   .band-row + .band-row { margin-top: 4px; }
-  .bars-strip { display: grid; gap: 12px; }
-  .bar-cell { display: flex; flex-direction: column; gap: 2px; }
   .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
   .label-col {
     display: flex; flex-direction: column;
@@ -253,36 +251,6 @@
     overflow: hidden;
   }
   .label-row .oct { font-size: 0.75em; color: var(--ink-faint); margin-left: 1px; }
-  .bar-note-input {
-    width: calc(var(--cell-w) * 16);
-    margin-left: var(--label-w);
-    font: inherit;
-    font-size: 11px;
-    color: var(--ink-soft);
-    padding: 1px 4px;
-    border: 1px solid transparent;
-    background: transparent;
-    border-radius: 3px;
-    box-sizing: border-box;
-  }
-  .bar-note-input::placeholder { color: var(--placeholder); }
-  .bar-note-input:hover { border-color: var(--line); }
-  .bar-note-input:focus { border-color: var(--line); background: var(--input-bg); outline: none; }
-  .bar-name-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    font: inherit;
-    font-size: 10px;
-    color: var(--ink-muted);
-    padding: 0 3px;
-    border: 1px solid transparent;
-    background: transparent;
-    border-radius: 3px;
-    box-sizing: border-box;
-  }
-  .bar-name-input::placeholder { color: var(--placeholder); }
-  .bar-name-input:hover { border-color: var(--line); }
-  .bar-name-input:focus { border-color: var(--line); background: var(--input-bg); outline: none; color: var(--ink-soft); }
   .part-side {
     grid-column: 1;
     display: flex;
@@ -329,12 +297,14 @@
     background: var(--sheet-bg);
     border: 1px solid var(--line);
     background-image:
+      linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
       linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
       linear-gradient(to right, var(--grid-line-soft) 1px, transparent 1px);
     background-size:
+      calc(var(--cell-w) * 16) 100%,
       calc(var(--cell-w) * 4) 100%,
       var(--cell-w) 100%;
-    background-position: 0 0, 0 0;
+    background-position: 0 0, 0 0, 0 0;
   }
   .grid-row {
     position: relative;
@@ -346,26 +316,22 @@
   .grid-row.in-scale-root { background: var(--scale-root-tint); }
   .band-ruler {
     grid-column: 2;
-    display: grid;
-    gap: 12px;
+    padding-left: var(--label-w);
     margin-top: 2px;
   }
-  .ruler-bar {
-    display: grid;
-    grid-template-columns: var(--label-w) calc(var(--cell-w) * 16);
-  }
   .ruler-track {
-    grid-column: 2;
     position: relative;
     height: 10px;
     background-color: var(--ruler-bg);
     background-image:
+      linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
       linear-gradient(to right, var(--ruler-tick) 1px, transparent 1px),
       linear-gradient(to right, var(--ruler-tick-soft) 1px, transparent 1px);
     background-size:
+      calc(var(--cell-w) * 16) 100%,
       calc(var(--cell-w) * 4) 100%,
       var(--cell-w) 100%;
-    background-position: 0 0, 0 0;
+    background-position: 0 0, 0 0, 0 0;
     background-repeat: repeat-x;
     border: 1px solid var(--line);
     border-radius: 2px;
@@ -558,10 +524,6 @@
   #help-dialog .actions { display: flex; justify-content: flex-end; margin-top: 10px; }
   .btn-icon { padding: 4px 8px; cursor: pointer; }
 
-  .bar-cell-head {
-    display: flex; align-items: center;
-    width: calc(var(--label-w) + var(--cell-w) * 16);
-  }
 </style>
 <script>
   // Resolve theme before first paint to avoid a light-mode flash.
@@ -677,18 +639,22 @@ const SCALE_OPTIONS = [
 let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
-function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return { id: uid(), name, lo, hi, type }; }
-function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm" }; }
+function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return { id: uid(), name, lo, hi, type, notes: [] }; }
+function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm", notes: [] }; }
 function isRhythmPart(part) { return !!part && part.type === "rhythm"; }
 function getRhythmPart(sheet) { return sheet.parts.find(isRhythmPart); }
-function makeBar() { return { id: uid(), name: "", notes: [], partNotes: {} }; }
+function totalSteps(sheet) { return sheet.barCount * STEPS_PER_BAR; }
+function findNote(sheet, noteId) {
+  for (const p of sheet.parts) for (const n of p.notes) if (n.id === noteId) return n;
+  return null;
+}
 function makeSheet(title = "Sheet") {
   return {
     id: uid(), title, notes: "", bpm: 120,
     scale: { root: 0, mode: "major" },
     pitchDisplay: "note",
     parts: [makePart("Part 1")],
-    bars: [makeBar()],
+    barCount: 1,
     annotations: [],
     selectedNoteIds: new Set(),
     selectedCell: null,
@@ -703,16 +669,16 @@ function setCellSelection(sheet, sel) { sheet.selectedCell = sel; sheet.selected
 function clearCellSelection(sheet) { sheet.selectedCell = null; }
 function partOfSelection(sheet) {
   if (sheet.selectedNoteIds.size === 0) return null;
-  for (const b of sheet.bars) {
-    for (const n of b.notes) if (sheet.selectedNoteIds.has(n.id)) return n.partId;
+  for (const p of sheet.parts) {
+    for (const n of p.notes) if (sheet.selectedNoteIds.has(n.id)) return n.partId;
   }
   return null;
 }
 function dropForeignPartFromSelection(sheet, keepPartId) {
   if (!keepPartId || sheet.selectedNoteIds.size === 0) return;
   const drop = [];
-  for (const b of sheet.bars) {
-    for (const n of b.notes) {
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
       if (sheet.selectedNoteIds.has(n.id) && n.partId !== keepPartId) drop.push(n.id);
     }
   }
@@ -724,19 +690,17 @@ function toggleNoteSelection(sheet, note) {
   sheet.selectedNoteIds.add(note.id);
   sheet.selectedCell = null;
 }
-// Remove notes whose ids are in `idSet` from every bar of `sheet`, then prune
+// Remove notes whose ids are in `idSet` from every part of `sheet`, then prune
 // any annotations whose noteIds become empty after the removal. Returns the
 // number of notes actually removed.
 function removeNotesByIds(sheet, idSet) {
   if (!idSet || idSet.size === 0) return 0;
   let removed = 0;
-  for (const b of sheet.bars) {
-    const before = b.notes.length;
-    b.notes = b.notes.filter(n => {
+  for (const p of sheet.parts) {
+    p.notes = p.notes.filter(n => {
       if (idSet.has(n.id)) { removed++; return false; }
       return true;
     });
-    if (b.notes.length !== before) { /* noop, just for clarity */ }
   }
   if (sheet.annotations && sheet.annotations.length > 0) {
     sheet.annotations = sheet.annotations
@@ -804,7 +768,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -818,17 +782,15 @@ function serializeProject(p) {
       bpm: s.bpm,
       scale: { root: s.scale.root, mode: s.scale.mode },
       pitchDisplay: s.pitchDisplay || "note",
-      parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched" })),
-      bars: s.bars.map(b => ({
-        id: b.id,
-        name: b.name || "",
-        notes: b.notes.map(n => ({
+      barCount: Math.max(1, s.barCount | 0),
+      parts: s.parts.map(pt => ({
+        id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched",
+        notes: pt.notes.map(n => ({
           id: n.id, partId: n.partId, pitch: n.pitch,
           start: n.start, length: n.length, vel: n.vel,
           subOffset: n.subOffset || 0,
           subLength: n.subLength || 0,
         })),
-        partNotes: { ...(b.partNotes || {}) },
       })),
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
@@ -840,52 +802,50 @@ function serializeProject(p) {
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
   if (doc.version !== SCHEMA_VERSION) return null;
-  const sheets = doc.sheets.map(s => ({
-    id: s.id || uid(),
-    title: typeof s.title === "string" ? s.title : "Sheet",
-    notes: typeof s.notes === "string" ? s.notes : "",
-    bpm: Number.isFinite(s.bpm) ? s.bpm : 120,
-    scale: {
-      root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
-      mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
-    },
-    pitchDisplay: s.pitchDisplay === "degree" ? "degree" : "note",
-    parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
-      .map(pt => {
-        const type = pt.type === "rhythm" ? "rhythm" : "pitched";
-        if (type === "rhythm") {
-          return { id: pt.id || uid(), name: pt.name || "Rhythm", lo: 0, hi: 2, type };
-        }
-        return { id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72, type };
-      }),
-    bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
-      id: b.id || uid(),
-      name: typeof b.name === "string" ? b.name : "",
-      notes: Array.isArray(b.notes) ? b.notes.map(n => {
-        let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
-        if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
-        if (so >  (SUB_PER_STEP - 1)) so =  (SUB_PER_STEP - 1);
-        let sl = Number.isInteger(n.subLength) ? n.subLength : 0;
-        if (sl < 0) sl = 0;
-        if (sl > SUB_PER_STEP - 1) sl = SUB_PER_STEP - 1;
-        const out = { ...n, subOffset: so, subLength: sl };
-        const owner = (s.parts || []).find(pt => pt && pt.id === n.partId);
-        if (owner && owner.type === "rhythm") out.length = 1;
-        return out;
-      }) : [],
-      partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
-    })),
-    annotations: Array.isArray(s.annotations)
-      ? s.annotations
-          .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
-          .map(a => ({ id: a.id || uid(), text: a.text, noteIds: a.noteIds.filter(x => typeof x === "string") }))
-      : [],
-    // runtime/view state — never persisted, always defaulted
-    selectedNoteIds: new Set(),
-    selectedCell: null,
-    partsPanelOpen: false,
-    playStart: 0,
-  }));
+  const sheets = doc.sheets.map(s => {
+    const barCount = Math.max(1, Number.isFinite(s.barCount) ? (s.barCount | 0) : 1);
+    return {
+      id: s.id || uid(),
+      title: typeof s.title === "string" ? s.title : "Sheet",
+      notes: typeof s.notes === "string" ? s.notes : "",
+      bpm: Number.isFinite(s.bpm) ? s.bpm : 120,
+      scale: {
+        root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
+        mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
+      },
+      pitchDisplay: s.pitchDisplay === "degree" ? "degree" : "note",
+      barCount,
+      parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
+        .map(pt => {
+          const type = pt.type === "rhythm" ? "rhythm" : "pitched";
+          const base = type === "rhythm"
+            ? { id: pt.id || uid(), name: pt.name || "Rhythm", lo: 0, hi: 2, type }
+            : { id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72, type };
+          base.notes = Array.isArray(pt.notes) ? pt.notes.map(n => {
+            let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
+            if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
+            if (so >  (SUB_PER_STEP - 1)) so =  (SUB_PER_STEP - 1);
+            let sl = Number.isInteger(n.subLength) ? n.subLength : 0;
+            if (sl < 0) sl = 0;
+            if (sl > SUB_PER_STEP - 1) sl = SUB_PER_STEP - 1;
+            const out = { ...n, subOffset: so, subLength: sl };
+            if (type === "rhythm") out.length = 1;
+            return out;
+          }) : [];
+          return base;
+        }),
+      annotations: Array.isArray(s.annotations)
+        ? s.annotations
+            .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
+            .map(a => ({ id: a.id || uid(), text: a.text, noteIds: a.noteIds.filter(x => typeof x === "string") }))
+        : [],
+      // runtime/view state — never persisted, always defaulted
+      selectedNoteIds: new Set(),
+      selectedCell: null,
+      partsPanelOpen: false,
+      playStart: 0,
+    };
+  });
   return { name: typeof doc.name === "string" ? doc.name : "", sheets };
 }
 
@@ -1199,70 +1159,32 @@ function openNoteContextMenu(ev, sheet, note) {
   openContextMenu(ev.clientX, ev.clientY, items);
 }
 
-// ---------- Bar grouping ----------
-// All bars render in a single horizontally-scrollable band. The legacy
-// "N bars per band" wrapping is gone; this function exists only so that
-// the cap math `Math.min(barsPerBand(), sheet.bars.length)` in callers
-// resolves to "all bars".
-function barsPerBand() {
-  return Infinity;
-}
-
 // ---------- Rendering ----------
 const sheetsEl = document.getElementById("sheets");
 const tabstripEl = document.getElementById("tabstrip");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
-// Pixel distance from one bar's grid-wrap right edge to the next bar's
-// grid-wrap left edge — the inter-bar label column plus the bars-strip gap.
-// Kept in sync with the CSS values for --label-w and .bars-strip { gap: 12px }.
-const INTER_BAR_GAP_PX = 12;
-function getBarBridgePx() {
-  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--label-w")) + INTER_BAR_GAP_PX;
-}
-// Visual width of a note that may overflow into one or more following bars.
-// Each crossed bar boundary contributes one bridge of empty space (label-col +
-// gap) that the note must visually cover so that step k after the boundary
-// lands on cell k of the next bar's grid.
-function noteWidthPx(start, length, cellW, bridgePx) {
-  const end = start + length;
-  const boundariesCrossed = Math.max(0, Math.ceil(end / STEPS_PER_BAR) - 1);
-  return length * cellW - 1 + boundariesCrossed * bridgePx;
-}
-// Fractional step position of a note, including its syncopation sub-offset.
+function noteWidthPx(length, cellW) { return length * cellW - 1; }
+// Absolute fractional step position of a note, including its syncopation sub-offset.
 function noteFracStart(n) { return n.start + (n.subOffset || 0) / SUB_PER_STEP; }
 // Fractional length in steps (1 step = SUB_PER_STEP sub-steps).
 function noteFracLength(n) { return n.length + (n.subLength || 0) / SUB_PER_STEP; }
-// Shift a single selected note's sub-offset by `delta` sub-steps. Carries into
-// `start` (and across bar boundaries) when |subOffset| reaches SUB_PER_STEP.
-// Clamps so the note never crosses the sheet's first/last absolute sub-position.
-// Returns true iff the note actually moved. The note's owning bar may change;
-// caller is responsible for resolving it via `barOf`.
-function shiftNoteSubOffset(sheet, barOf, note, delta) {
-  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
-  const curBarIx = sheet.bars.indexOf(barOf);
-  if (curBarIx < 0) return false;
-  // Express position as absolute sub-step.
-  let absSub = (curBarIx * STEPS_PER_BAR + note.start) * SUB_PER_STEP + (note.subOffset || 0);
+// Shift a note's absolute position by `delta` sub-steps; clamps so the note
+// never crosses the sheet's first/last absolute sub-position. Returns true
+// iff the note actually moved.
+function shiftNoteSubOffset(sheet, note, delta) {
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  let absSub = note.start * SUB_PER_STEP + (note.subOffset || 0);
   const lenSub = note.length * SUB_PER_STEP + (note.subLength || 0);
-  const maxAbsSub = totalSheetSteps * SUB_PER_STEP - lenSub;
+  const maxAbsSub = totalSheetSub - lenSub;
   let target = absSub + delta;
   if (target < 0) target = 0;
   if (target > maxAbsSub) target = maxAbsSub;
   if (target === absSub) return false;
-  const newBarIx = Math.floor(target / (STEPS_PER_BAR * SUB_PER_STEP));
-  const inBarSub = target - newBarIx * STEPS_PER_BAR * SUB_PER_STEP;
-  const newStart = Math.floor(inBarSub / SUB_PER_STEP);
-  const newSub = inBarSub - newStart * SUB_PER_STEP;
+  const newStart = Math.floor(target / SUB_PER_STEP);
   note.start = newStart;
-  note.subOffset = newSub;
-  if (newBarIx !== curBarIx) {
-    const oldBar = sheet.bars[curBarIx];
-    const ix = oldBar.notes.indexOf(note);
-    if (ix >= 0) oldBar.notes.splice(ix, 1);
-    sheet.bars[newBarIx].notes.push(note);
-  }
+  note.subOffset = target - newStart * SUB_PER_STEP;
   return true;
 }
 
@@ -1322,30 +1244,21 @@ function renderAll() {
 // Position the ruler marker(s) at sheet.playStart and clear any grid lines.
 function updatePlayheadDom(sheet) {
   const absStep = sheet.playStart || 0;
-  const startBar = Math.floor(absStep / STEPS_PER_BAR);
-  const startStepInBar = absStep % STEPS_PER_BAR;
   const isPaused = pausedSheetId === sheet.id;
   const liveStep = isPaused ? pausedStep : -1;
-  const liveBar = isPaused ? Math.floor(liveStep / STEPS_PER_BAR) : -1;
-  const liveStepInBar = isPaused ? liveStep - liveBar * STEPS_PER_BAR : 0;
   const cellW = getCellW();
   document.querySelectorAll(".ruler-track").forEach(track => {
-    const bi = parseInt(track.dataset.barIndex, 10);
     const start = track.querySelector(".playhead-marker.start");
     const live = track.querySelector(".playhead-marker.live");
     if (start) {
-      if (bi === startBar) {
-        start.style.display = "block";
-        start.style.left = (startStepInBar * cellW) + "px";
-        start.classList.remove("dim");
-      } else {
-        start.style.display = "none";
-      }
+      start.style.display = "block";
+      start.style.left = (absStep * cellW) + "px";
+      start.classList.remove("dim");
     }
     if (live) {
-      if (isPaused && bi === liveBar) {
+      if (isPaused) {
         live.style.display = "block";
-        live.style.left = (liveStepInBar * cellW) + "px";
+        live.style.left = (liveStep * cellW) + "px";
       } else {
         live.style.display = "none";
       }
@@ -1354,10 +1267,9 @@ function updatePlayheadDom(sheet) {
   document.querySelectorAll(".grid-wrap").forEach(wrap => {
     const line = wrap.querySelector(".playhead-line");
     if (!line) return;
-    const bi = parseInt(wrap.dataset.barIndex, 10);
-    if (isPaused && bi === liveBar) {
+    if (isPaused) {
       line.classList.add("active");
-      line.style.left = (liveStepInBar * cellW) + "px";
+      line.style.left = (liveStep * cellW) + "px";
     } else {
       line.classList.remove("active");
     }
@@ -1366,47 +1278,33 @@ function updatePlayheadDom(sheet) {
 
 // Move playhead during playback: live marker follows current position,
 // start marker remains visible (translucent) at sheet.playStart, plus a
-// line in the currently-playing bar's grids (one per part).
+// line in each part's grid at the current absolute step.
 function updatePlaybackPlayhead(absStep, sheet) {
-  const liveBar = Math.floor(absStep / STEPS_PER_BAR);
-  const liveStepInBar = absStep - liveBar * STEPS_PER_BAR;
   const cellW = getCellW();
-  const liveX = liveStepInBar * cellW;
+  const liveX = absStep * cellW;
   const startStep = sheet ? (sheet.playStart || 0) : -1;
-  const startBar = Math.floor(startStep / STEPS_PER_BAR);
-  const startStepInBar = startStep - startBar * STEPS_PER_BAR;
   document.querySelectorAll(".ruler-track").forEach(track => {
-    const bi = parseInt(track.dataset.barIndex, 10);
     const start = track.querySelector(".playhead-marker.start");
     const live = track.querySelector(".playhead-marker.live");
     if (start) {
-      if (bi === startBar && startStep >= 0) {
+      if (startStep >= 0) {
         start.style.display = "block";
-        start.style.left = (startStepInBar * cellW) + "px";
+        start.style.left = (startStep * cellW) + "px";
         start.classList.add("dim");
       } else {
         start.style.display = "none";
       }
     }
     if (live) {
-      if (bi === liveBar) {
-        live.style.display = "block";
-        live.style.left = liveX + "px";
-      } else {
-        live.style.display = "none";
-      }
+      live.style.display = "block";
+      live.style.left = liveX + "px";
     }
   });
   document.querySelectorAll(".grid-wrap").forEach(wrap => {
     const line = wrap.querySelector(".playhead-line");
     if (!line) return;
-    const bi = parseInt(wrap.dataset.barIndex, 10);
-    if (bi === liveBar) {
-      line.classList.add("active");
-      line.style.left = liveX + "px";
-    } else {
-      line.classList.remove("active");
-    }
+    line.classList.add("active");
+    line.style.left = liveX + "px";
   });
 }
 
@@ -1472,13 +1370,13 @@ function renderSheet(sheet, idx) {
 
   const actions = el("div", { class: "sheet-actions" },
     el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
-    el("button", { onclick: () => { sheet.bars.push(makeBar()); renderAll(); } }, "+ Bar"),
+    el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
     playBtn, stopBtn,
     el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
     el("button", {
       onclick: async () => {
         if (project.sheets.length <= 1) { alert("At least one sheet is required."); return; }
-        if (await confirmAsync("Delete this sheet and all its bars?")) {
+        if (await confirmAsync("Delete this sheet and all its notes?")) {
           if (playingSheetId === sheet.id) stopPlayback();
           const removedIdx = project.sheets.findIndex(s => s.id === sheet.id);
           project.sheets.splice(removedIdx, 1);
@@ -1579,126 +1477,79 @@ function movePart(sheet, idx, dir) {
 async function deletePart(sheet, idx) {
   if (sheet.parts.length <= 1) return;
   const part = sheet.parts[idx];
-  let count = 0;
-  for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) count++;
+  const count = part.notes.length;
   if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
   pushUndo();
+  const doomed = new Set(part.notes.map(n => n.id));
   sheet.parts.splice(idx, 1);
-  const doomed = new Set();
-  for (const b of sheet.bars) for (const n of b.notes) if (n.partId === part.id) doomed.add(n.id);
-  removeNotesByIds(sheet, doomed);
+  if (doomed.size > 0 && sheet.annotations && sheet.annotations.length > 0) {
+    sheet.annotations = sheet.annotations
+      .map(a => ({ ...a, noteIds: a.noteIds.filter(id => !doomed.has(id)) }))
+      .filter(a => a.noteIds.length > 0);
+  }
   renderAll();
 }
 
 function renderBands(sheet) {
   const bandsEl = el("div", { class: "bands" });
-  const N = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
-  for (let bandStart = 0; bandStart < sheet.bars.length; bandStart += N) {
-    const bandBars = sheet.bars.slice(bandStart, bandStart + N);
-    bandsEl.appendChild(renderBand(sheet, bandStart, bandBars));
-  }
+  bandsEl.appendChild(renderBand(sheet));
   return bandsEl;
 }
 
-function barDisplayName(sheet, bar) {
-  const trimmed = (bar.name || "").trim();
-  if (trimmed) return trimmed;
-  return "Bar " + (sheet.bars.indexOf(bar) + 1);
-}
-
-function renderBand(sheet, bandStart, bandBars) {
+function renderBand(sheet) {
   const cellW = getCellW();
   const cellH = getCellH();
   const bandEl = el("div", { class: "band" });
+  const barCount = Math.max(1, sheet.barCount | 0);
+  const sheetSteps = barCount * STEPS_PER_BAR;
 
   // Opaque sticky rail spanning the full band height at the left edge so
   // the part-side column appears as one continuous floating bar while
-  // horizontally scrolling. We must place every band child on an explicit
-  // grid-row so the rail (column 1) and the part rows (columns 1/span 2)
-  // can overlap; otherwise auto-placement pushes the part rows below the
-  // rail's span, shortening the rail.
+  // horizontally scrolling.
   const railRows = 2 + sheet.parts.length;
   bandEl.appendChild(el("div", {
     class: "band-left-rail",
     style: `grid-row: 1 / span ${railRows};`,
   }));
 
-  // Bar number row
+  // Bar number row — one span per bar, sized to one bar's worth of cells.
   const numRow = el("div", { class: "band-bar-numbers" });
   numRow.style.gridRow = "1";
-  numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
-  bandBars.forEach((bar, i) => {
-    const span = el("span", { style: "display:flex; align-items:center; gap:2px;" });
-    const nameInput = el("input", {
-      class: "bar-name-input",
-      type: "text",
-      value: bar.name || "",
-      placeholder: `Bar ${bandStart + i + 1}`,
-    });
-    nameInput.addEventListener("input", (e) => {
-      bar.name = e.target.value;
-      persist();
-    });
-    span.appendChild(nameInput);
-    if (sheet.bars.length > 1) {
-      const delBtn = el("button", {
-        style: "margin-left:2px; font-size:10px; padding:0 4px; cursor:pointer;",
-        onclick: async () => {
-          if (await confirmAsync("Delete this bar?")) {
-            pushUndo();
-            const idx = bandStart + i;
-            const doomed = new Set(sheet.bars[idx].notes.map(n => n.id));
-            sheet.bars.splice(idx, 1);
-            if (sheet.bars.length === 0) sheet.bars.push(makeBar());
-            if (doomed.size > 0) removeNotesByIds(sheet, doomed);
-            renderAll();
-          }
-        },
-      }, "✕");
-      span.appendChild(delBtn);
-    }
-    numRow.appendChild(span);
-  });
+  numRow.style.gridTemplateColumns = `repeat(${barCount}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
+  for (let i = 0; i < barCount; i++) {
+    numRow.appendChild(el("span", {}, String(i + 1)));
+  }
   bandEl.appendChild(numRow);
 
-  // Ruler row: clickable per-bar tracks for setting playStart
+  // Ruler row — a single contiguous clickable track spanning the whole sheet.
   const rulerRow = el("div", { class: "band-ruler" });
   rulerRow.style.gridRow = "2";
-  rulerRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
-  bandBars.forEach((bar, i) => {
-    const absBarIdx = bandStart + i;
-    const rulerBar = el("div", { class: "ruler-bar" });
-    const track = el("div", { class: "ruler-track" });
-    track.dataset.barIndex = String(absBarIdx);
-    const marker = el("div", { class: "playhead-marker start" });
-    marker.style.display = "none";
-    track.appendChild(marker);
-    const liveMarker = el("div", { class: "playhead-marker live" });
-    liveMarker.style.display = "none";
-    track.appendChild(liveMarker);
-    track.addEventListener("click", (ev) => {
-      if (recordingState !== "idle") return;
-      const rect = track.getBoundingClientRect();
-      const cw = getCellW();
-      let step = Math.floor((ev.clientX - rect.left) / cw);
-      if (step < 0) step = 0;
-      if (step > STEPS_PER_BAR - 1) step = STEPS_PER_BAR - 1;
-      const newAbs = absBarIdx * STEPS_PER_BAR + step;
-      sheet.playStart = newAbs;
-      if (playingSheetId === sheet.id) {
-        // Seek mid-playback: restart playback from the new step.
-        playSheet(sheet, newAbs);
-      } else if (pausedSheetId === sheet.id) {
-        // While paused, keep the freeze/resume point aligned with the cursor.
-        pausedStep = newAbs;
-        updatePlayheadDom(sheet);
-      } else {
-        updatePlayheadDom(sheet);
-      }
-    });
-    rulerBar.appendChild(track);
-    rulerRow.appendChild(rulerBar);
+  const track = el("div", { class: "ruler-track" });
+  track.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
+  const marker = el("div", { class: "playhead-marker start" });
+  marker.style.display = "none";
+  track.appendChild(marker);
+  const liveMarker = el("div", { class: "playhead-marker live" });
+  liveMarker.style.display = "none";
+  track.appendChild(liveMarker);
+  track.addEventListener("click", (ev) => {
+    if (recordingState !== "idle") return;
+    const rect = track.getBoundingClientRect();
+    const cw = getCellW();
+    let step = Math.floor((ev.clientX - rect.left) / cw);
+    if (step < 0) step = 0;
+    if (step > sheetSteps - 1) step = sheetSteps - 1;
+    sheet.playStart = step;
+    if (playingSheetId === sheet.id) {
+      playSheet(sheet, step);
+    } else if (pausedSheetId === sheet.id) {
+      pausedStep = step;
+      updatePlayheadDom(sheet);
+    } else {
+      updatePlayheadDom(sheet);
+    }
   });
+  rulerRow.appendChild(track);
   bandEl.appendChild(rulerRow);
 
   // Rows: one per part
@@ -1726,116 +1577,90 @@ function renderBand(sheet, bandStart, bandBars) {
       });
       side.appendChild(recBtn);
     }
-    const strip = el("div", { class: "bars-strip" });
-    strip.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
     const numRows = part.hi - part.lo + 1;
+    const gridRow = el("div", { class: "bar-grid" });
+    const labelCol = el("div", { class: "label-col" });
+    const wrap = el("div", { class: "grid-wrap" });
+    wrap.dataset.partId = part.id;
+    wrap.dataset.partHi = String(part.hi);
+    wrap.dataset.partLo = String(part.lo);
+    wrap.dataset.partType = part.type || "pitched";
+    wrap.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
+    wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
-    bandBars.forEach((bar, bi) => {
-      const absBarIx = bandStart + bi;
-      const cell = el("div", { class: "bar-cell" });
-
-      const descEl = el("input", {
-        class: "bar-note-input",
-        type: "text",
-        placeholder: "",
-        value: (bar.partNotes && bar.partNotes[part.id]) || "",
-        style: "margin-left:0; flex:1 1 auto;",
-      });
-      descEl.addEventListener("input", (e) => {
-        if (!bar.partNotes) bar.partNotes = {};
-        bar.partNotes[part.id] = e.target.value;
-        persist();
-      });
-      const head = el("div", { class: "bar-cell-head" }, descEl);
-      cell.appendChild(head);
-
-      const gridRow = el("div", { class: "bar-grid" });
-      const labelCol = el("div", { class: "label-col" });
-      const wrap = el("div", { class: "grid-wrap" });
-      wrap.dataset.partId = part.id;
-      wrap.dataset.partHi = String(part.hi);
-      wrap.dataset.partLo = String(part.lo);
-      wrap.dataset.partType = part.type || "pitched";
-      wrap.dataset.barIndex = String(absBarIx);
-      wrap.style.width = `calc(var(--cell-w) * ${STEPS_PER_BAR})`;
-      wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
-
-      const rhythm = isRhythmPart(part);
-      for (let i = 0; i < numRows; i++) {
-        const pitch = part.hi - i;
-        const rowEl = el("div", { class: "grid-row" });
-        if (!rhythm) {
-          const pc = ((pitch % 12) + 12) % 12;
-          if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
-          else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
-        }
-        wrap.appendChild(rowEl);
-
-        let labelHtml = "";
-        if (rhythm) {
-          labelHtml = RHYTHM_ROWS[i] || "";
-        } else {
-          const pc = ((pitch % 12) + 12) % 12;
-          const isBoundary = pitch === part.lo || pitch === part.hi;
-          const inScale = scaleSet.has(pc);
-          if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
-          else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
-        }
-        const labelDiv = el("div", { class: "label-row" });
-        labelDiv.innerHTML = labelHtml;
-        labelCol.appendChild(labelDiv);
+    const rhythm = isRhythmPart(part);
+    for (let i = 0; i < numRows; i++) {
+      const pitch = part.hi - i;
+      const rowEl = el("div", { class: "grid-row" });
+      if (!rhythm) {
+        const pc = ((pitch % 12) + 12) % 12;
+        if (pc === sheet.scale.root) rowEl.classList.add("in-scale-root");
+        else if (scaleSet.has(pc)) rowEl.classList.add("in-scale");
       }
-      gridRow.appendChild(labelCol);
-      gridRow.appendChild(wrap);
+      wrap.appendChild(rowEl);
 
-      const bridgePx = getBarBridgePx();
-      bar.notes.filter(n => n.partId === part.id).forEach(n => {
-        if (n.pitch < part.lo || n.pitch > part.hi) return;
-        let drumCls = "";
-        if (rhythm) {
-          const key = RHYTHM_KEYS[part.hi - n.pitch];
-          if (key) drumCls = " drum-" + key;
-        }
-        const noteEl = el("div", { class: "note" + drumCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
-        noteEl.dataset.noteId = n.id;
-        noteEl.dataset.vel = String(n.vel);
-        noteEl.dataset.len = String(noteFracLength(n));
-        const top = (part.hi - n.pitch) * cellH;
-        noteEl.style.left = (noteFracStart(n) * cellW) + "px";
-        noteEl.style.top = top + "px";
-        noteEl.style.width = noteWidthPx(noteFracStart(n), noteFracLength(n), cellW, bridgePx) + "px";
-        noteEl.style.opacity = VEL_OPACITY[n.vel];
-        noteEl.addEventListener("contextmenu", (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          openNoteContextMenu(ev, sheet, n);
-        });
-        wrap.appendChild(noteEl);
-      });
-
-      if (sheet.selectedCell &&
-          sheet.selectedCell.barId === bar.id &&
-          sheet.selectedCell.partId === part.id &&
-          sheet.selectedCell.pitch >= part.lo &&
-          sheet.selectedCell.pitch <= part.hi) {
-        const selEl = el("div", { class: "cell-selected" });
-        selEl.style.left = (sheet.selectedCell.step * cellW) + "px";
-        selEl.style.top = ((part.hi - sheet.selectedCell.pitch) * cellH) + "px";
-        selEl.style.width = (cellW - 1) + "px";
-        selEl.style.height = (cellH - 1) + "px";
-        wrap.appendChild(selEl);
+      let labelHtml = "";
+      if (rhythm) {
+        labelHtml = RHYTHM_ROWS[i] || "";
+      } else {
+        const pc = ((pitch % 12) + 12) % 12;
+        const isBoundary = pitch === part.lo || pitch === part.hi;
+        const inScale = scaleSet.has(pc);
+        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
+        else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
       }
+      const labelDiv = el("div", { class: "label-row" });
+      labelDiv.innerHTML = labelHtml;
+      labelCol.appendChild(labelDiv);
+    }
+    gridRow.appendChild(labelCol);
+    gridRow.appendChild(wrap);
 
-      const playLine = el("div", { class: "playhead-line" });
-      wrap.appendChild(playLine);
+    for (const n of part.notes) {
+      if (n.pitch < part.lo || n.pitch > part.hi) continue;
+      let drumCls = "";
+      if (rhythm) {
+        const key = RHYTHM_KEYS[part.hi - n.pitch];
+        if (key) drumCls = " drum-" + key;
+      }
+      const noteEl = el("div", { class: "note" + drumCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
+      noteEl.dataset.noteId = n.id;
+      noteEl.dataset.vel = String(n.vel);
+      noteEl.dataset.len = String(noteFracLength(n));
+      const top = (part.hi - n.pitch) * cellH;
+      noteEl.style.left = (noteFracStart(n) * cellW) + "px";
+      noteEl.style.top = top + "px";
+      noteEl.style.width = noteWidthPx(noteFracLength(n), cellW) + "px";
+      noteEl.style.opacity = VEL_OPACITY[n.vel];
+      noteEl.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openNoteContextMenu(ev, sheet, n);
+      });
+      wrap.appendChild(noteEl);
+    }
 
-      wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap, bar));
-      cell.appendChild(gridRow);
-      strip.appendChild(cell);
-    });
+    if (sheet.selectedCell &&
+        sheet.selectedCell.partId === part.id &&
+        sheet.selectedCell.pitch >= part.lo &&
+        sheet.selectedCell.pitch <= part.hi &&
+        sheet.selectedCell.step >= 0 &&
+        sheet.selectedCell.step < sheetSteps) {
+      const selEl = el("div", { class: "cell-selected" });
+      selEl.style.left = (sheet.selectedCell.step * cellW) + "px";
+      selEl.style.top = ((part.hi - sheet.selectedCell.pitch) * cellH) + "px";
+      selEl.style.width = (cellW - 1) + "px";
+      selEl.style.height = (cellH - 1) + "px";
+      wrap.appendChild(selEl);
+    }
+
+    const playLine = el("div", { class: "playhead-line" });
+    wrap.appendChild(playLine);
+
+    wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap));
 
     partRow.appendChild(side);
-    partRow.appendChild(strip);
+    partRow.appendChild(gridRow);
     bandEl.appendChild(partRow);
   });
   return bandEl;
@@ -1876,7 +1701,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
 
   // Look up each note's model and DOM element once.
   const noteById = new Map();
-  for (const b of sheet.bars) for (const n of b.notes) noteById.set(n.id, n);
+  for (const p of sheet.parts) for (const n of p.notes) noteById.set(n.id, n);
   const elByNoteId = new Map();
   bandsEl.querySelectorAll(".note").forEach(el => {
     const id = el.dataset.noteId;
@@ -2000,27 +1825,25 @@ const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
 let drag = null;
 
-function handlePointerDown(ev, sheet, part, wrap, bar) {
+function handlePointerDown(ev, sheet, part, wrap) {
   if (ev.button !== 0) return;
   lastFocusedSheetId = sheet.id;
   const rect = wrap.getBoundingClientRect();
   const cellW = getCellW();
   const cellH = getCellH();
+  const sheetSteps = totalSteps(sheet);
   const x = ev.clientX - rect.left;
   const y = ev.clientY - rect.top;
-  const stepInBar = Math.floor(x / cellW);
+  const stepAbs = Math.floor(x / cellW);
   const rowIdx = Math.floor(y / cellH);
   const numRows = part.hi - part.lo + 1;
   const target = ev.target.closest(".note");
-  // For empty-cell interactions the pointer must be within this bar's grid.
-  // For a note-hit we skip the bounds check so clicks on the visual overflow
-  // (which sits over the next bar) still register on the owning note.
-  if (!target && (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows)) return;
+  if (!target && (stepAbs < 0 || stepAbs >= sheetSteps || rowIdx < 0 || rowIdx >= numRows)) return;
   const pitch = part.hi - rowIdx;
 
   if (target) {
     const noteId = target.dataset.noteId;
-    const note = bar.notes.find(n => n.id === noteId);
+    const note = part.notes.find(n => n.id === noteId);
     if (!note) return;
     const pendingUndo = snapshotProject();
     const noteRect = target.getBoundingClientRect();
@@ -2042,7 +1865,6 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       return;
     }
 
-    // Plain click on a note.
     const wasSoleSelection = wasInSelection && prevSize === 1;
     sheet.selectedCell = null;
     if (!wasInSelection) {
@@ -2050,40 +1872,22 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
       setSingleSelection(sheet, note.id);
       target.classList.add("selected");
-    } else if (!wasSoleSelection) {
-      // Note is one of several selected — drag the whole group. On a no-move
-      // pointerup, a plain click collapses to sole selection; a modifier+click
-      // cycles velocity across the group instead (see pointerup handler).
     }
 
-    // Snapshot every selected note in this part (possibly across multiple bars).
-    const sheetElForGroup = wrap.closest(".sheet");
-    const dragN = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
+    // Snapshot every selected note in this part. With one grid per part, all
+    // selected notes share `wrap`.
     const group = [];
-    for (let bi = 0; bi < sheet.bars.length; bi++) {
-      const b = sheet.bars[bi];
-      for (const n of b.notes) {
-        if (n.partId !== part.id) continue;
-        if (!isNoteSelected(sheet, n.id)) continue;
-        let noteWrap = wrap;
-        if (b !== bar && sheetElForGroup) {
-          const noteEl = sheetElForGroup.querySelector(`[data-note-id="${n.id}"]`);
-          if (noteEl) noteWrap = noteEl.closest(".grid-wrap") || wrap;
-        }
-        const bandStart_g = Math.floor(bi / dragN) * dragN;
-        const bandEnd_g = Math.min(bandStart_g + dragN, sheet.bars.length);
-        group.push({
-          note: n, wrap: noteWrap,
-          barIndex: bi, curBarIndex: bi,
-          bandStart: bandStart_g, bandEnd: bandEnd_g,
-          origStart: n.start, origLength: n.length, origPitch: n.pitch,
-          origSubOffset: n.subOffset || 0, origSubLength: n.subLength || 0,
-        });
-      }
+    for (const n of part.notes) {
+      if (!isNoteSelected(sheet, n.id)) continue;
+      group.push({
+        note: n, wrap,
+        origStart: n.start, origLength: n.length, origPitch: n.pitch,
+        origSubOffset: n.subOffset || 0, origSubLength: n.subLength || 0,
+      });
     }
     drag = {
       mode, primaryNote: note, group,
-      bar, part, sheet, wrap,
+      part, sheet, wrap,
       startX: ev.clientX,
       startY: ev.clientY,
       moved: false,
@@ -2099,11 +1903,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     return;
   }
 
-  // Empty cell behavior:
-  //   - Cmd (mac) / Ctrl (other): create a new 1-step note and start moving it.
-  //   - Shift-drag: rubber-band (additive).
-  //   - Plain pointerdown: pending — on click → select cell; on drag → rubber-band (replace).
-  const existing = bar.notes.find(n => n.partId === part.id && n.pitch === pitch && n.start === stepInBar);
+  const existing = part.notes.find(n => n.pitch === pitch && n.start === stepAbs);
   if (existing) return;
 
   if (isCreateModifier(ev)) {
@@ -2112,8 +1912,8 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       const sheetEl = wrap.closest(".sheet");
       if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
     }
-    const note = { id: uid(), partId: part.id, pitch, start: stepInBar, length: 1, vel: DEFAULT_VEL, subOffset: 0, subLength: 0 };
-    bar.notes.push(note);
+    const note = { id: uid(), partId: part.id, pitch, start: stepAbs, length: 1, vel: DEFAULT_VEL, subOffset: 0, subLength: 0 };
+    part.notes.push(note);
     setSingleSelection(sheet, note.id);
 
     const noteEl = document.createElement("div");
@@ -2123,27 +1923,19 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     noteEl.dataset.vel = String(note.vel);
     noteEl.style.left = (noteFracStart(note) * cellW) + "px";
     noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-    noteEl.style.width = noteWidthPx(noteFracStart(note), noteFracLength(note), cellW, getBarBridgePx()) + "px";
+    noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
     noteEl.style.opacity = VEL_OPACITY[note.vel];
     wrap.appendChild(noteEl);
 
     drag = {
       mode: "move",
       primaryNote: note,
-      group: (() => {
-        const bi = sheet.bars.indexOf(bar);
-        const dragN = Math.max(1, Math.min(barsPerBand(), sheet.bars.length));
-        const bs = Math.floor(bi / dragN) * dragN;
-        const be = Math.min(bs + dragN, sheet.bars.length);
-        return [{
-          note, wrap,
-          barIndex: bi, curBarIndex: bi,
-          bandStart: bs, bandEnd: be,
-          origStart: note.start, origLength: note.length, origPitch: note.pitch,
-          origSubOffset: note.subOffset || 0, origSubLength: note.subLength || 0,
-        }];
-      })(),
-      bar, part, sheet, wrap,
+      group: [{
+        note, wrap,
+        origStart: note.start, origLength: note.length, origPitch: note.pitch,
+        origSubOffset: note.subOffset || 0, origSubLength: note.subLength || 0,
+      }],
+      part, sheet, wrap,
       startX: ev.clientX, startY: ev.clientY,
       moved: false,
       isExisting: false,
@@ -2162,12 +1954,11 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     return;
   }
 
-  // Plain pointerdown on empty cell — defer to pointermove / pointerup.
   drag = {
     mode: "empty-pending",
-    bar, part, sheet, wrap,
+    part, sheet, wrap,
     startX: ev.clientX, startY: ev.clientY,
-    pendingCell: { barId: bar.id, partId: part.id, step: stepInBar, pitch },
+    pendingCell: { partId: part.id, step: stepAbs, pitch },
     moved: false,
   };
   try { wrap.setPointerCapture(ev.pointerId); } catch {}
@@ -2296,11 +2087,10 @@ document.addEventListener("pointermove", (ev) => {
   // Drag math operates at sub-step granularity (1/SUB_PER_STEP step). All
   // *Sub variables are integers in those units; `start`/`subOffset` and
   // `length`/`subLength` are recovered by splitting.
-  const SUB_PER_BAR = STEPS_PER_BAR * SUB_PER_STEP;
   const subPx = cellW / SUB_PER_STEP;
   const dSubSteps = Math.round(dx / subPx);
   const dRows = Math.round(dy / cellH);
-  const splitInBar = (subStep) => {
+  const splitStart = (subStep) => {
     const s = Math.floor(subStep / SUB_PER_STEP);
     return { start: s, subOffset: subStep - s * SUB_PER_STEP };
   };
@@ -2308,6 +2098,7 @@ document.addEventListener("pointermove", (ev) => {
     const l = Math.floor(subLen / SUB_PER_STEP);
     return { length: l, subLength: subLen - l * SUB_PER_STEP };
   };
+  const sheetSubTotal = totalSteps(drag.sheet) * SUB_PER_STEP;
 
   if (drag.mode === "move") {
     let minPitch = Infinity, maxPitch = -Infinity;
@@ -2315,40 +2106,19 @@ document.addEventListener("pointermove", (ev) => {
     for (const g of drag.group) {
       if (g.origPitch < minPitch) minPitch = g.origPitch;
       if (g.origPitch > maxPitch) maxPitch = g.origPitch;
-      const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
-      const bandLoSub = g.bandStart * SUB_PER_BAR;
-      const bandHiSub = g.bandEnd * SUB_PER_BAR;
-      if (bandLoSub - origAbsSub > dsLo) dsLo = bandLoSub - origAbsSub;
-      if (bandHiSub - origAbsSub - origLenSub < dsHi) dsHi = bandHiSub - origAbsSub - origLenSub;
+      if (-origAbsSub > dsLo) dsLo = -origAbsSub;
+      if (sheetSubTotal - origAbsSub - origLenSub < dsHi) dsHi = sheetSubTotal - origAbsSub - origLenSub;
     }
     const ds = clampNum(dSubSteps, dsLo, dsHi);
     const dr = clampNum(dRows, maxPitch - drag.part.hi, minPitch - drag.part.lo);
     let changed = false;
-    const sheetElForMove = drag.wrap.closest(".sheet");
     for (const g of drag.group) {
-      const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
       const newAbsSub = origAbsSub + ds;
-      const newBarIndex = Math.floor(newAbsSub / SUB_PER_BAR);
-      const { start: ns, subOffset: nso } = splitInBar(newAbsSub - newBarIndex * SUB_PER_BAR);
+      const { start: ns, subOffset: nso } = splitStart(newAbsSub);
       const np = g.origPitch - dr;
-      if (newBarIndex !== g.curBarIndex) {
-        const oldBar = drag.sheet.bars[g.curBarIndex];
-        const newBar = drag.sheet.bars[newBarIndex];
-        const ix = oldBar.notes.indexOf(g.note);
-        if (ix >= 0) oldBar.notes.splice(ix, 1);
-        newBar.notes.push(g.note);
-        const newWrap = sheetElForMove && sheetElForMove.querySelector(
-          `.grid-wrap[data-bar-index="${newBarIndex}"][data-part-id="${drag.part.id}"]`
-        );
-        if (newWrap) {
-          const noteEl = g.wrap.querySelector(`[data-note-id="${g.note.id}"]`);
-          if (noteEl) newWrap.appendChild(noteEl);
-          g.wrap = newWrap;
-        }
-        g.curBarIndex = newBarIndex;
-        changed = true;
-      }
       if (g.note.start !== ns || g.note.pitch !== np || (g.note.subOffset || 0) !== nso) {
         g.note.start = ns;
         g.note.pitch = np;
@@ -2358,9 +2128,6 @@ document.addEventListener("pointermove", (ev) => {
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part);
   } else if (drag.mode === "resize-right") {
-    // Resize moves the edge in integer-step increments by default; hold
-    // Cmd/Ctrl for sub-step granularity. Any pre-existing sub-offset or
-    // sub-length on the note is preserved either way.
     const useSub = isCreateModifier(ev);
     let minLenSub = Infinity;
     let dlHi = Infinity;
@@ -2368,8 +2135,7 @@ document.addEventListener("pointermove", (ev) => {
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
       if (origLenSub < minLenSub) minLenSub = origLenSub;
       const origStartSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
-      const remainingFromBarStart = (g.bandEnd - g.barIndex) * SUB_PER_BAR;
-      const slack = remainingFromBarStart - origStartSub - origLenSub;
+      const slack = sheetSubTotal - origStartSub - origLenSub;
       if (slack < dlHi) dlHi = slack;
     }
     let dl = clampNum(dSubSteps, 1 - minLenSub, dlHi);
@@ -2377,8 +2143,6 @@ document.addEventListener("pointermove", (ev) => {
     let changed = false;
     for (const g of drag.group) {
       let newLenSub = g.origLength * SUB_PER_STEP + g.origSubLength + dl;
-      // Without modifier, force the resulting length to integer steps even
-      // if the note started with a fractional length (e.g. 3+1/2 → 4).
       if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
       const { length: nl, subLength: nsl } = splitLen(newLenSub);
       if (g.note.length !== nl || (g.note.subLength || 0) !== nsl) {
@@ -2395,43 +2159,21 @@ document.addEventListener("pointermove", (ev) => {
     for (const g of drag.group) {
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
       if (origLenSub < minLenSub) minLenSub = origLenSub;
-      const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
-      const bandLoSub = g.bandStart * SUB_PER_BAR;
-      if (bandLoSub - origAbsSub > dsLo) dsLo = bandLoSub - origAbsSub;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      if (-origAbsSub > dsLo) dsLo = -origAbsSub;
     }
     dsHi = Math.min(dsHi, minLenSub - 1);
     let ds = clampNum(dSubSteps, dsLo, dsHi);
     if (!useSub) ds = Math.round(ds / SUB_PER_STEP) * SUB_PER_STEP;
     let changed = false;
-    const sheetElForResize = drag.wrap.closest(".sheet");
     for (const g of drag.group) {
-      const origAbsSub = (g.barIndex * STEPS_PER_BAR + g.origStart) * SUB_PER_STEP + g.origSubOffset;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
       const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
       const newAbsSub = origAbsSub + ds;
       let newLenSub = origLenSub - ds;
-      // Without modifier, force the resulting length to integer steps; the
-      // start's subOffset stays put (ds is already a multiple of SUB_PER_STEP).
       if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
-      const newBarIndex = Math.floor(newAbsSub / SUB_PER_BAR);
-      const { start: ns, subOffset: nso } = splitInBar(newAbsSub - newBarIndex * SUB_PER_BAR);
+      const { start: ns, subOffset: nso } = splitStart(newAbsSub);
       const { length: nl, subLength: nsl } = splitLen(newLenSub);
-      if (newBarIndex !== g.curBarIndex) {
-        const oldBar = drag.sheet.bars[g.curBarIndex];
-        const newBar = drag.sheet.bars[newBarIndex];
-        const ix = oldBar.notes.indexOf(g.note);
-        if (ix >= 0) oldBar.notes.splice(ix, 1);
-        newBar.notes.push(g.note);
-        const newWrap = sheetElForResize && sheetElForResize.querySelector(
-          `.grid-wrap[data-bar-index="${newBarIndex}"][data-part-id="${drag.part.id}"]`
-        );
-        if (newWrap) {
-          const noteEl = g.wrap.querySelector(`[data-note-id="${g.note.id}"]`);
-          if (noteEl) newWrap.appendChild(noteEl);
-          g.wrap = newWrap;
-        }
-        g.curBarIndex = newBarIndex;
-        changed = true;
-      }
       if (g.note.start !== ns || g.note.length !== nl
           || (g.note.subOffset || 0) !== nso || (g.note.subLength || 0) !== nsl) {
         g.note.start = ns;
@@ -2508,7 +2250,7 @@ function updateNoteDom2(wrap, note, part) {
   const cellH = getCellH();
   noteEl.style.left = (noteFracStart(note) * cellW) + "px";
   noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
-  noteEl.style.width = noteWidthPx(noteFracStart(note), noteFracLength(note), cellW, getBarBridgePx()) + "px";
+  noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
 }
 
 // ---------- Hover tooltip ----------
@@ -2600,18 +2342,19 @@ function updateCellHover(ev, wrap) {
   const cellH = getCellH();
   const x = ev.clientX - rect.left;
   const y = ev.clientY - rect.top;
-  const stepInBar = Math.floor(x / cellW);
+  const stepAbs = Math.floor(x / cellW);
   const rowIdx = Math.floor(y / cellH);
   const partHi = parseInt(wrap.dataset.partHi, 10);
   const partLo = parseInt(wrap.dataset.partLo, 10);
   const numRows = partHi - partLo + 1;
-  if (stepInBar < 0 || stepInBar >= STEPS_PER_BAR || rowIdx < 0 || rowIdx >= numRows) {
+  const maxStep = Math.round(rect.width / cellW);
+  if (stepAbs < 0 || stepAbs >= maxStep || rowIdx < 0 || rowIdx >= numRows) {
     hideCellHover();
     return;
   }
   const hover = getCellHover();
   hover.style.display = "block";
-  hover.style.left = (rect.left + stepInBar * cellW) + "px";
+  hover.style.left = (rect.left + stepAbs * cellW) + "px";
   hover.style.top = (rect.top + rowIdx * cellH) + "px";
   hover.style.width = cellW + "px";
   hover.style.height = cellH + "px";
@@ -2685,8 +2428,8 @@ function copySelection(sheet) {
   if (!sheet || sheet.selectedNoteIds.size === 0) return;
   const ids = sheet.selectedNoteIds;
   const picked = [];
-  for (const b of sheet.bars) {
-    for (const n of b.notes) {
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
       if (ids.has(n.id)) picked.push(n);
     }
   }
@@ -2720,38 +2463,31 @@ async function pasteClipboard(sheet) {
   if (!sheet || !clipboard || clipboard.notes.length === 0) return;
   pushUndo();
 
-  let targetBarIndex = -1, targetStep = 0, targetPitch = 0, targetPart = null;
+  let targetStep = 0, targetPitch = 0, targetPart = null;
+  const sheetSteps = totalSteps(sheet);
 
   if (sheet.selectedNoteIds.size > 1) {
-    // Multi-note: delete first, anchor at deleted bounding-box top-left.
     const ids = sheet.selectedNoteIds;
     let minStart = Infinity, maxPitch = -Infinity;
-    let foundBar = null, foundPartId = null;
-    for (let bi = 0; bi < sheet.bars.length; bi++) {
-      const b = sheet.bars[bi];
-      for (const n of b.notes) {
+    let foundPartId = null;
+    for (const p of sheet.parts) {
+      for (const n of p.notes) {
         if (!ids.has(n.id)) continue;
         if (n.start < minStart) minStart = n.start;
         if (n.pitch > maxPitch) maxPitch = n.pitch;
-        if (foundBar === null) { foundBar = b; targetBarIndex = bi; foundPartId = n.partId; }
+        if (foundPartId === null) foundPartId = n.partId;
       }
     }
-    if (foundBar === null) return;
+    if (foundPartId === null) return;
     targetPart = sheet.parts.find(p => p.id === foundPartId);
     if (!targetPart) return;
     targetStep = minStart;
     targetPitch = maxPitch;
-    // Delete the selection
     removeNotesByIds(sheet, ids);
     sheet.selectedNoteIds = new Set();
   } else if (sheet.selectedNoteIds.size === 1) {
     const onlyId = sheet.selectedNoteIds.values().next().value;
-    let foundNote = null;
-    for (let bi = 0; bi < sheet.bars.length; bi++) {
-      const b = sheet.bars[bi];
-      const n = b.notes.find(x => x.id === onlyId);
-      if (n) { foundNote = n; targetBarIndex = bi; break; }
-    }
+    const foundNote = findNote(sheet, onlyId);
     if (!foundNote) return;
     targetPart = sheet.parts.find(p => p.id === foundNote.partId);
     if (!targetPart) return;
@@ -2759,41 +2495,36 @@ async function pasteClipboard(sheet) {
     targetPitch = foundNote.pitch;
   } else if (sheet.selectedCell) {
     const c = sheet.selectedCell;
-    targetBarIndex = sheet.bars.findIndex(b => b.id === c.barId);
-    if (targetBarIndex < 0) return;
     targetPart = sheet.parts.find(p => p.id === c.partId);
     if (!targetPart) return;
     targetStep = c.step;
     targetPitch = c.pitch;
   } else {
-    return; // nothing selected
+    return;
   }
 
   const newIds = [];
   const keyToNewId = new Map();
   let outOfRangeMin = Infinity, outOfRangeMax = -Infinity, outOfRangeCount = 0;
   for (const cn of clipboard.notes) {
-    const absStart = targetBarIndex * STEPS_PER_BAR + targetStep + cn.dStart;
+    const absStart = targetStep + cn.dStart;
     const newPitch = targetPitch - cn.dRow;
-    const newBarIx = Math.floor(absStart / STEPS_PER_BAR);
-    const stepInBar = absStart - newBarIx * STEPS_PER_BAR;
-    if (newBarIx < 0 || newBarIx >= sheet.bars.length) continue;
+    if (absStart < 0 || absStart >= sheetSteps) continue;
     if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
-    const remainingFromBarStart = (sheet.bars.length - newBarIx) * STEPS_PER_BAR;
-    let newLength = Math.min(cn.length, remainingFromBarStart - stepInBar);
+    let newLength = Math.min(cn.length, sheetSteps - absStart);
     if (newLength < 1) newLength = 1;
     if (isRhythmPart(targetPart)) newLength = 1;
     const note = {
       id: uid(),
       partId: targetPart.id,
       pitch: newPitch,
-      start: stepInBar,
+      start: absStart,
       length: newLength,
       vel: cn.vel,
       subOffset: cn.subOffset || 0,
       subLength: cn.subLength || 0,
     };
-    sheet.bars[newBarIx].notes.push(note);
+    targetPart.notes.push(note);
     newIds.push(note.id);
     if (cn.key != null) keyToNewId.set(cn.key, note.id);
     if (newPitch < targetPart.lo || newPitch > targetPart.hi) {
@@ -2875,17 +2606,15 @@ document.addEventListener("keydown", (ev) => {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec || sec.selectedNoteIds.size === 0) return;
     const delta = ev.key === "ArrowRight" ? 1 : -1;
-    // Snapshot {note, bar} pairs first so bar migrations during shifting
-    // don't disturb the iteration.
-    const pairs = [];
-    for (const b of sec.bars) {
-      for (const n of b.notes) if (sec.selectedNoteIds.has(n.id)) pairs.push({ note: n, bar: b });
+    const notes = [];
+    for (const p of sec.parts) {
+      for (const n of p.notes) if (sec.selectedNoteIds.has(n.id)) notes.push(n);
     }
-    if (pairs.length === 0) return;
+    if (notes.length === 0) return;
     const snap = snapshotProject();
     let moved = false;
-    for (const p of pairs) {
-      if (shiftNoteSubOffset(sec, p.bar, p.note, delta)) moved = true;
+    for (const n of notes) {
+      if (shiftNoteSubOffset(sec, n, delta)) moved = true;
     }
     if (moved) {
       commitUndoSnapshot(snap);
@@ -3271,38 +3000,32 @@ function playSheet(sheet, fromStep) {
   pausedStep = 0;
   playingSheetId = sheet.id;
   const secPerStep = 60 / sheet.bpm / 4;
-  const totalSteps = sheet.bars.length * STEPS_PER_BAR;
+  const sheetSteps = totalSteps(sheet);
   const wantedStart = (fromStep != null) ? fromStep : (sheet.playStart || 0);
-  const startStep = Math.max(0, Math.min(totalSteps - 1, wantedStart));
-  // Wrap to 0 if cursor is past the end
-  const effectiveStart = startStep >= totalSteps ? 0 : startStep;
+  const startStep = Math.max(0, Math.min(sheetSteps - 1, wantedStart));
+  const effectiveStart = startStep >= sheetSteps ? 0 : startStep;
   const t0 = audioCtx.currentTime + 0.05;
   let lastEnd = t0;
-  const partsById = {};
-  for (const pt of sheet.parts) partsById[pt.id] = pt;
-  const scheduleNoteAt = (n, bi) => {
-    const absStart = bi * STEPS_PER_BAR + noteFracStart(n);
-    if (absStart < effectiveStart) return;
-    const start = t0 + (absStart - effectiveStart) * secPerStep;
-    const dur = noteFracLength(n) * secPerStep * 0.95;
-    const part = partsById[n.partId];
-    if (part && part.type === "rhythm") {
-      const rowIdx = part.hi - n.pitch;
-      const key = RHYTHM_KEYS[rowIdx];
-      if (key) scheduleDrum(start, dur, key, n.vel);
-    } else {
-      scheduleNote(start, dur, n.pitch, n.vel);
+  for (const part of sheet.parts) {
+    for (const n of part.notes) {
+      const absStart = noteFracStart(n);
+      if (absStart < effectiveStart) continue;
+      const start = t0 + (absStart - effectiveStart) * secPerStep;
+      const dur = noteFracLength(n) * secPerStep * 0.95;
+      if (part.type === "rhythm") {
+        const key = RHYTHM_KEYS[part.hi - n.pitch];
+        if (key) scheduleDrum(start, dur, key, n.vel);
+      } else {
+        scheduleNote(start, dur, n.pitch, n.vel);
+      }
+      if (start + dur > lastEnd) lastEnd = start + dur;
     }
-    if (start + dur > lastEnd) lastEnd = start + dur;
-  };
-  sheet.bars.forEach((bar, bi) => {
-    for (const n of bar.notes) scheduleNoteAt(n, bi);
-  });
+  }
   playbackT0 = t0;
   playbackStartStep = effectiveStart;
   playbackSecPerStep = secPerStep;
-  playbackTotalSteps = totalSteps;
-  const endStepTime = t0 + (totalSteps - effectiveStart) * secPerStep;
+  playbackTotalSteps = sheetSteps;
+  const endStepTime = t0 + (sheetSteps - effectiveStart) * secPerStep;
   const endTime = Math.max(lastEnd, endStepTime);
   const totalMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
   const myId = sheet.id;
@@ -3369,7 +3092,7 @@ async function startRecording(sheet, part) {
   ensureAudio();
 
   const startStepWanted = sheet.playStart || 0;
-  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
+  const totalSheetSteps = totalSteps(sheet);
   const effectiveStart = startStepWanted >= totalSheetSteps ? 0 : startStepWanted;
   if (totalSheetSteps - effectiveStart <= 0) {
     await alertAsync("Nothing to record into — add a bar first.");
@@ -3452,6 +3175,7 @@ function scheduleUpcomingMetronome() {
   }
 }
 
+
 function onMidiMessage(ev) {
   if (recordingState !== "recording") return; // ignore during count-in / idle
   const data = ev.data;
@@ -3469,6 +3193,8 @@ function onMidiMessage(ev) {
 function handleNoteOn(pitch, midiVel) {
   const sheet = project.sheets.find(s => s.id === recordingSheetId);
   if (!sheet) return;
+  const part = sheet.parts.find(p => p.id === recordingPartId);
+  if (!part) return;
   const cur = currentRecordingStep();
   const endStep = recordingStartStep + recordingTotalSteps;
   let step = Math.round(cur);
@@ -3476,23 +3202,20 @@ function handleNoteOn(pitch, midiVel) {
   if (step >= endStep) step = endStep - 1;
   const velIdx = Math.max(0, Math.min(VEL_LABELS.length - 1, Math.round((midiVel - 1) / 126 * (VEL_LABELS.length - 1))));
   if (recordingHeld.has(pitch)) {
-    // Duplicate noteOn while still held: finalize the previous note first.
     finalizeHeldNote(pitch, step);
   }
-  const bi = Math.floor(step / STEPS_PER_BAR);
-  if (bi < 0 || bi >= sheet.bars.length) return;
   const note = {
     id: uid(),
     partId: recordingPartId,
     pitch,
-    start: step % STEPS_PER_BAR,
+    start: step,
     length: 1,
     vel: velIdx,
     subOffset: 0,
     subLength: 0,
   };
-  sheet.bars[bi].notes.push(note);
-  recordingHeld.set(pitch, { note, bi, startStep: step });
+  part.notes.push(note);
+  recordingHeld.set(pitch, { note, startStep: step });
   renderAll();
 }
 
@@ -3515,18 +3238,17 @@ function finalizeHeldNote(pitch, endStepAbs) {
 function updateHeldNoteLength(entry, endStepAbs) {
   const sheet = project.sheets.find(s => s.id === recordingSheetId);
   if (!sheet) return;
-  const totalSheetSteps = sheet.bars.length * STEPS_PER_BAR;
+  const totalSheetSteps = totalSteps(sheet);
   const endCapped = Math.min(endStepAbs, totalSheetSteps);
   const maxLen = totalSheetSteps - entry.startStep;
   const newLen = Math.max(1, Math.min(endCapped - entry.startStep, maxLen));
   if (newLen === entry.note.length) return;
   entry.note.length = newLen;
-  // Targeted DOM update — avoids a full renderAll per frame.
   const part = sheet.parts.find(p => p.id === entry.note.partId);
   if (!part) return;
-  if (entry.note.pitch < part.lo || entry.note.pitch > part.hi) return; // out-of-range: not rendered
+  if (entry.note.pitch < part.lo || entry.note.pitch > part.hi) return;
   const wrap = document.querySelector(
-    `[data-sheet-id="${sheet.id}"] [data-part-id="${part.id}"] .grid-wrap[data-bar-index="${entry.bi}"]`
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${part.id}"] .grid-wrap`
   );
   if (wrap) updateNoteDom2(wrap, entry.note, part);
 }
@@ -3590,18 +3312,12 @@ function buildSheetTrack(sheet, part, isFirstTrack) {
   }
   const nameBytes = strBytes(part.name);
   events.push({ tick: 0, order: 0, bytes: [0xff, 0x03, nameBytes.length, ...nameBytes] });
-  const emitNote = (n, bi) => {
-    const onTick = Math.round((bi * STEPS_PER_BAR + noteFracStart(n)) * TICKS_PER_STEP);
-    const offTick = Math.round((bi * STEPS_PER_BAR + noteFracStart(n) + noteFracLength(n)) * TICKS_PER_STEP);
+  for (const n of part.notes) {
+    const onTick = Math.round(noteFracStart(n) * TICKS_PER_STEP);
+    const offTick = Math.round((noteFracStart(n) + noteFracLength(n)) * TICKS_PER_STEP);
     events.push({ tick: onTick, order: 1, bytes: [0x90, n.pitch, VEL_MIDI[n.vel]] });
     events.push({ tick: offTick, order: 0, bytes: [0x80, n.pitch, 0] });
-  };
-  sheet.bars.forEach((bar, bi) => {
-    for (const n of bar.notes) {
-      if (n.partId !== part.id) continue;
-      emitNote(n, bi);
-    }
-  });
+  }
   events.sort((a, b) => a.tick - b.tick || a.order - b.order);
   const lastTick = events.length ? events[events.length - 1].tick : 0;
   events.push({ tick: lastTick, order: 2, bytes: [0xff, 0x2f, 0x00] });
