@@ -7,7 +7,6 @@
   :root {
     --cell-w: 22px;
     --cell-h: 22px;
-    --label-w: 26px;
     --bg: #fafaf7;
     --ink: #222;
     --ink-soft: #555;
@@ -220,7 +219,6 @@
   .band-bar-numbers {
     grid-column: 2;
     display: grid;
-    padding-left: var(--label-w);
     font-size: 10px;
     color: var(--ink-muted);
   }
@@ -234,21 +232,6 @@
   }
   .band-row + .band-row { margin-top: 4px; }
   .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
-  .label-col {
-    display: flex; flex-direction: column;
-    width: var(--label-w);
-    font-size: 10px; color: var(--ink-muted);
-    padding-right: 3px;
-    text-align: right;
-    user-select: none;
-  }
-  .label-row {
-    height: var(--cell-h);
-    line-height: var(--cell-h);
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .label-row .oct { font-size: 0.75em; color: var(--ink-faint); margin-left: 1px; }
   .part-side {
     grid-column: 1;
     display: flex;
@@ -316,7 +299,6 @@
   }
   .band-ruler {
     grid-column: 2;
-    padding-left: var(--label-w);
     margin-top: 2px;
   }
   .ruler-track {
@@ -622,9 +604,7 @@ const SCALES = {
 };
 // Rhythm part: a special non-pitched lane with three fixed rows. The rhythm
 // part reuses the standard note schema (pitch is reinterpreted as a row index
-// via part.lo=0, part.hi=2). Row index = part.hi - note.pitch, so top→bottom
-// order matches RHYTHM_ROWS.
-const RHYTHM_ROWS = ["H", "S", "K"];
+// via part.lo=0, part.hi=2). Row index = part.hi - note.pitch.
 const RHYTHM_NAMES = ["Hi-hat", "Snare", "Kick"];
 const RHYTHM_KEYS = ["hihat", "snare", "kick"];
 
@@ -964,12 +944,6 @@ function pitchDisplayName(midi, sheet, withOctave) {
   }
   const pc = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[pc] + (withOctave ? octave : "");
-}
-function pitchDisplayHtml(midi, sheet, withOctave) {
-  const base = pitchDisplayName(midi, sheet, false);
-  if (!withOctave) return escapeHtml(base);
-  const oct = Math.floor(midi / 12) - 1;
-  return escapeHtml(base) + `<span class="oct">${oct}</span>`;
 }
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function inScaleSet(sheet) {
@@ -1587,7 +1561,6 @@ function renderBand(sheet) {
     }
     const numRows = part.hi - part.lo + 1;
     const gridRow = el("div", { class: "bar-grid" });
-    const labelCol = el("div", { class: "label-col" });
     const wrap = el("div", { class: "grid-wrap" });
     wrap.dataset.partId = part.id;
     wrap.dataset.partHi = String(part.hi);
@@ -1596,29 +1569,13 @@ function renderBand(sheet) {
     wrap.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
     wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
-    const rhythm = isRhythmPart(part);
     for (let i = 0; i < numRows; i++) {
-      const pitch = part.hi - i;
       const rowEl = el("div", { class: "grid-row" });
       wrap.appendChild(rowEl);
-
-      let labelHtml = "";
-      if (rhythm) {
-        labelHtml = RHYTHM_ROWS[i] || "";
-      } else {
-        const pc = ((pitch % 12) + 12) % 12;
-        const isBoundary = pitch === part.lo || pitch === part.hi;
-        const inScale = scaleSet.has(pc);
-        if (isBoundary) labelHtml = pitchDisplayHtml(pitch, sheet, true);
-        else if (inScale) labelHtml = pitchDisplayHtml(pitch, sheet, false);
-      }
-      const labelDiv = el("div", { class: "label-row" });
-      labelDiv.innerHTML = labelHtml;
-      labelCol.appendChild(labelDiv);
     }
-    gridRow.appendChild(labelCol);
     gridRow.appendChild(wrap);
 
+    const rhythm = isRhythmPart(part);
     for (const n of part.notes) {
       if (n.pitch < part.lo || n.pitch > part.hi) continue;
       let drumCls = "";
