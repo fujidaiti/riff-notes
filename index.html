@@ -406,7 +406,7 @@
   }
   .note.drum-hihat { background: #e3c44a; }
   .note.drum-snare { background: #d24a4a; }
-  .note.drum-bass  { background: #9056c8; }
+  .note.drum-kick  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 2; }
   .cell-hover {
@@ -709,9 +709,9 @@ const SCALES = {
 // part reuses the standard note schema (pitch is reinterpreted as a row index
 // via part.lo=0, part.hi=2). Row index = part.hi - note.pitch, so top→bottom
 // order matches RHYTHM_ROWS.
-const RHYTHM_ROWS = ["H", "S", "B"];
-const RHYTHM_NAMES = ["Hi-hat", "Snare", "Bass"];
-const RHYTHM_KEYS = ["hihat", "snare", "bass"];
+const RHYTHM_ROWS = ["H", "S", "K"];
+const RHYTHM_NAMES = ["Hi-hat", "Snare", "Kick"];
+const RHYTHM_KEYS = ["hihat", "snare", "kick"];
 
 const SCALE_OPTIONS = [
   ["major", "Major"], ["minor", "Natural Minor"], ["harmonicMinor", "Harmonic Minor"],
@@ -1592,7 +1592,7 @@ function renderPartsPanel(sheet) {
   panel.appendChild(el("h4", {}, "Parts for this sheet (visible pitch range; hidden notes still play and export)"));
   sheet.parts.forEach((p, idx) => {
     const rangeOrBadge = isRhythmPart(p)
-      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Rhythm (Hi-hat / Snare / Bass)"))
+      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Rhythm (Hi-hat / Snare / Kick)"))
       : el("div", { class: "range-controls" },
           el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
           makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
@@ -1617,7 +1617,7 @@ function renderPartsPanel(sheet) {
     }, "+ Add Part"),
     el("button", {
       disabled: !!getRhythmPart(sheet),
-      title: getRhythmPart(sheet) ? "This sheet already has a rhythm section" : "Add a rhythm section (Hi-hat / Snare / Bass)",
+      title: getRhythmPart(sheet) ? "This sheet already has a rhythm section" : "Add a rhythm section (Hi-hat / Snare / Kick)",
       onclick: () => { if (getRhythmPart(sheet)) return; sheet.parts.push(makeRhythmPart()); renderAll(); },
     }, "+ Add Rhythm Section"),
   );
@@ -3405,15 +3405,15 @@ function scheduleDrum(when, durSec, drumKey, vel) {
   const dest = masterGain || audioCtx.destination;
   const peak = VEL_GAIN[vel];
   const stops = [];
-  if (drumKey === "bass") {
+  if (drumKey === "kick") {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = "sine";
     osc.frequency.setValueAtTime(180, when);
     osc.frequency.exponentialRampToValueAtTime(80, when + 0.08);
-    const bassPeak = Math.min(1.0, peak * 1.8);
+    const kickPeak = Math.min(1.0, peak * 1.8);
     gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(bassPeak, when + 0.005);
+    gain.gain.linearRampToValueAtTime(kickPeak, when + 0.005);
     gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
     osc.connect(gain).connect(dest);
     osc.start(when);
