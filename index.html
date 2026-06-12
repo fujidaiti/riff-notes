@@ -100,7 +100,7 @@
   * { box-sizing: border-box; }
   html { color-scheme: light; }
   html[data-theme="dark"] { color-scheme: dark; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; overscroll-behavior-x: none; }
   body { padding-bottom: 80px; }
 
   /* Global toolbar */
@@ -204,12 +204,20 @@
   .range-controls .range-sep { color: var(--ink-muted); padding: 0 4px; }
 
   /* Bands of bars */
-  .bands { display: flex; flex-direction: column; gap: 100px; margin-top: 10px; position: relative; }
+  .bands { display: flex; flex-direction: column; align-items: flex-start; gap: 100px; margin-top: 10px; position: relative; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
   .band {
     display: grid;
-    grid-template-columns: 22px auto;
+    grid-template-columns: 36px auto;
     gap: 4px;
     align-items: stretch;
+  }
+  .band-left-rail {
+    grid-column: 1;
+    position: sticky;
+    left: 0;
+    background: var(--panel-bg);
+    border-right: 1px solid var(--line);
+    z-index: 6;
   }
   .band-bar-numbers {
     grid-column: 2;
@@ -222,7 +230,7 @@
   .band-row {
     grid-column: 1 / span 2;
     display: grid;
-    grid-template-columns: 22px auto;
+    grid-template-columns: 36px auto;
     gap: 4px;
     align-items: center;
   }
@@ -287,6 +295,10 @@
     padding: 4px 0;
     line-height: 1.1;
     user-select: none;
+    position: sticky;
+    left: 0;
+    background: transparent;
+    z-index: 7;
   }
   .part-side .part-name {
     writing-mode: vertical-rl;
@@ -1281,13 +1293,13 @@ function openNoteContextMenu(ev, sheet, note) {
   openContextMenu(ev.clientX, ev.clientY, items);
 }
 
-// ---------- Responsive bar grouping (N bars per band) ----------
+// ---------- Bar grouping ----------
+// All bars render in a single horizontally-scrollable band. The legacy
+// "N bars per band" wrapping is gone; this function exists only so that
+// the cap math `Math.min(barsPerBand(), sheet.bars.length)` in callers
+// resolves to "all bars".
 function barsPerBand() {
-  const w = window.innerWidth;
-  if (w < 720) return 1;
-  if (w < 1080) return 2;
-  if (w < 1480) return 3;
-  return 4;
+  return Infinity;
 }
 
 // ---------- Rendering ----------
@@ -1843,8 +1855,21 @@ function renderBand(sheet, bandStart, bandBars) {
   const cellH = getCellH();
   const bandEl = el("div", { class: "band" });
 
+  // Opaque sticky rail spanning the full band height at the left edge so
+  // the part-side column appears as one continuous floating bar while
+  // horizontally scrolling. We must place every band child on an explicit
+  // grid-row so the rail (column 1) and the part rows (columns 1/span 2)
+  // can overlap; otherwise auto-placement pushes the part rows below the
+  // rail's span, shortening the rail.
+  const railRows = 2 + sheet.parts.length;
+  bandEl.appendChild(el("div", {
+    class: "band-left-rail",
+    style: `grid-row: 1 / span ${railRows};`,
+  }));
+
   // Bar number row
   const numRow = el("div", { class: "band-bar-numbers" });
+  numRow.style.gridRow = "1";
   numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
   bandBars.forEach((bar, i) => {
     const span = el("span", { style: "display:flex; align-items:center; gap:2px;" });
@@ -1882,6 +1907,7 @@ function renderBand(sheet, bandStart, bandBars) {
 
   // Ruler row: clickable per-bar tracks for setting playStart
   const rulerRow = el("div", { class: "band-ruler" });
+  rulerRow.style.gridRow = "2";
   rulerRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
   bandBars.forEach((bar, i) => {
     const absBarIdx = bandStart + i;
@@ -1921,8 +1947,9 @@ function renderBand(sheet, bandStart, bandBars) {
 
   // Rows: one per part
   const scaleSet = inScaleSet(sheet);
-  sheet.parts.forEach(part => {
+  sheet.parts.forEach((part, partIdx) => {
     const partRow = el("div", { class: "band-row" });
+    partRow.style.gridRow = String(3 + partIdx);
     partRow.dataset.partId = part.id;
     const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
     const rhythmPart = isRhythmPart(part);
@@ -3923,17 +3950,6 @@ function exportSheetMidi(sheet) {
   const safe = (sheet.title || "sheet").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 40) || "sheet";
   triggerDownload(blob, `${safe}.mid`);
 }
-
-// ---------- Resize: re-flow bands ----------
-let resizeTimer = null;
-let lastN = barsPerBand();
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    const n = barsPerBand();
-    if (n !== lastN) { lastN = n; renderAll(); }
-  }, 120);
-});
 
 // ---------- Init ----------
 renderAll();
