@@ -18,7 +18,6 @@
     --line-strong: #555;
     --note: #c97a4a;
     --note-in-scale: #6ba84a;
-    --note-in-scale-root: #3f7a24;
     --note-sel: #2b6cb0;
     --note-hover: #0aa39b;
     --sheet-bg: #ffffff;
@@ -63,7 +62,6 @@
     --line-strong: #c8c8c0;
     --note: #d98a55;
     --note-in-scale: #7ec25a;
-    --note-in-scale-root: #b4dc8a;
     --note-sel: #6aa3e0;
     --note-hover: #2bc4ba;
     --sheet-bg: #1e1e22;
@@ -385,7 +383,6 @@
     z-index: 1;
   }
   .note.in-scale { background: var(--note-in-scale); }
-  .note.in-scale-root { background: var(--note-in-scale-root); }
   .note.drum-hihat { background: #e3c44a; }
   .note.drum-snare { background: #d24a4a; }
   .note.drum-kick  { background: #9056c8; }
@@ -980,10 +977,9 @@ function inScaleSet(sheet) {
   return new Set(intervals.map(i => (i + sheet.scale.root) % 12));
 }
 
-function noteScaleClass(scaleSet, root, part, pitch) {
+function noteScaleClass(scaleSet, part, pitch) {
   if (isRhythmPart(part)) return "";
   const pc = ((pitch % 12) + 12) % 12;
-  if (pc === root) return " in-scale-root";
   if (scaleSet.has(pc)) return " in-scale";
   return "";
 }
@@ -1630,7 +1626,7 @@ function renderBand(sheet) {
         const key = RHYTHM_KEYS[part.hi - n.pitch];
         if (key) drumCls = " drum-" + key;
       }
-      const scaleCls = noteScaleClass(scaleSet, sheet.scale.root, part, n.pitch);
+      const scaleCls = noteScaleClass(scaleSet, part, n.pitch);
       const noteEl = el("div", { class: "note" + drumCls + scaleCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
       noteEl.dataset.noteId = n.id;
       noteEl.dataset.vel = String(n.vel);
@@ -2261,8 +2257,8 @@ function updateNoteDom2(wrap, note, part, sheet) {
   noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
   if (sheet) {
     const scaleSet = inScaleSet(sheet);
-    noteEl.classList.remove("in-scale", "in-scale-root");
-    const cls = noteScaleClass(scaleSet, sheet.scale.root, part, note.pitch).trim();
+    noteEl.classList.remove("in-scale");
+    const cls = noteScaleClass(scaleSet, part, note.pitch).trim();
     if (cls) noteEl.classList.add(cls);
   }
 }
