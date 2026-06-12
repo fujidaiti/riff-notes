@@ -260,6 +260,21 @@
   .bar-note-input::placeholder { color: var(--placeholder); }
   .bar-note-input:hover { border-color: var(--line); }
   .bar-note-input:focus { border-color: var(--line); background: var(--input-bg); outline: none; }
+  .bar-name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    font: inherit;
+    font-size: 10px;
+    color: var(--ink-muted);
+    padding: 0 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 3px;
+    box-sizing: border-box;
+  }
+  .bar-name-input::placeholder { color: var(--placeholder); }
+  .bar-name-input:hover { border-color: var(--line); }
+  .bar-name-input:focus { border-color: var(--line); background: var(--input-bg); outline: none; color: var(--ink-soft); }
   .part-side {
     grid-column: 1;
     display: flex;
@@ -714,7 +729,7 @@ function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return 
 function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm" }; }
 function isRhythmPart(part) { return !!part && part.type === "rhythm"; }
 function getRhythmPart(sheet) { return sheet.parts.find(isRhythmPart); }
-function makeBar() { return { id: uid(), notes: [], partNotes: {}, repeats: {} }; }
+function makeBar() { return { id: uid(), name: "", notes: [], partNotes: {}, repeats: {} }; }
 function makeSheet(title = "Sheet") {
   return {
     id: uid(), title, notes: "", bpm: 120,
@@ -867,7 +882,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -884,6 +899,7 @@ function serializeProject(p) {
       parts: s.parts.map(pt => ({ id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched" })),
       bars: s.bars.map(b => ({
         id: b.id,
+        name: b.name || "",
         notes: b.notes.map(n => ({
           id: n.id, partId: n.partId, pitch: n.pitch,
           start: n.start, length: n.length, vel: n.vel,
@@ -903,7 +919,7 @@ function serializeProject(p) {
 function deserializeProject(doc) {
   if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
   // Accept v1 (no annotations), v2 (with annotations), v3 (with note subOffset).
-  if (doc.version !== 1 && doc.version !== 2 && doc.version !== 3 && doc.version !== 4 && doc.version !== SCHEMA_VERSION) return null;
+  if (doc.version !== 1 && doc.version !== 2 && doc.version !== 3 && doc.version !== 4 && doc.version !== 5 && doc.version !== SCHEMA_VERSION) return null;
   const sheets = doc.sheets.map(s => ({
     id: s.id || uid(),
     title: typeof s.title === "string" ? s.title : "Sheet",
@@ -924,6 +940,7 @@ function deserializeProject(doc) {
       }),
     bars: (Array.isArray(s.bars) && s.bars.length ? s.bars : [makeBar()]).map(b => ({
       id: b.id || uid(),
+      name: typeof b.name === "string" ? b.name : "",
       notes: Array.isArray(b.notes) ? b.notes.map(n => {
         let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
         if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
@@ -1000,7 +1017,7 @@ let restoreError = null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SCHEMA_VERSION) {
+    if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== 4 && parsed.version !== 5 && parsed.version !== SCHEMA_VERSION) {
       restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
       localStorage.removeItem(STORAGE_KEY);
       return;
@@ -1756,7 +1773,7 @@ function openRepeatPicker(sheet) {
   sheet.bars.forEach((b, i) => {
     if (sel.barIds.has(b.id)) return;
     if (isRepeatBarPart(b, part.id)) return;
-    candidates.push({ bar: b, label: `Bar ${i + 1}` });
+    candidates.push({ bar: b, label: barDisplayName(sheet, b) });
   });
   if (candidates.length === 0) {
     select.appendChild(el("option", { value: "" }, "(no eligible source bars)"));
@@ -1812,6 +1829,12 @@ function renderBands(sheet) {
   return bandsEl;
 }
 
+function barDisplayName(sheet, bar) {
+  const trimmed = (bar.name || "").trim();
+  if (trimmed) return trimmed;
+  return "Bar " + (sheet.bars.indexOf(bar) + 1);
+}
+
 function renderBand(sheet, bandStart, bandBars) {
   const cellW = getCellW();
   const cellH = getCellH();
@@ -1821,10 +1844,21 @@ function renderBand(sheet, bandStart, bandBars) {
   const numRow = el("div", { class: "band-bar-numbers" });
   numRow.style.gridTemplateColumns = `repeat(${bandBars.length}, calc(var(--label-w) + var(--cell-w) * ${STEPS_PER_BAR}))`;
   bandBars.forEach((bar, i) => {
-    const span = el("span", {}, `Bar ${bandStart + i + 1}`);
+    const span = el("span", { style: "display:flex; align-items:center; gap:2px;" });
+    const nameInput = el("input", {
+      class: "bar-name-input",
+      type: "text",
+      value: bar.name || "",
+      placeholder: `Bar ${bandStart + i + 1}`,
+    });
+    nameInput.addEventListener("input", (e) => {
+      bar.name = e.target.value;
+      persist();
+    });
+    span.appendChild(nameInput);
     if (sheet.bars.length > 1) {
       const delBtn = el("button", {
-        style: "margin-left:6px; font-size:10px; padding:0 4px; cursor:pointer;",
+        style: "margin-left:2px; font-size:10px; padding:0 4px; cursor:pointer;",
         onclick: async () => {
           if (await confirmAsync("Delete this bar?")) {
             pushUndo();
@@ -1934,8 +1968,7 @@ function renderBand(sheet, bandStart, bandBars) {
 
       let descEl;
       if (isRepeat) {
-        const srcIdx = sourceBar ? sheet.bars.findIndex(b => b.id === sourceBar.id) : -1;
-        const label = srcIdx >= 0 ? `↻ Bar ${srcIdx + 1}` : "↻ (broken)";
+        const label = sourceBar ? `↻ ${barDisplayName(sheet, sourceBar)}` : "↻ (broken)";
         descEl = el("div", { class: "repeat-label", title: "Repeat of " + label.replace("↻ ", "") }, label);
       } else {
         descEl = el("input", {
@@ -3280,7 +3313,7 @@ document.getElementById("file-load").addEventListener("change", (e) => {
   fr.onload = () => {
     try {
       const parsed = JSON.parse(fr.result);
-      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SCHEMA_VERSION) {
+      if (parsed && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== 4 && parsed.version !== 5 && parsed.version !== SCHEMA_VERSION) {
         throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
       }
       const obj = deserializeProject(parsed);
