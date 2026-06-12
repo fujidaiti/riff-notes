@@ -1968,7 +1968,14 @@ function renderBand(sheet, bandStart, bandBars) {
 
       let descEl;
       if (isRepeat) {
-        const label = sourceBar ? `↻ ${barDisplayName(sheet, sourceBar)}` : "↻ (broken)";
+        let label;
+        if (sourceBar) {
+          const srcDesc = ((sourceBar.partNotes && sourceBar.partNotes[part.id]) || "").trim();
+          const name = barDisplayName(sheet, sourceBar);
+          label = srcDesc ? `↻ ${name} - ${srcDesc}` : `↻ ${name}`;
+        } else {
+          label = "↻ (broken)";
+        }
         descEl = el("div", { class: "repeat-label", title: "Repeat of " + label.replace("↻ ", "") }, label);
       } else {
         descEl = el("input", {
