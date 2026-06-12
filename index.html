@@ -948,7 +948,10 @@ function deserializeProject(doc) {
         let sl = Number.isInteger(n.subLength) ? n.subLength : 0;
         if (sl < 0) sl = 0;
         if (sl > SUB_PER_STEP - 1) sl = SUB_PER_STEP - 1;
-        return { ...n, subOffset: so, subLength: sl };
+        const out = { ...n, subOffset: so, subLength: sl };
+        const owner = (s.parts || []).find(pt => pt && pt.id === n.partId);
+        if (owner && owner.type === "rhythm") out.length = 1;
+        return out;
       }) : [],
       partNotes: b.partNotes && typeof b.partNotes === "object" ? { ...b.partNotes } : {},
       repeats: b.repeats && typeof b.repeats === "object" ? { ...b.repeats } : {},
@@ -2285,8 +2288,10 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
     const relLeft = ev.clientX - noteRect.left;
     const relRight = noteRect.right - ev.clientX;
     let mode = "move";
-    if (relLeft <= RESIZE_EDGE) mode = "resize-left";
-    else if (relRight <= RESIZE_EDGE) mode = "resize-right";
+    if (!isRhythmPart(part)) {
+      if (relLeft <= RESIZE_EDGE) mode = "resize-left";
+      else if (relRight <= RESIZE_EDGE) mode = "resize-right";
+    }
 
     const wasInSelection = isNoteSelected(sheet, note.id);
     const prevSize = sheet.selectedNoteIds.size;
@@ -2826,7 +2831,7 @@ function showCellTooltipAt(ev, wrap) {
     : pitchName(pitch);
   const pitchHtml = `<span class="pitch">${escapeHtml(pitchLabel)}</span>`;
   const velHtml = velLabel ? `<span class="vel">${escapeHtml(velLabel)}</span>` : "";
-  const lenHtml = lenSteps != null ? `<span class="len">${escapeHtml(formatLengthSteps(lenSteps))}</span>` : "";
+  const lenHtml = (lenSteps != null && !isRhythm) ? `<span class="len">${escapeHtml(formatLengthSteps(lenSteps))}</span>` : "";
   tip.innerHTML = pitchHtml + velHtml + lenHtml;
   tip.style.display = "block";
   const offX = 12, offY = 14;
@@ -2877,6 +2882,11 @@ function updateNoteCursor(ev) {
   if (drag) return;
   const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
   if (!noteTarget) return;
+  const wrap = noteTarget.closest(".grid-wrap");
+  if (wrap && wrap.dataset.partType === "rhythm") {
+    noteTarget.style.cursor = "";
+    return;
+  }
   const rect = noteTarget.getBoundingClientRect();
   const relLeft = ev.clientX - rect.left;
   const relRight = rect.right - ev.clientX;
@@ -3038,6 +3048,7 @@ async function pasteClipboard(sheet) {
     const remainingFromBarStart = (sheet.bars.length - newBarIx) * STEPS_PER_BAR;
     let newLength = Math.min(cn.length, remainingFromBarStart - stepInBar);
     if (newLength < 1) newLength = 1;
+    if (isRhythmPart(targetPart)) newLength = 1;
     const note = {
       id: uid(),
       partId: targetPart.id,
