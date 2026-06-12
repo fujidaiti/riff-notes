@@ -2301,8 +2301,9 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       setSingleSelection(sheet, note.id);
       target.classList.add("selected");
     } else if (!wasSoleSelection) {
-      // Note is one of several selected — drag the whole group;
-      // selection-collapse happens on a no-move pointerup.
+      // Note is one of several selected — drag the whole group. On a no-move
+      // pointerup, a plain click collapses to sole selection; a modifier+click
+      // cycles velocity across the group instead (see pointerup handler).
     }
 
     // Snapshot every selected note in this part (possibly across multiple bars).
@@ -2339,6 +2340,7 @@ function handlePointerDown(ev, sheet, part, wrap, bar) {
       isExisting: true,
       wasSoleSelection,
       wasInMultiSelection: wasInSelection && prevSize > 1,
+      wasCreateModifier: isCreateModifier(ev),
       pendingUndo,
     };
     document.body.classList.add("dragging-notes");
@@ -2716,18 +2718,23 @@ document.addEventListener("pointerup", () => {
   }
 
   if (!d.moved && d.isExisting) {
-    if (d.wasSoleSelection) {
+    if (d.wasSoleSelection && d.wasCreateModifier) {
       commitUndoSnapshot(d.pendingUndo);
       d.primaryNote.vel = (d.primaryNote.vel + 1) % VEL_LABELS.length;
-    } else if (d.wasInMultiSelection) {
-      // Click on a member of a multi-selection: advance every selected
-      // note's velocity independently — selection is preserved.
+    } else if (d.wasInMultiSelection && d.wasCreateModifier) {
+      // Modifier+click on a member of a multi-selection: advance every
+      // selected note's velocity independently — selection is preserved.
       commitUndoSnapshot(d.pendingUndo);
       for (const g of d.group) {
         g.note.vel = (g.note.vel + 1) % VEL_LABELS.length;
       }
+    } else if (d.wasInMultiSelection) {
+      // Plain click on a member of a multi-selection: collapse to sole
+      // selection on the clicked note. No velocity change, no undo entry.
+      setSingleSelection(d.sheet, d.primaryNote.id);
     }
-    // else: fresh single-note selection — no cycle this click.
+    // else: sole-selected plain click, or a fresh single selection from
+    // pointerdown — no-op.
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (d.moved) {
@@ -3216,8 +3223,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + Click empty cell`, "Create a new note"],
     ["Drag empty cell", "Rubber-band select notes in the same part"],
     ["Shift + Drag empty cell", "Add to current selection via rubber-band"],
-    ["Click note", "Select the note (cycles velocity if it's the sole selection)"],
-    ["Click a selected note (in multi-selection)", "Cycle every selected note's velocity"],
+    ["Click note", "Select the note (or collapse a multi-selection to this note)"],
+    [`${MOD} + Click note`, "Cycle velocity (every selected note if it's part of a multi-selection)"],
     ["Shift + Click note", "Toggle that note in the selection"],
     ["Drag note", "Move (group-aware if multi-selected); vertical drag changes pitch"],
     ["Drag note edge", "Resize (group-aware if multi-selected)"],
