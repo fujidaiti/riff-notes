@@ -2055,8 +2055,9 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
       const bandsRect0 = bandsEl.getBoundingClientRect();
       const startRect = e.card.getBoundingClientRect();
-      // Center, expressed in the bands coordinate space.
-      const startCenterXInBands = (startRect.left + startRect.right) / 2 - bandsRect0.left;
+      // Edge positions of the expanded card in the bands coordinate space.
+      const startLeftInBands = startRect.left - bandsRect0.left;
+      const startRightInBands = startRect.right - bandsRect0.left;
       const isFree = e.card.classList.contains("annot-side-free");
 
       dragging = true;
@@ -2064,20 +2065,28 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       setExpanded(e, false);
       e.card.classList.add("resizing");
       e.card.style.width = startWidth + "px";
-      if (isFree) {
-        e.card.style.left = (startCenterXInBands - startWidth / 2) + "px";
+      // For free cards we pin the opposite edge: resize-right keeps the
+      // left at startLeftInBands (no change); resize-left snaps the
+      // top-left so the right edge stays at startRightInBands.
+      if (isFree && edge === "left") {
+        e.card.style.left = (startRightInBands - startWidth) + "px";
       }
       try { e.card.setPointerCapture(pointerId); } catch {}
 
       let newWidth = startWidth;
       const onMove = (em) => {
         const delta = em.clientX - startX;
-        let w = edge === "right" ? startWidth + 2 * delta : startWidth - 2 * delta;
+        // Free cards anchor the opposite edge → width tracks the cursor 1:1.
+        // Top/bottom cards are CSS-centered on their anchor, so both edges
+        // move when width changes — to keep the dragged edge under the
+        // cursor we apply 2×delta there (effectively center-anchored).
+        const mult = isFree ? 1 : 2;
+        let w = edge === "right" ? startWidth + mult * delta : startWidth - mult * delta;
         w = Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, w));
         newWidth = w;
         e.card.style.width = w + "px";
-        if (isFree) {
-          e.card.style.left = (startCenterXInBands - w / 2) + "px";
+        if (isFree && edge === "left") {
+          e.card.style.left = (startRightInBands - w) + "px";
         }
         em.preventDefault();
       };
@@ -2092,16 +2101,16 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         if (newWidth !== startWidth) {
           pushUndo();
           e.annotation.shrunkWidth = newWidth;
-          if (isFree && e.annotation.manualPlacement) {
-            e.annotation.manualPlacement.dx += (startWidth - newWidth) / 2;
+          if (isFree && edge === "left" && e.annotation.manualPlacement) {
+            e.annotation.manualPlacement.dx += (startWidth - newWidth);
           }
           persist();
           renderAll();
         } else {
           // No-op click on an edge — restore the expanded view so the user
           // doesn't appear to have collapsed the card just by clicking.
-          if (isFree) {
-            e.card.style.left = (startCenterXInBands - startWidth / 2) + "px";
+          if (isFree && edge === "left") {
+            e.card.style.left = startLeftInBands + "px";
           }
           setExpanded(e, true);
         }
