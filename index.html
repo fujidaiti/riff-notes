@@ -2054,38 +2054,39 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       const startX = ev.clientX;
       const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
       const bandsRect0 = bandsEl.getBoundingClientRect();
-      const startRect = e.card.getBoundingClientRect();
-      // For free cards, the expanded and shrunk renders share the same
-      // top-left (both use `style.left`); only the right edge differs.
-      // Anchor on the *shrunk* card's edges, not the expanded card's:
-      //   shrunkLeft  = startRect.left  (same as expanded for free)
-      //   shrunkRight = shrunkLeft + startWidth
-      // This avoids the right-pin sitting outside the post-snap card.
-      const startLeftInBands = startRect.left - bandsRect0.left;
-      const isFree = e.card.classList.contains("annot-side-free");
+      const wasFree = e.card.classList.contains("annot-side-free");
 
       dragging = true;
       if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
       setExpanded(e, false);
       e.card.classList.add("resizing");
       e.card.style.width = startWidth + "px";
-      // Free cards already render at startLeftInBands with width=startWidth
-      // after the snap, so no `left` update is needed at delta=0.
+
+      // Snap to shrunk width first, then measure the visual rect so we have
+      // the shrunk card's true edges (which depend on whether it's centered
+      // via translate(-50%, …) or top-left positioned). Promote
+      // centroid-tracked cards to free placement at those coordinates so
+      // the resize can anchor a real edge instead of the CSS-centered one.
+      void e.card.offsetWidth; // force layout
+      const shrunkRect = e.card.getBoundingClientRect();
+      const startLeftInBands = shrunkRect.left - bandsRect0.left;
+      if (!wasFree) {
+        const shrunkTopInBands = shrunkRect.top - bandsRect0.top;
+        e.card.classList.remove("annot-side-top", "annot-side-bottom");
+        e.card.classList.add("annot-side-free");
+        e.card.style.left = startLeftInBands + "px";
+        e.card.style.top = shrunkTopInBands + "px";
+      }
       try { e.card.setPointerCapture(pointerId); } catch {}
 
       let newWidth = startWidth;
       const onMove = (em) => {
         const delta = em.clientX - startX;
-        // Free cards anchor the opposite edge → width tracks the cursor 1:1.
-        // Top/bottom cards are CSS-centered on their anchor, so both edges
-        // move when width changes — to keep the dragged edge under the
-        // cursor we apply 2×delta there (effectively center-anchored).
-        const mult = isFree ? 1 : 2;
-        let w = edge === "right" ? startWidth + mult * delta : startWidth - mult * delta;
+        let w = edge === "right" ? startWidth + delta : startWidth - delta;
         w = Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, w));
         newWidth = w;
         e.card.style.width = w + "px";
-        if (isFree && edge === "left") {
+        if (edge === "left") {
           // Pin the shrunk card's original right edge.
           e.card.style.left = (startLeftInBands + startWidth - w) + "px";
         }
@@ -2102,15 +2103,33 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         if (newWidth !== startWidth) {
           pushUndo();
           e.annotation.shrunkWidth = newWidth;
-          if (isFree && edge === "left" && e.annotation.manualPlacement) {
-            e.annotation.manualPlacement.dx += (startWidth - newWidth);
+          // Re-derive manualPlacement from the card's final visual position
+          // so the same code path handles both already-free cards (only dx
+          // shifts) and newly-promoted ones (dx and dy are both set fresh).
+          const finalLeft = parseFloat(e.card.style.left);
+          const finalTop = parseFloat(e.card.style.top);
+          const memberById = new Map(e.members.map(m => [m.note.id, m]));
+          const existingAnchorId = e.annotation.manualPlacement && e.annotation.manualPlacement.anchorNoteId;
+          const anchor = (existingAnchorId && memberById.get(existingAnchorId)) || e.members[0];
+          if (anchor) {
+            e.annotation.manualPlacement = {
+              anchorNoteId: anchor.note.id,
+              dx: finalLeft - anchor.x,
+              dy: finalTop - anchor.y,
+            };
           }
           persist();
           renderAll();
+        } else if (!wasFree) {
+          // No-op click that promoted a centroid card — re-render to undo
+          // the temporary side-free promotion.
+          dragging = false;
+          renderAll();
+          return;
         } else {
-          // No-op click on an edge — restore the expanded view so the user
-          // doesn't appear to have collapsed the card just by clicking.
-          if (isFree && edge === "left") {
+          // No-op click on an already-free card — restore the expanded view
+          // in place so the user doesn't appear to have collapsed the card.
+          if (edge === "left") {
             e.card.style.left = startLeftInBands + "px";
           }
           setExpanded(e, true);
