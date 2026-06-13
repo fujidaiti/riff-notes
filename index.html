@@ -2167,8 +2167,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         const bandsRect0 = bandsEl.getBoundingClientRect();
         grabDx = startX - cardRect.left;
         grabDy = startY - cardRect.top;
-        const startLeft = cardRect.left - bandsRect0.left;
-        const startTop = cardRect.top - bandsRect0.top;
+        const startLeft = cardRect.left - bandsRect0.left + bandsEl.scrollLeft;
+        const startTop = cardRect.top - bandsRect0.top + bandsEl.scrollTop;
         e.card.classList.add("dragging");
         setExpanded(e, false);
         e.card.style.left = startLeft + "px";
@@ -2182,8 +2182,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
           beginDrag();
         }
         const br = bandsEl.getBoundingClientRect();
-        e.card.style.left = (em.clientX - br.left - grabDx) + "px";
-        e.card.style.top = (em.clientY - br.top - grabDy) + "px";
+        e.card.style.left = (em.clientX - br.left + bandsEl.scrollLeft - grabDx) + "px";
+        e.card.style.top = (em.clientY - br.top + bandsEl.scrollTop - grabDy) + "px";
         em.preventDefault();
       };
       const onUp = () => {
