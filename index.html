@@ -209,6 +209,7 @@
   .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .sheet-actions button.play.playing { background: var(--play-tint); }
+  .sheet-actions button.repeat.active { background: var(--play-tint); }
 
   /* Persistent footer (tabs + sheet-wise actions) */
   .footer {
@@ -224,6 +225,7 @@
   }
   .footer-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .footer-actions button.play.playing { background: var(--play-tint); }
+  .footer-actions button.repeat.active { background: var(--play-tint); }
 
   /* Parts panel (per-sheet) */
   .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
@@ -1151,6 +1153,7 @@ let playbackT0 = 0;
 let playbackStartStep = 0;
 let playbackSecPerStep = 0;
 let playbackTotalSteps = 0;
+let repeatEnabled = false;
 
 // ---------- MIDI recording state (runtime only) ----------
 let recordingSheetId = null;
@@ -1606,6 +1609,10 @@ function renderFooter(sheet) {
     }, "- Bar"),
     el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
     playBtn, stopBtn,
+    el("button", {
+      class: "repeat" + (repeatEnabled ? " active" : ""),
+      onclick: () => { repeatEnabled = !repeatEnabled; renderAll(); },
+    }, "⟳ Repeat"),
     el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
   );
 }
@@ -3560,10 +3567,18 @@ function scheduleNote(when, durSec, midi, vel) {
   activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
 }
 
-function playSheet(sheet, fromStep) {
+function playSheet(sheet, fromStep, startAudioTime) {
   ensureAudio();
-  // exclusive: stop any current playback (playing or paused)
-  teardownPlayback();
+  const isSeamlessRepeat = startAudioTime != null && startAudioTime > audioCtx.currentTime;
+  if (isSeamlessRepeat) {
+    // Previous loop's oscillators are scheduled to end at/before startAudioTime —
+    // let them finish naturally. Just discard the tracking array and cancel timers.
+    activeOscillators = [];
+    if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+    if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+  } else {
+    teardownPlayback();
+  }
   pausedSheetId = null;
   pausedStep = 0;
   playingSheetId = sheet.id;
@@ -3572,7 +3587,7 @@ function playSheet(sheet, fromStep) {
   const wantedStart = (fromStep != null) ? fromStep : (sheet.playStart || 0);
   const startStep = Math.max(0, Math.min(sheetSteps - 1, wantedStart));
   const effectiveStart = startStep >= sheetSteps ? 0 : startStep;
-  const t0 = audioCtx.currentTime + 0.05;
+  const t0 = isSeamlessRepeat ? startAudioTime : audioCtx.currentTime + 0.05;
   let lastEnd = t0;
   for (const part of sheet.parts) {
     for (const n of part.notes) {
@@ -3595,9 +3610,22 @@ function playSheet(sheet, fromStep) {
   playbackTotalSteps = sheetSteps;
   const endStepTime = t0 + (sheetSteps - effectiveStart) * secPerStep;
   const endTime = Math.max(lastEnd, endStepTime);
-  const totalMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
   const myId = sheet.id;
-  playStopTimer = setTimeout(() => { if (playingSheetId === myId) playbackEndedNaturally(); }, totalMs);
+  // Fire 50ms before the loop ends so endStepTime is still in the future when
+  // playSheet schedules the next iteration (guarantees seamless audio handoff).
+  const earlyMs = Math.max(0, (endStepTime - audioCtx.currentTime) * 1000 - 50);
+  playStopTimer = setTimeout(() => {
+    if (playingSheetId !== myId) return;
+    if (repeatEnabled) {
+      playSheet(sheet, 0, endStepTime);
+    } else {
+      // Wait for any notes that extend past endStepTime before stopping.
+      const remainingMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
+      playStopTimer = setTimeout(() => {
+        if (playingSheetId === myId) playbackEndedNaturally();
+      }, remainingMs);
+    }
+  }, earlyMs);
 
   const tick = () => {
     if (playingSheetId !== sheet.id || !audioCtx) return;
