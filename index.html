@@ -879,6 +879,13 @@ function redo() {
 const SCHEMA_VERSION = 10;
 const STORAGE_KEY = "midi-editor:state";
 
+// Annotation card sizing — must be declared before serialize/deserialize
+// since `restoreFromStorage` runs at top-level and would hit a TDZ otherwise.
+const ANNOT_RESIZE_EDGE = 6;
+const ANNOT_MIN_WIDTH = 24;
+const ANNOT_MAX_WIDTH = 320;
+const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
+
 function serializeProject(p) {
   return {
     version: SCHEMA_VERSION,
@@ -2178,10 +2185,6 @@ function renderAnnotationOverlay(sheet, bandsEl) {
 // ---------- Pointer interactions ----------
 const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
-const ANNOT_RESIZE_EDGE = 6;
-const ANNOT_MIN_WIDTH = 24;
-const ANNOT_MAX_WIDTH = 320;
-const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
 let drag = null;
 
 function handlePointerDown(ev, sheet, part, wrap) {
