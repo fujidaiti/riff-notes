@@ -2950,7 +2950,11 @@ async function pasteClipboard(sheet) {
     const absStart = targetStep + cn.dStart;
     const newPitch = targetPitch - cn.dRow;
     if (absStart < 0 || absStart >= sheetSteps) continue;
-    if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
+    if (isRhythmPart(targetPart)) {
+      if (newPitch < 0 || newPitch > 2) continue;
+    } else {
+      if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
+    }
     let newLength = Math.min(cn.length, sheetSteps - absStart);
     if (newLength < 1) newLength = 1;
     if (isRhythmPart(targetPart)) newLength = 1;
