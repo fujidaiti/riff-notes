@@ -469,7 +469,20 @@
     word-break: break-word;
     z-index: 5;
     min-width: 140px;
+    cursor: grab;
   }
+  .annot-card.annot-side-free   { transform: translate(0, 0); transform-origin: top left; }
+  .annot-card.dragging {
+    white-space: nowrap;
+    min-width: 0;
+    z-index: 6;
+    cursor: grabbing;
+    opacity: 1;
+    box-shadow: 0 2px 8px var(--shadow-med);
+  }
+  .annot-card.dragging .annot-full,
+  .annot-card.dragging .annot-actions { display: none !important; }
+  .annot-card.dragging .annot-preview { display: inline !important; }
   .annot-card .annot-actions {
     display: none;
     gap: 4px; margin-top: 6px; justify-content: flex-end;
@@ -682,6 +695,87 @@ function toggleNoteSelection(sheet, note) {
   sheet.selectedNoteIds.add(note.id);
   sheet.selectedCell = null;
 }
+// After a note-drag commit, if an annotation's anchor was in the moved set
+// but at least one member was not, re-anchor to the earliest non-moved member
+// and preserve the card's bands-relative visual position. Group moves (every
+// member moved) leave (dx, dy) unchanged so the card follows the move.
+function reconcileManualPlacementAfterMove(sheet, movedIdSet) {
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  if (!bandsEl) return;
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const centerOf = (noteId) => {
+    const elN = bandsEl.querySelector(`.note[data-note-id="${noteId}"]`);
+    if (!elN) return null;
+    const r = elN.getBoundingClientRect();
+    return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
+  };
+  for (const a of sheet.annotations) {
+    const mp = a.manualPlacement;
+    if (!mp) continue;
+    if (!movedIdSet.has(mp.anchorNoteId)) continue;
+    if (a.noteIds.every(id => movedIdSet.has(id))) continue;
+    const nonMoved = a.noteIds.filter(id => !movedIdSet.has(id));
+    const candidates = nonMoved.map(id => ({ id, c: centerOf(id) })).filter(s => s.c);
+    if (candidates.length === 0) continue;
+    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
+    const newAnchor = candidates[0];
+    const cardEl = bandsEl.querySelector(`.annot-card[data-annotation-id="${a.id}"]`);
+    if (!cardEl) continue;
+    const oldCardX = parseFloat(cardEl.style.left);
+    const oldCardY = parseFloat(cardEl.style.top);
+    if (!Number.isFinite(oldCardX) || !Number.isFinite(oldCardY)) continue;
+    a.manualPlacement = {
+      anchorNoteId: newAnchor.id,
+      dx: oldCardX - newAnchor.c.x,
+      dy: oldCardY - newAnchor.c.y,
+    };
+  }
+}
+
+// For each annotation with a manualPlacement whose anchor is about to be
+// deleted: pick the earliest surviving member as the new anchor and recompute
+// (dx, dy) so the card's bands-relative visual position stays put.
+function reconcileManualPlacementBeforeDelete(sheet, idSet) {
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  if (!bandsEl) return;
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const centerOf = (noteId) => {
+    const elN = bandsEl.querySelector(`.note[data-note-id="${noteId}"]`);
+    if (!elN) return null;
+    const r = elN.getBoundingClientRect();
+    return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
+  };
+  for (const a of sheet.annotations) {
+    const mp = a.manualPlacement;
+    if (!mp) continue;
+    if (!idSet.has(mp.anchorNoteId)) continue;
+    const survivingIds = a.noteIds.filter(id => !idSet.has(id));
+    if (survivingIds.length === 0) continue;
+    const candidates = survivingIds
+      .map(id => ({ id, c: centerOf(id) }))
+      .filter(s => s.c);
+    if (candidates.length === 0) { a.manualPlacement = null; continue; }
+    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
+    const newAnchor = candidates[0];
+    const oldAnchorC = centerOf(mp.anchorNoteId);
+    if (!oldAnchorC) {
+      a.manualPlacement = { anchorNoteId: newAnchor.id, dx: mp.dx, dy: mp.dy };
+      continue;
+    }
+    const oldCardX = oldAnchorC.x + mp.dx;
+    const oldCardY = oldAnchorC.y + mp.dy;
+    a.manualPlacement = {
+      anchorNoteId: newAnchor.id,
+      dx: oldCardX - newAnchor.c.x,
+      dy: oldCardY - newAnchor.c.y,
+    };
+  }
+}
+
 // Remove notes whose ids are in `idSet` from every part of `sheet`, then prune
 // any annotations whose noteIds become empty after the removal. Returns the
 // number of notes actually removed.
@@ -695,8 +789,14 @@ function removeNotesByIds(sheet, idSet) {
     });
   }
   if (sheet.annotations && sheet.annotations.length > 0) {
+    reconcileManualPlacementBeforeDelete(sheet, idSet);
     sheet.annotations = sheet.annotations
-      .map(a => ({ ...a, noteIds: a.noteIds.filter(id => !idSet.has(id)) }))
+      .map(a => {
+        const noteIds = a.noteIds.filter(id => !idSet.has(id));
+        let mp = a.manualPlacement;
+        if (mp && !noteIds.includes(mp.anchorNoteId)) mp = null;
+        return { ...a, noteIds, manualPlacement: mp };
+      })
       .filter(a => a.noteIds.length > 0);
   }
   return removed;
@@ -760,7 +860,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -786,6 +886,9 @@ function serializeProject(p) {
       })),
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
+        manualPlacement: a.manualPlacement
+          ? { anchorNoteId: a.manualPlacement.anchorNoteId, dx: a.manualPlacement.dx, dy: a.manualPlacement.dy }
+          : null,
       })),
     })),
   };
@@ -829,7 +932,17 @@ function deserializeProject(doc) {
       annotations: Array.isArray(s.annotations)
         ? s.annotations
             .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
-            .map(a => ({ id: a.id || uid(), text: a.text, noteIds: a.noteIds.filter(x => typeof x === "string") }))
+            .map(a => {
+              const noteIds = a.noteIds.filter(x => typeof x === "string");
+              const mp = a.manualPlacement;
+              const manualPlacement = (mp
+                && typeof mp.anchorNoteId === "string"
+                && Number.isFinite(mp.dx) && Number.isFinite(mp.dy)
+                && noteIds.includes(mp.anchorNoteId))
+                ? { anchorNoteId: mp.anchorNoteId, dx: mp.dx, dy: mp.dy }
+                : null;
+              return { id: a.id || uid(), text: a.text, noteIds, manualPlacement };
+            })
         : [],
       // runtime/view state — never persisted, always defaulted
       selectedNoteIds: new Set(),
@@ -1103,7 +1216,7 @@ async function createAnnotation(sheet, noteIds) {
   if (!noteIds || noteIds.length === 0) return;
   const res = await editAnnotation({ isEdit: false });
   if (res.action !== "save") return;
-  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds] });
+  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds], manualPlacement: null });
   renderAll();
   persist();
 }
@@ -1797,8 +1910,16 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       svg.appendChild(lineEl);
     }
 
-    // Card.
-    const pos = computeCardPosition(members);
+    // Card. If a manual placement exists and its anchor is still a member,
+    // position relative to that anchor; otherwise fall back to auto-placement.
+    let pos = null;
+    if (a.manualPlacement) {
+      const anchor = members.find(m => m.note.id === a.manualPlacement.anchorNoteId);
+      if (anchor) {
+        pos = { x: anchor.x + a.manualPlacement.dx, y: anchor.y + a.manualPlacement.dy, side: "free" };
+      }
+    }
+    if (!pos) pos = computeCardPosition(members);
     const card = el("div", { class: "annot-card annot-side-" + pos.side });
     card.dataset.annotationId = a.id;
     const preview = a.text.replace(/\s+/g, " ").slice(0, 10);
@@ -1821,7 +1942,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     card.style.top = pos.y + "px";
     overlay.appendChild(card);
 
-    entries.push({ id: a.id, card, line: lineEl, noteEls: members.map(m => m.domEl), previewLabel, fullBody });
+    entries.push({ id: a.id, annotation: a, members, card, line: lineEl, noteEls: members.map(m => m.domEl), previewLabel, fullBody });
   });
 
   bandsEl.appendChild(overlay);
@@ -1851,15 +1972,89 @@ function renderAnnotationOverlay(sheet, bandsEl) {
 
   entries.forEach(e => {
     let expandTimer = null;
+    let dragging = false;
     e.card.addEventListener("mouseenter", () => {
+      if (dragging) return;
       setActive(e, true);
       if (expandTimer) clearTimeout(expandTimer);
       expandTimer = setTimeout(() => setExpanded(e, true), 200);
     });
     e.card.addEventListener("mouseleave", () => {
+      if (dragging) return;
       setActive(e, false);
       if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
       setExpanded(e, false);
+    });
+
+    // Card drag: when expanded, pressing anywhere on the card and moving past
+    // the click threshold starts a free-form reposition. Below the threshold,
+    // the press is treated as a click so the Edit/Delete buttons still work.
+    // The card shrinks to its un-expanded look while dragging; on release we
+    // re-anchor and persist `manualPlacement`.
+    e.card.addEventListener("pointerdown", (ev) => {
+      if (ev.button !== 0) return;
+      if (!e.card.classList.contains("expanded")) return;
+
+      const startX = ev.clientX, startY = ev.clientY;
+      const pointerId = ev.pointerId;
+      let started = false;
+      let grabDx = 0, grabDy = 0;
+
+      const beginDrag = () => {
+        started = true;
+        dragging = true;
+        if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+        const cardRect = e.card.getBoundingClientRect();
+        const bandsRect0 = bandsEl.getBoundingClientRect();
+        grabDx = startX - cardRect.left;
+        grabDy = startY - cardRect.top;
+        const startLeft = cardRect.left - bandsRect0.left;
+        const startTop = cardRect.top - bandsRect0.top;
+        e.card.classList.remove("annot-side-top", "annot-side-bottom");
+        e.card.classList.add("annot-side-free", "dragging");
+        setExpanded(e, false);
+        e.card.style.left = startLeft + "px";
+        e.card.style.top = startTop + "px";
+        try { e.card.setPointerCapture(pointerId); } catch {}
+      };
+
+      const onMove = (em) => {
+        if (!started) {
+          if (Math.hypot(em.clientX - startX, em.clientY - startY) < CLICK_MAX_MOVE) return;
+          beginDrag();
+        }
+        const br = bandsEl.getBoundingClientRect();
+        e.card.style.left = (em.clientX - br.left - grabDx) + "px";
+        e.card.style.top = (em.clientY - br.top - grabDy) + "px";
+        em.preventDefault();
+      };
+      const onUp = () => {
+        e.card.removeEventListener("pointermove", onMove);
+        e.card.removeEventListener("pointerup", onUp);
+        e.card.removeEventListener("pointercancel", onUp);
+        if (!started) return;
+        try { e.card.releasePointerCapture(pointerId); } catch {}
+
+        const finalLeft = parseFloat(e.card.style.left);
+        const finalTop = parseFloat(e.card.style.top);
+
+        const memberById = new Map(e.members.map(m => [m.note.id, m]));
+        const existingAnchorId = e.annotation.manualPlacement && e.annotation.manualPlacement.anchorNoteId;
+        const anchor = (existingAnchorId && memberById.get(existingAnchorId)) || e.members[0];
+        if (!anchor) { dragging = false; return; }
+
+        pushUndo();
+        e.annotation.manualPlacement = {
+          anchorNoteId: anchor.note.id,
+          dx: finalLeft - anchor.x,
+          dy: finalTop - anchor.y,
+        };
+        persist();
+        renderAll();
+      };
+      e.card.addEventListener("pointermove", onMove);
+      e.card.addEventListener("pointerup", onUp);
+      e.card.addEventListener("pointercancel", onUp);
     });
   });
 
@@ -2281,6 +2476,10 @@ document.addEventListener("pointerup", () => {
   } else if (d.moved) {
     commitUndoSnapshot(d.pendingUndo);
     if (!d.isExisting) auditionNote(d.sheet, d.primaryNote);
+    if (d.group && d.group.length > 0) {
+      const movedIds = new Set(d.group.map(g => g.note.id));
+      reconcileManualPlacementAfterMove(d.sheet, movedIds);
+    }
     renderAll();
     refreshCellTooltipAtLastPointer();
   } else if (!d.isExisting) {
