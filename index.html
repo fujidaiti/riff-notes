@@ -98,7 +98,7 @@
   html { color-scheme: light; }
   html[data-theme="dark"] { color-scheme: dark; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; overscroll-behavior-x: none; }
-  body { padding-bottom: 80px; }
+  body { padding-bottom: 108px; }
 
   /* Global toolbar */
   .toolbar {
@@ -123,24 +123,23 @@
 
   /* Tab strip */
   .tabstrip {
-    position: sticky; top: 41px; z-index: 19;
     display: flex; align-items: flex-end; gap: 2px;
     padding: 6px 12px 0;
     background: var(--bg);
-    border-bottom: 1px solid var(--line);
     overflow-x: auto;
     overflow-y: hidden;
   }
   .tab {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px;
-    background: var(--panel-bg);
+    background: transparent;
     border: 1px solid var(--line);
     border-bottom: none;
     border-radius: 6px 6px 0 0;
     cursor: pointer;
     font-size: 13px;
-    color: var(--ink-soft);
+    color: var(--ink-muted);
+    opacity: 0.65;
     max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
@@ -148,13 +147,14 @@
     user-select: none;
     margin-bottom: -1px;
   }
-  .tab:hover { background: var(--panel-hover); }
+  .tab:hover { opacity: 1; color: var(--ink-soft); background: var(--panel-hover); }
   .tab.active {
-    background: var(--sheet-bg);
+    background: var(--panel-bg);
     color: var(--ink);
     border-color: var(--line);
-    border-bottom: 1px solid var(--sheet-bg);
+    border-bottom: 1px solid var(--panel-bg);
     font-weight: 600;
+    opacity: 1;
   }
   .tab .tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .tab .tab-playing { color: var(--playhead); font-size: 11px; }
@@ -196,15 +196,20 @@
   .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .sheet-actions button.play.playing { background: var(--play-tint); }
 
-  /* Persistent footer (sheet-wise actions) */
+  /* Persistent footer (tabs + sheet-wise actions) */
   .footer {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .footer-actions {
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
     padding: 8px 12px; background: var(--panel-bg);
     border-top: 1px solid var(--line);
   }
-  .footer button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
-  .footer button.play.playing { background: var(--play-tint); }
+  .footer-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .footer-actions button.play.playing { background: var(--play-tint); }
 
   /* Parts panel (per-sheet) */
   .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
@@ -601,9 +606,11 @@
   <button id="btn-theme" class="btn-icon" title="Theme">🌓</button>
   <button id="btn-help" class="btn-icon" title="Keyboard shortcuts">?</button>
 </div>
-<div class="tabstrip" id="tabstrip"></div>
 <div class="sheets" id="sheets"></div>
-<div class="footer" id="footer"></div>
+<div class="footer" id="footer">
+  <div class="tabstrip" id="tabstrip"></div>
+  <div class="footer-actions" id="footer-actions"></div>
+</div>
 <dialog id="help-dialog">
   <h3>Keyboard & mouse shortcuts</h3>
   <table id="help-table"></table>
@@ -1343,6 +1350,7 @@ function openNoteContextMenu(ev, sheet, note) {
 const sheetsEl = document.getElementById("sheets");
 const tabstripEl = document.getElementById("tabstrip");
 const footerEl = document.getElementById("footer");
+const footerActionsEl = document.getElementById("footer-actions");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
@@ -1422,13 +1430,13 @@ function renderAll() {
   const prevBands = sheetsEl.querySelector(".bands");
   const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
   sheetsEl.innerHTML = "";
-  footerEl.innerHTML = "";
+  footerActionsEl.innerHTML = "";
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
     const sheet = project.sheets[idx];
     const sheetEl = renderSheet(sheet, idx);
     sheetsEl.appendChild(sheetEl);
-    footerEl.appendChild(renderFooter(sheet));
+    footerActionsEl.appendChild(renderFooter(sheet));
     footerEl.style.display = "";
     updatePlayheadDom(sheet);
     const bandsEl = sheetEl.querySelector(".bands");
