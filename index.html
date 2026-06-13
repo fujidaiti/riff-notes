@@ -1585,6 +1585,7 @@ function buildPartStrip(sheet, part) {
       const p = parseInt(e.target.value, 10);
       pm.vol = clamp01(p / 100);
       valueEl.textContent = p + "%";
+      applyPartGainsLive(sheet);
       persist();
     },
   });
@@ -1597,6 +1598,7 @@ function buildPartStrip(sheet, part) {
       if (pm.mute) pm.solo = false;
       muteBtn.classList.toggle("on", pm.mute);
       soloBtn.classList.toggle("on", pm.solo);
+      applyPartGainsLive(sheet);
       persist();
     },
   }, "M");
@@ -1609,6 +1611,7 @@ function buildPartStrip(sheet, part) {
       if (pm.solo) pm.mute = false;
       soloBtn.classList.toggle("on", pm.solo);
       muteBtn.classList.toggle("on", pm.mute);
+      applyPartGainsLive(sheet);
       persist();
     },
   }, "S");
@@ -3850,6 +3853,9 @@ function triggerDownload(blob, filename) {
 
 // ---------- Playback (per sheet, exclusive) ----------
 let masterGain = null;
+// partId → GainNode, live per-part bus connected to masterGain.
+// Rebuilt at playSheet/auditionNote; mixer adjustments update node gains directly.
+let partGainNodes = new Map();
 function ensureAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (!masterGain) {
@@ -3865,12 +3871,48 @@ function applyActiveMasterGain(sheet) {
   const v = effectiveMasterValue(sheet);
   masterGain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.01);
 }
+function teardownPartGainNodes() {
+  for (const node of partGainNodes.values()) {
+    try { node.disconnect(); } catch {}
+  }
+  partGainNodes.clear();
+}
+function ensurePartGainNodes(sheet) {
+  if (!audioCtx || !masterGain) return;
+  // Drop nodes for parts no longer in the sheet.
+  const ids = new Set(sheet.parts.map(p => p.id));
+  for (const [id, node] of partGainNodes) {
+    if (!ids.has(id)) { try { node.disconnect(); } catch {} partGainNodes.delete(id); }
+  }
+  for (const p of sheet.parts) {
+    if (!partGainNodes.has(p.id)) {
+      const g = audioCtx.createGain();
+      g.gain.value = effectivePartGain(sheet, p);
+      g.connect(masterGain);
+      partGainNodes.set(p.id, g);
+    }
+  }
+}
+function applyPartGainsLive(sheet) {
+  if (!audioCtx) return;
+  for (const p of sheet.parts) {
+    const node = partGainNodes.get(p.id);
+    if (!node) continue;
+    node.gain.setTargetAtTime(effectivePartGain(sheet, p), audioCtx.currentTime, 0.01);
+  }
+}
+function partDestFor(sheet, part) {
+  if (!part) return masterGain || audioCtx.destination;
+  const node = partGainNodes.get(part.id);
+  return node || masterGain || audioCtx.destination;
+}
 
 function teardownPlayback() {
   for (const fn of activeOscillators) fn();
   activeOscillators = [];
   if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
   if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+  teardownPartGainNodes();
 }
 
 function stopPlayback() {
@@ -3913,10 +3955,9 @@ function getNoiseBuffer() {
   return noiseBuffer;
 }
 
-function scheduleDrum(when, durSec, drumKey, vel, gainMul = 1) {
-  const dest = masterGain || audioCtx.destination;
-  const peak = VEL_GAIN[vel] * gainMul;
-  if (peak <= 0) return;
+function scheduleDrum(when, durSec, drumKey, vel, dest) {
+  if (!dest) dest = masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[vel];
   const stops = [];
   if (drumKey === "kick") {
     const osc = audioCtx.createOscillator();
@@ -3984,18 +4025,19 @@ function auditionNote(sheet, note) {
   const dur = secPerStep * 0.95;
   const when = audioCtx.currentTime + 0.005;
   const part = sheet.parts.find(p => p.id === note.partId);
-  const gainMul = part ? effectivePartGain(sheet, part) : 1;
+  ensurePartGainNodes(sheet);
+  const dest = partDestFor(sheet, part);
   if (part && isRhythmPart(part)) {
     const key = RHYTHM_KEYS[part.hi - note.pitch];
-    if (key) scheduleDrum(when, dur, key, note.vel, gainMul);
+    if (key) scheduleDrum(when, dur, key, note.vel, dest);
   } else {
-    scheduleNote(when, dur, note.pitch, note.vel, gainMul);
+    scheduleNote(when, dur, note.pitch, note.vel, dest);
   }
 }
 
-function scheduleNote(when, durSec, midi, vel, gainMul = 1) {
-  const peak = VEL_GAIN[vel] * gainMul;
-  if (peak <= 0) return;
+function scheduleNote(when, durSec, midi, vel, dest) {
+  if (!dest) dest = masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[vel];
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -4005,7 +4047,7 @@ function scheduleNote(when, durSec, midi, vel, gainMul = 1) {
   gain.gain.linearRampToValueAtTime(peak, when + 0.005);
   gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
   gain.gain.linearRampToValueAtTime(0, when + durSec);
-  osc.connect(gain).connect(masterGain || audioCtx.destination);
+  osc.connect(gain).connect(dest);
   osc.start(when);
   osc.stop(when + durSec + 0.02);
   activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
@@ -4033,8 +4075,10 @@ function playSheet(sheet, fromStep, startAudioTime) {
   const effectiveStart = startStep >= sheetSteps ? 0 : startStep;
   const t0 = isSeamlessRepeat ? startAudioTime : audioCtx.currentTime + 0.05;
   let lastEnd = t0;
+  ensurePartGainNodes(sheet);
+  applyPartGainsLive(sheet);
   for (const part of sheet.parts) {
-    const gainMul = effectivePartGain(sheet, part);
+    const dest = partDestFor(sheet, part);
     for (const n of part.notes) {
       const absStart = noteFracStart(n);
       if (absStart < effectiveStart) continue;
@@ -4042,9 +4086,9 @@ function playSheet(sheet, fromStep, startAudioTime) {
       const dur = noteFracLength(n) * secPerStep * 0.95;
       if (isRhythmPart(part)) {
         const key = RHYTHM_KEYS[part.hi - n.pitch];
-        if (key) scheduleDrum(start, dur, key, n.vel, gainMul);
+        if (key) scheduleDrum(start, dur, key, n.vel, dest);
       } else {
-        scheduleNote(start, dur, n.pitch, n.vel, gainMul);
+        scheduleNote(start, dur, n.pitch, n.vel, dest);
       }
       if (start + dur > lastEnd) lastEnd = start + dur;
     }
