@@ -2041,8 +2041,10 @@ async function deleteSheet(sheet) {
 }
 
 function renderSheetMeta(sheet) {
+  const defaultTitle = `Sheet ${project.sheets.indexOf(sheet) + 1}`;
   const titleInput = el("input", {
     class: "sheet-title", type: "text", value: sheet.title,
+    placeholder: defaultTitle,
     oninput: (e) => {
       sheet.title = e.target.value;
       const tab = tabstripEl.querySelector(`[data-sheet-id="${sheet.id}"] .tab-label`);
