@@ -226,6 +226,8 @@
   .footer-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .footer-actions button.play.playing { background: var(--play-tint); }
   .footer-actions button.repeat.active { background: var(--play-tint); }
+  .footer-actions > .sheet-actions { flex: 1 1 auto; }
+  .footer-actions .overflow-menu-btn { margin-left: auto; padding: 3px 8px; font-size: 14px; line-height: 1; }
 
   /* Parts panel (per-sheet) */
   .part-config-body { display: flex; flex-direction: column; gap: 8px; min-width: 280px; }
@@ -724,8 +726,6 @@
 <div class="toolbar">
   <div class="toolbar-project">
     <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
-    <button id="btn-save">Save JSON</button>
-    <button id="btn-load">Load JSON</button>
     <input type="file" id="file-load" accept="application/json,.json" class="hidden">
     <span class="spacer"></span>
     <label class="volume-control" title="Master volume">
@@ -734,8 +734,6 @@
       <span class="volume-value" id="volume-value">100%</span>
     </label>
     <span class="hint" id="saved-indicator">Not saved yet</span>
-    <button id="btn-theme" class="btn-icon" title="Theme">🌓</button>
-    <button id="btn-help" class="btn-icon" title="Keyboard shortcuts">?</button>
   </div>
   <div class="toolbar-sheet" id="toolbar-sheet"></div>
 </div>
@@ -1785,6 +1783,16 @@ function renderFooter(sheet) {
     if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
   });
 
+  const menuBtn = el("button", {
+    class: "overflow-menu-btn",
+    title: "More",
+    "aria-label": "More actions",
+  }, "⋯");
+  menuBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    openFooterOverflowMenu(menuBtn);
+  });
+
   return el("div", { class: "sheet-actions" },
     playBtn, stopBtn,
     el("button", {
@@ -1792,7 +1800,22 @@ function renderFooter(sheet) {
       onclick: () => { repeatEnabled = !repeatEnabled; renderAll(); },
     }, "⟳ Repeat"),
     el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
+    menuBtn,
   );
+}
+
+function openFooterOverflowMenu(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const themePref = (window.__themeApi && window.__themeApi.read()) || "auto";
+  const THEME_LABELS = { auto: "Auto", light: "Light", dark: "Dark" };
+  openContextMenu(rect.left, rect.top, [
+    { label: "Save JSON", onClick: () => saveProjectJson() },
+    { label: "Load JSON", onClick: () => document.getElementById("file-load").click() },
+    { sep: true },
+    { label: `Theme: ${THEME_LABELS[themePref]}`, onClick: () => window.__themeApi && window.__themeApi.cycle() },
+    { sep: true },
+    { label: "Keyboard shortcuts", onClick: () => document.getElementById("help-dialog").showModal() },
+  ]);
 }
 
 async function deleteSheet(sheet) {
@@ -3535,7 +3558,6 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   table.innerHTML = ROWS.map(([k, d]) =>
     `<tr><td class="key">${k}</td><td>${d}</td></tr>`).join("");
   const dlg = document.getElementById("help-dialog");
-  document.getElementById("btn-help").addEventListener("click", () => dlg.showModal());
   document.getElementById("help-close").addEventListener("click", () => dlg.close());
 }
 
@@ -3543,9 +3565,6 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
 {
   const THEME_KEY = "midi-editor:theme";
   const ORDER = ["auto", "light", "dark"];
-  const ICONS = { auto: "🌓", light: "☀️", dark: "🌙" };
-  const NEXT_LABEL = { auto: "Light", light: "Dark", dark: "Auto" };
-  const btn = document.getElementById("btn-theme");
   const mql = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 
   function readPref() {
@@ -3555,18 +3574,16 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
   function applyTheme(pref) {
     const dark = pref === "dark" || (pref === "auto" && mql && mql.matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    btn.textContent = ICONS[pref];
-    const name = pref[0].toUpperCase() + pref.slice(1);
-    btn.title = `Theme: ${name} (click for ${NEXT_LABEL[pref]})`;
   }
-
-  applyTheme(readPref());
-  btn.addEventListener("click", () => {
+  function cycleTheme() {
     const cur = readPref();
     const next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
     localStorage.setItem(THEME_KEY, next);
     applyTheme(next);
-  });
+  }
+
+  applyTheme(readPref());
+  window.__themeApi = { read: readPref, cycle: cycleTheme };
   if (mql) {
     const onChange = () => { if (readPref() === "auto") applyTheme("auto"); };
     if (mql.addEventListener) mql.addEventListener("change", onChange);
@@ -3597,7 +3614,7 @@ document.getElementById("project-name").addEventListener("input", (e) => {
 });
 
 // ---------- Save / Load JSON ----------
-document.getElementById("btn-save").addEventListener("click", async () => {
+async function saveProjectJson() {
   const json = JSON.stringify(serializeProject(project), null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const safe = (project.name || "score").trim().replace(/[\\/:*?"<>|]+/g, "_") || "score";
@@ -3618,8 +3635,7 @@ document.getElementById("btn-save").addEventListener("click", async () => {
   } else {
     triggerDownload(blob, filename);
   }
-});
-document.getElementById("btn-load").addEventListener("click", () => document.getElementById("file-load").click());
+}
 document.getElementById("file-load").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
