@@ -240,7 +240,7 @@
   .bands { display: flex; flex-direction: column; align-items: flex-start; gap: 100px; padding-top: 16px; padding-right: 16px; padding-bottom: 16px; position: relative; overflow-x: auto; overflow-y: auto; overscroll-behavior-x: contain; flex: 1; min-height: 0; }
   .band {
     display: grid;
-    grid-template-columns: 36px auto;
+    grid-template-columns: 36px auto auto;
     row-gap: 4px;
     column-gap: 8px;
     align-items: stretch;
@@ -261,13 +261,38 @@
   }
   .band-bar-numbers > span { padding: 1px 4px; }
   .band-row {
-    grid-column: 1 / span 2;
+    grid-column: 1 / span 3;
     display: grid;
-    grid-template-columns: 36px auto;
+    grid-template-columns: 36px auto auto;
     row-gap: 4px;
     column-gap: 8px;
     align-items: center;
   }
+  .part-bar-actions {
+    grid-column: 3;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    width: 18px;
+    gap: 6px;
+  }
+  .part-bar-btn {
+    flex: 1 1 0;
+    min-height: 0;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 11px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-bar-btn:hover:not(:disabled) { border-color: var(--ink-soft); color: var(--ink); }
+  .part-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .band-row + .band-row { margin-top: 4px; }
   .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
   .part-side {
@@ -1702,6 +1727,28 @@ function updatePlaybackPlayhead(absStep, sheet) {
   });
 }
 
+function addBar(sheet) {
+  pushUndo();
+  sheet.barCount += 1;
+  renderAll();
+  persist();
+}
+function removeLastBar(sheet) {
+  if (sheet.barCount <= 1) return;
+  pushUndo();
+  const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+  const toRemove = new Set();
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (n.start >= lastBarStart) toRemove.add(n.id);
+    }
+  }
+  if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
+  sheet.barCount -= 1;
+  renderAll();
+  persist();
+}
+
 function renderFooter(sheet) {
   const isPlayingThis = playingSheetId === sheet.id;
   const isPausedThis = pausedSheetId === sheet.id;
@@ -1724,25 +1771,6 @@ function renderFooter(sheet) {
   });
 
   return el("div", { class: "sheet-actions" },
-    el("button", {
-      disabled: sheet.barCount <= 1,
-      onclick: () => {
-        if (sheet.barCount <= 1) return;
-        pushUndo();
-        const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
-        const toRemove = new Set();
-        for (const p of sheet.parts) {
-          for (const n of p.notes) {
-            if (n.start >= lastBarStart) toRemove.add(n.id);
-          }
-        }
-        if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
-        sheet.barCount -= 1;
-        renderAll();
-        persist();
-      },
-    }, "- Bar"),
-    el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
     playBtn, stopBtn,
     el("button", {
       class: "repeat" + (repeatEnabled ? " active" : ""),
@@ -2154,8 +2182,30 @@ function renderBand(sheet) {
 
     wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap));
 
+    const addBarBtn = el("button", {
+      class: "part-bar-btn",
+      type: "button",
+      title: "Add bar",
+    }, "+");
+    addBarBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      addBar(sheet);
+    });
+    const removeBarBtn = el("button", {
+      class: "part-bar-btn",
+      type: "button",
+      title: "Remove last bar",
+      disabled: sheet.barCount <= 1,
+    }, "-");
+    removeBarBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      removeLastBar(sheet);
+    });
+    const barActions = el("div", { class: "part-bar-actions" }, addBarBtn, removeBarBtn);
+
     partRow.appendChild(side);
     partRow.appendChild(gridRow);
+    partRow.appendChild(barActions);
     bandEl.appendChild(partRow);
   });
   appendInsertGap(sheet.parts.length, 3 + 2 * sheet.parts.length);
