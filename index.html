@@ -1386,6 +1386,8 @@ function renderTabs() {
 function renderAll() {
   ensureActiveSheet();
   renderTabs();
+  const prevBands = sheetsEl.querySelector(".bands");
+  const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
   sheetsEl.innerHTML = "";
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
@@ -1394,7 +1396,10 @@ function renderAll() {
     sheetsEl.appendChild(sheetEl);
     updatePlayheadDom(sheet);
     const bandsEl = sheetEl.querySelector(".bands");
-    if (bandsEl) renderAnnotationOverlay(sheet, bandsEl);
+    if (bandsEl) {
+      renderAnnotationOverlay(sheet, bandsEl);
+      bandsEl.scrollLeft = prevScrollLeft;
+    }
   }
   persist();
 }
