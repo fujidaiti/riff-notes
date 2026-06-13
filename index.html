@@ -2055,9 +2055,13 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
       const bandsRect0 = bandsEl.getBoundingClientRect();
       const startRect = e.card.getBoundingClientRect();
-      // Edge positions of the expanded card in the bands coordinate space.
+      // For free cards, the expanded and shrunk renders share the same
+      // top-left (both use `style.left`); only the right edge differs.
+      // Anchor on the *shrunk* card's edges, not the expanded card's:
+      //   shrunkLeft  = startRect.left  (same as expanded for free)
+      //   shrunkRight = shrunkLeft + startWidth
+      // This avoids the right-pin sitting outside the post-snap card.
       const startLeftInBands = startRect.left - bandsRect0.left;
-      const startRightInBands = startRect.right - bandsRect0.left;
       const isFree = e.card.classList.contains("annot-side-free");
 
       dragging = true;
@@ -2065,12 +2069,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       setExpanded(e, false);
       e.card.classList.add("resizing");
       e.card.style.width = startWidth + "px";
-      // For free cards we pin the opposite edge: resize-right keeps the
-      // left at startLeftInBands (no change); resize-left snaps the
-      // top-left so the right edge stays at startRightInBands.
-      if (isFree && edge === "left") {
-        e.card.style.left = (startRightInBands - startWidth) + "px";
-      }
+      // Free cards already render at startLeftInBands with width=startWidth
+      // after the snap, so no `left` update is needed at delta=0.
       try { e.card.setPointerCapture(pointerId); } catch {}
 
       let newWidth = startWidth;
@@ -2086,7 +2086,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         newWidth = w;
         e.card.style.width = w + "px";
         if (isFree && edge === "left") {
-          e.card.style.left = (startRightInBands - w) + "px";
+          // Pin the shrunk card's original right edge.
+          e.card.style.left = (startLeftInBands + startWidth - w) + "px";
         }
         em.preventDefault();
       };
