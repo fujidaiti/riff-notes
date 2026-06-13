@@ -2089,6 +2089,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     e.card.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       if (!e.card.classList.contains("expanded")) return;
+      if (ev.target.closest("button")) return;
 
       const edge = edgeHit(ev);
       if (edge) {
