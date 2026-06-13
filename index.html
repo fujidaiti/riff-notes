@@ -2044,21 +2044,24 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   entries.forEach(e => {
     let expandTimer = null;
     let dragging = false;
+    let manuallyClosed = false;
     const closeBtnEl = e.card.querySelector(".annot-btn-close");
     if (closeBtnEl) closeBtnEl.addEventListener("click", (ev) => {
       ev.stopPropagation();
       if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      manuallyClosed = true;
       setExpanded(e, false);
       setActive(e, false);
     });
     e.card.addEventListener("mouseenter", () => {
-      if (dragging) return;
+      if (dragging || manuallyClosed) return;
       setActive(e, true);
       if (expandTimer) clearTimeout(expandTimer);
       expandTimer = setTimeout(() => setExpanded(e, true), 200);
     });
     e.card.addEventListener("mouseleave", () => {
       if (dragging) return;
+      manuallyClosed = false;
       setActive(e, false);
       if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
       setExpanded(e, false);
