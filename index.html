@@ -272,11 +272,10 @@
   .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
   .part-side {
     grid-column: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+    row-gap: 6px;
     font-size: 10px;
     color: var(--ink-soft);
     padding: 4px 0;
@@ -287,7 +286,16 @@
     background: transparent;
     z-index: 7;
   }
+  .part-side .part-side-top {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
   .part-side .part-name {
+    grid-row: 2;
+    align-self: center;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
   }
@@ -1948,10 +1956,7 @@ function renderBand(sheet) {
       }
       openContextMenu(rect.left, rect.bottom, items);
     });
-    const side = el("div", { class: "part-side" },
-      menuBtn,
-      el("span", { class: "part-name" }, part.name),
-    );
+    const topActions = el("div", { class: "part-side-top" }, menuBtn);
     if (!rhythmPart) {
       const recDisabled = recordingState !== "idle" && !isRecHere;
       const recBtn = el("button", {
@@ -1964,8 +1969,12 @@ function renderBand(sheet) {
         if (isRecHere) finishRecording("stop");
         else startRecording(sheet, part);
       });
-      side.appendChild(recBtn);
+      topActions.appendChild(recBtn);
     }
+    const side = el("div", { class: "part-side" },
+      topActions,
+      el("span", { class: "part-name" }, part.name),
+    );
     const numRows = part.hi - part.lo + 1;
     const gridRow = el("div", { class: "bar-grid" });
     const wrap = el("div", { class: "grid-wrap" });
