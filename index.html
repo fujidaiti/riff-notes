@@ -460,6 +460,9 @@
     user-select: none;
     transition: opacity 80ms;
     max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
   }
   .annot-card.annot-side-top    { transform: translate(-50%, -100%); transform-origin: bottom center; }
   .annot-card.annot-side-bottom { transform: translate(-50%, 0);     transform-origin: top center; }
@@ -468,7 +471,9 @@
     white-space: pre-wrap;
     word-break: break-word;
     z-index: 5;
-    min-width: 140px;
+    width: auto;
+    min-width: max(140px, var(--annot-shrunk-width, 140px));
+    overflow: visible;
     cursor: grab;
   }
   .annot-card.annot-side-free   { transform: translate(0, 0); transform-origin: top left; }
@@ -483,6 +488,16 @@
   .annot-card.dragging .annot-full,
   .annot-card.dragging .annot-actions { display: none !important; }
   .annot-card.dragging .annot-preview { display: inline !important; }
+  .annot-card.resizing {
+    white-space: nowrap;
+    z-index: 6;
+    cursor: ew-resize;
+    opacity: 1;
+    box-shadow: 0 2px 8px var(--shadow-med);
+  }
+  .annot-card.resizing .annot-full,
+  .annot-card.resizing .annot-actions { display: none !important; }
+  .annot-card.resizing .annot-preview { display: inline !important; }
   .annot-card .annot-actions {
     display: none;
     gap: 4px; margin-top: 6px; justify-content: flex-end;
@@ -860,7 +875,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 const STORAGE_KEY = "midi-editor:state";
 
 function serializeProject(p) {
@@ -886,6 +901,7 @@ function serializeProject(p) {
       })),
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
+        shrunkWidth: Number.isFinite(a.shrunkWidth) ? a.shrunkWidth : ANNOT_DEFAULT_SHRUNK_WIDTH,
         manualPlacement: a.manualPlacement
           ? { anchorNoteId: a.manualPlacement.anchorNoteId, dx: a.manualPlacement.dx, dy: a.manualPlacement.dy }
           : null,
@@ -941,7 +957,10 @@ function deserializeProject(doc) {
                 && noteIds.includes(mp.anchorNoteId))
                 ? { anchorNoteId: mp.anchorNoteId, dx: mp.dx, dy: mp.dy }
                 : null;
-              return { id: a.id || uid(), text: a.text, noteIds, manualPlacement };
+              const sw = Number.isFinite(a.shrunkWidth)
+                ? Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, a.shrunkWidth))
+                : ANNOT_DEFAULT_SHRUNK_WIDTH;
+              return { id: a.id || uid(), text: a.text, noteIds, shrunkWidth: sw, manualPlacement };
             })
         : [],
       // runtime/view state — never persisted, always defaulted
@@ -1216,7 +1235,7 @@ async function createAnnotation(sheet, noteIds) {
   if (!noteIds || noteIds.length === 0) return;
   const res = await editAnnotation({ isEdit: false });
   if (res.action !== "save") return;
-  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds], manualPlacement: null });
+  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds], shrunkWidth: ANNOT_DEFAULT_SHRUNK_WIDTH, manualPlacement: null });
   renderAll();
   persist();
 }
@@ -1940,6 +1959,9 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     card.appendChild(actions);
     card.style.left = pos.x + "px";
     card.style.top = pos.y + "px";
+    const sw = a.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
+    card.style.width = sw + "px";
+    card.style.setProperty("--annot-shrunk-width", sw + "px");
     overlay.appendChild(card);
 
     entries.push({ id: a.id, annotation: a, members, card, line: lineEl, noteEls: members.map(m => m.domEl), previewLabel, fullBody });
@@ -1986,15 +2008,103 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       setExpanded(e, false);
     });
 
-    // Card drag: when expanded, pressing anywhere on the card and moving past
-    // the click threshold starts a free-form reposition. Below the threshold,
-    // the press is treated as a click so the Edit/Delete buttons still work.
-    // The card shrinks to its un-expanded look while dragging; on release we
-    // re-anchor and persist `manualPlacement`.
+    // Edge-aware cursor on the expanded card: near the left/right edge → ew-resize,
+    // otherwise grab (handled by CSS default on .expanded).
+    function edgeHit(ev) {
+      const r = e.card.getBoundingClientRect();
+      const relLeft = ev.clientX - r.left;
+      const relRight = r.right - ev.clientX;
+      if (relLeft <= ANNOT_RESIZE_EDGE) return "left";
+      if (relRight <= ANNOT_RESIZE_EDGE) return "right";
+      return null;
+    }
+    e.card.addEventListener("pointermove", (ev) => {
+      if (!e.card.classList.contains("expanded")) return;
+      if (e.card.classList.contains("dragging") || e.card.classList.contains("resizing")) return;
+      e.card.style.cursor = edgeHit(ev) ? "ew-resize" : "";
+    });
+
+    // Card pointerdown: edges → resize (center-anchored); interior → reposition
+    // drag (below the click threshold the press is treated as a click so the
+    // Edit/Delete buttons still work). On release we persist either
+    // `shrunkWidth` (resize) or `manualPlacement` (reposition).
     e.card.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       if (!e.card.classList.contains("expanded")) return;
 
+      const edge = edgeHit(ev);
+      if (edge) {
+        beginResize(ev, edge);
+        return;
+      }
+      beginReposition(ev);
+    });
+
+    function beginResize(ev, edge) {
+      ev.preventDefault();
+      const pointerId = ev.pointerId;
+      const startX = ev.clientX;
+      const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
+      const bandsRect0 = bandsEl.getBoundingClientRect();
+      const startRect = e.card.getBoundingClientRect();
+      // Center, expressed in the bands coordinate space.
+      const startCenterXInBands = (startRect.left + startRect.right) / 2 - bandsRect0.left;
+      const isFree = e.card.classList.contains("annot-side-free");
+
+      dragging = true;
+      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      setExpanded(e, false);
+      e.card.classList.add("resizing");
+      e.card.style.width = startWidth + "px";
+      if (isFree) {
+        e.card.style.left = (startCenterXInBands - startWidth / 2) + "px";
+      }
+      try { e.card.setPointerCapture(pointerId); } catch {}
+
+      let newWidth = startWidth;
+      const onMove = (em) => {
+        const delta = em.clientX - startX;
+        let w = edge === "right" ? startWidth + 2 * delta : startWidth - 2 * delta;
+        w = Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, w));
+        newWidth = w;
+        e.card.style.width = w + "px";
+        if (isFree) {
+          e.card.style.left = (startCenterXInBands - w / 2) + "px";
+        }
+        em.preventDefault();
+      };
+      const onUp = () => {
+        e.card.removeEventListener("pointermove", onMove);
+        e.card.removeEventListener("pointerup", onUp);
+        e.card.removeEventListener("pointercancel", onUp);
+        try { e.card.releasePointerCapture(pointerId); } catch {}
+        e.card.classList.remove("resizing");
+        e.card.style.cursor = "";
+
+        if (newWidth !== startWidth) {
+          pushUndo();
+          e.annotation.shrunkWidth = newWidth;
+          if (isFree && e.annotation.manualPlacement) {
+            e.annotation.manualPlacement.dx += (startWidth - newWidth) / 2;
+          }
+          persist();
+          renderAll();
+        } else {
+          // No-op click on an edge — restore the expanded view so the user
+          // doesn't appear to have collapsed the card just by clicking.
+          if (isFree) {
+            e.card.style.left = (startCenterXInBands - startWidth / 2) + "px";
+          }
+          setExpanded(e, true);
+        }
+        dragging = false;
+      };
+      e.card.addEventListener("pointermove", onMove);
+      e.card.addEventListener("pointerup", onUp);
+      e.card.addEventListener("pointercancel", onUp);
+    }
+
+    function beginReposition(ev) {
       const startX = ev.clientX, startY = ev.clientY;
       const pointerId = ev.pointerId;
       let started = false;
@@ -2055,7 +2165,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       e.card.addEventListener("pointermove", onMove);
       e.card.addEventListener("pointerup", onUp);
       e.card.addEventListener("pointercancel", onUp);
-    });
+    }
   });
 
   noteToEntries.forEach((es, noteEl) => {
@@ -2067,6 +2177,10 @@ function renderAnnotationOverlay(sheet, bandsEl) {
 // ---------- Pointer interactions ----------
 const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
+const ANNOT_RESIZE_EDGE = 6;
+const ANNOT_MIN_WIDTH = 24;
+const ANNOT_MAX_WIDTH = 320;
+const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
 let drag = null;
 
 function handlePointerDown(ev, sheet, part, wrap) {
