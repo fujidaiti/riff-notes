@@ -514,12 +514,6 @@
     font-size: 11px; cursor: pointer; opacity: 0.8;
   }
   .annot-card .annot-btn-edit:hover { opacity: 1; }
-  .annot-card .annot-btn-close {
-    background: none; border: none; padding: 1px 3px;
-    color: var(--annot-ink); font-size: 13px; line-height: 1;
-    cursor: pointer; opacity: 0.6; margin-left: auto;
-  }
-  .annot-card .annot-btn-close:hover { opacity: 1; }
   .note.annot-active {
     outline: 2px solid var(--annot-line); outline-offset: 1px; z-index: 2;
   }
@@ -2001,7 +1995,10 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         class: "annot-btn-edit",
         onclick: (ev) => { ev.stopPropagation(); editAnnotationOnSheet(sheet, a.id); },
       }, "edit"),
-      el("button", { class: "annot-btn-close" }, "×"),
+      el("button", {
+        class: "annot-btn-edit",
+        onclick: (ev) => { ev.stopPropagation(); deleteAnnotation(sheet, a.id); },
+      }, "delete"),
     );
     card.appendChild(previewLabel);
     card.appendChild(fullBody);
@@ -2044,17 +2041,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   entries.forEach(e => {
     let expandTimer = null;
     let dragging = false;
-    let suppressExpandUntil = 0;
-    const closeBtnEl = e.card.querySelector(".annot-btn-close");
-    if (closeBtnEl) closeBtnEl.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
-      suppressExpandUntil = Date.now() + 400;
-      setExpanded(e, false);
-      setActive(e, false);
-    });
     e.card.addEventListener("mouseenter", () => {
-      if (dragging || Date.now() < suppressExpandUntil) return;
+      if (dragging) return;
       setActive(e, true);
       if (expandTimer) clearTimeout(expandTimer);
       expandTimer = setTimeout(() => setExpanded(e, true), 200);
