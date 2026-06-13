@@ -719,11 +719,23 @@ const SCALES = {
   blues: [0,3,5,6,7,10],
   chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
 };
-// Rhythm part: a special non-pitched lane with three fixed rows. The rhythm
-// part reuses the standard note schema (pitch is reinterpreted as a row index
-// via part.lo=0, part.hi=2). Row index = part.hi - note.pitch.
+// Drum part: a fixed-pitch lane with three rows. The drum part reuses the
+// standard note schema (pitch is reinterpreted as a row index via part.lo=0,
+// part.hi=2). Row index = part.hi - note.pitch.
 const RHYTHM_NAMES = ["Hi-hat", "Snare", "Kick"];
 const RHYTHM_KEYS = ["hihat", "snare", "kick"];
+
+// Instrument registry. pitchMode "pitched" means the part exposes the full
+// MIDI range and notes have user-chosen pitches; "fixed" means the part has
+// an instrument-defined row layout (e.g. drums) and switching across the
+// pitched/fixed boundary drops all notes in the part.
+const INSTRUMENTS = {
+  epiano: { id: "epiano", label: "E-piano", pitchMode: "pitched", defaultLo: 60, defaultHi: 72, defaultName: "Part" },
+  drum:   { id: "drum",   label: "Drums",   pitchMode: "fixed",   defaultLo: 0,  defaultHi: 2,  defaultName: "Drums" },
+};
+const INSTRUMENT_OPTIONS = [["epiano", "E-piano"], ["drum", "Drums"]];
+const DEFAULT_INSTRUMENT = "epiano";
+function getInstrument(id) { return INSTRUMENTS[id] || INSTRUMENTS[DEFAULT_INSTRUMENT]; }
 
 const SCALE_OPTIONS = [
   ["major", "Major"], ["minor", "Natural Minor"], ["harmonicMinor", "Harmonic Minor"],
@@ -737,10 +749,11 @@ const SCALE_OPTIONS = [
 let uidCounter = 1;
 const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
 
-function makePart(name = "Part 1", lo = 60, hi = 72, type = "pitched") { return { id: uid(), name, lo, hi, type, notes: [] }; }
-function makeRhythmPart() { return { id: uid(), name: "Rhythm", lo: 0, hi: 2, type: "rhythm", notes: [] }; }
-function isRhythmPart(part) { return !!part && part.type === "rhythm"; }
-function getRhythmPart(sheet) { return sheet.parts.find(isRhythmPart); }
+function makePart(name, instrument = DEFAULT_INSTRUMENT) {
+  const inst = getInstrument(instrument);
+  return { id: uid(), name: name || inst.defaultName, lo: inst.defaultLo, hi: inst.defaultHi, instrument: inst.id, notes: [] };
+}
+function isRhythmPart(part) { return !!part && getInstrument(part.instrument).pitchMode === "fixed"; }
 function totalSteps(sheet) { return sheet.barCount * STEPS_PER_BAR; }
 function findNote(sheet, noteId) {
   for (const p of sheet.parts) for (const n of p.notes) if (n.id === noteId) return n;
@@ -957,7 +970,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 const STORAGE_KEY = "midi-editor:state";
 
 // Annotation card sizing — must be declared before serialize/deserialize
@@ -981,7 +994,8 @@ function serializeProject(p) {
       scale: { root: s.scale.root, mode: s.scale.mode },
       barCount: Math.max(1, s.barCount | 0),
       parts: s.parts.map(pt => ({
-        id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched",
+        id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi,
+        instrument: INSTRUMENTS[pt.instrument] ? pt.instrument : DEFAULT_INSTRUMENT,
         notes: pt.notes.map(n => ({
           id: n.id, partId: n.partId, pitch: n.pitch,
           start: n.start, length: n.length, vel: n.vel,
@@ -1019,10 +1033,12 @@ function deserializeProject(doc) {
       barCount,
       parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
         .map(pt => {
-          const type = pt.type === "rhythm" ? "rhythm" : "pitched";
-          const base = type === "rhythm"
-            ? { id: pt.id || uid(), name: pt.name || "Rhythm", lo: 0, hi: 2, type }
-            : { id: pt.id || uid(), name: pt.name || "Part", lo: pt.lo ?? 60, hi: pt.hi ?? 72, type };
+          const instId = INSTRUMENTS[pt.instrument] ? pt.instrument : DEFAULT_INSTRUMENT;
+          const inst = INSTRUMENTS[instId];
+          const fixed = inst.pitchMode === "fixed";
+          const base = fixed
+            ? { id: pt.id || uid(), name: pt.name || inst.defaultName, lo: inst.defaultLo, hi: inst.defaultHi, instrument: instId }
+            : { id: pt.id || uid(), name: pt.name || inst.defaultName, lo: pt.lo ?? inst.defaultLo, hi: pt.hi ?? inst.defaultHi, instrument: instId };
           base.notes = Array.isArray(pt.notes) ? pt.notes.map(n => {
             let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
             if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
@@ -1031,7 +1047,7 @@ function deserializeProject(doc) {
             if (sl < 0) sl = 0;
             if (sl > SUB_PER_STEP - 1) sl = SUB_PER_STEP - 1;
             const out = { ...n, subOffset: so, subLength: sl };
-            if (type === "rhythm") out.length = 1;
+            if (fixed) out.length = 1;
             return out;
           }) : [];
           return base;
@@ -1681,7 +1697,7 @@ function renderPartsPanel(sheet) {
   panel.appendChild(el("h4", {}, "Parts for this sheet (visible pitch range; hidden notes still play and export)"));
   sheet.parts.forEach((p, idx) => {
     const rangeOrBadge = isRhythmPart(p)
-      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Rhythm (Hi-hat / Snare / Kick)"))
+      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Hi-hat / Snare / Kick"))
       : el("div", { class: "range-controls" },
           el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
           makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
@@ -1691,8 +1707,14 @@ function renderPartsPanel(sheet) {
           makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, sheet),
           el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
         );
+    const instSelect = el("select", { title: "Instrument" });
+    INSTRUMENT_OPTIONS.forEach(([id, label]) => {
+      instSelect.appendChild(el("option", { value: id, selected: id === p.instrument }, label));
+    });
+    instSelect.addEventListener("change", (e) => changePartInstrument(sheet, p, e.target.value));
     const row = el("div", { class: "part-row" },
       el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(sheet.id, p.id, p.name); } }),
+      instSelect,
       rangeOrBadge,
       el("button", { onclick: () => movePart(sheet, idx, -1) }, "▲"),
       el("button", { onclick: () => movePart(sheet, idx, +1) }, "▼"),
@@ -1704,11 +1726,6 @@ function renderPartsPanel(sheet) {
     el("button", {
       onclick: () => { sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`)); renderAll(); },
     }, "+ Add Part"),
-    el("button", {
-      disabled: !!getRhythmPart(sheet),
-      title: getRhythmPart(sheet) ? "This sheet already has a rhythm section" : "Add a rhythm section (Hi-hat / Snare / Kick)",
-      onclick: () => { if (getRhythmPart(sheet)) return; sheet.parts.push(makeRhythmPart()); renderAll(); },
-    }, "+ Add Rhythm Section"),
   );
   panel.appendChild(addRow);
   return panel;
@@ -1739,6 +1756,46 @@ function stepRange(part, which, delta) {
     part.hi = next;
   }
   renderAll();
+}
+
+async function changePartInstrument(sheet, part, newId) {
+  if (!INSTRUMENTS[newId] || newId === part.instrument) { renderAll(); return; }
+  const oldInst = getInstrument(part.instrument);
+  const newInst = INSTRUMENTS[newId];
+  if (oldInst.pitchMode !== newInst.pitchMode) {
+    const noteCount = part.notes.length;
+    const msg = noteCount > 0
+      ? `Switching "${part.name}" from ${oldInst.label} to ${newInst.label} will delete ${noteCount} note(s) in this part. Continue?`
+      : `Switching "${part.name}" from ${oldInst.label} to ${newInst.label} will reset its pitch range. Continue?`;
+    const ok = await confirmAsync(msg);
+    if (!ok) { renderAll(); return; }
+    pushUndo();
+    const doomed = new Set(part.notes.map(n => n.id));
+    if (doomed.size > 0) {
+      for (const id of doomed) sheet.selectedNoteIds.delete(id);
+      if (sheet.annotations && sheet.annotations.length > 0) {
+        sheet.annotations = sheet.annotations
+          .map(a => {
+            const noteIds = a.noteIds.filter(id => !doomed.has(id));
+            if (noteIds.length === 0) return null;
+            let placement = a.placement;
+            if (doomed.has(placement.anchorNoteId)) {
+              placement = { ...placement, anchorNoteId: noteIds[0], dx: 0, dy: 0 };
+            }
+            return { ...a, noteIds, placement };
+          })
+          .filter(Boolean);
+      }
+    }
+    part.notes = [];
+    part.lo = newInst.defaultLo;
+    part.hi = newInst.defaultHi;
+  } else {
+    pushUndo();
+  }
+  part.instrument = newId;
+  renderAll();
+  persist();
 }
 
 function movePart(sheet, idx, dir) {
@@ -1858,7 +1915,7 @@ function renderBand(sheet) {
     wrap.dataset.partId = part.id;
     wrap.dataset.partHi = String(part.hi);
     wrap.dataset.partLo = String(part.lo);
-    wrap.dataset.partType = part.type || "pitched";
+    wrap.dataset.instrument = part.instrument || DEFAULT_INSTRUMENT;
     wrap.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
     wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
 
@@ -2877,7 +2934,7 @@ function showCellTooltipAt(ev, wrap) {
     }
   }
   const tip = getCellTooltip();
-  const isRhythm = wrap.dataset.partType === "rhythm";
+  const isRhythm = getInstrument(wrap.dataset.instrument).pitchMode === "fixed";
   const pitchLabel = isRhythm
     ? (RHYTHM_NAMES[partHi - pitch] || "")
     : pitchName(pitch);
@@ -2936,7 +2993,7 @@ function updateNoteCursor(ev) {
   const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
   if (!noteTarget) return;
   const wrap = noteTarget.closest(".grid-wrap");
-  if (wrap && wrap.dataset.partType === "rhythm") {
+  if (wrap && getInstrument(wrap.dataset.instrument).pitchMode === "fixed") {
     noteTarget.style.cursor = "";
     return;
   }
@@ -3544,7 +3601,7 @@ function auditionNote(sheet, note) {
   const dur = secPerStep * 0.95;
   const when = audioCtx.currentTime + 0.005;
   const part = sheet.parts.find(p => p.id === note.partId);
-  if (part && part.type === "rhythm") {
+  if (part && isRhythmPart(part)) {
     const key = RHYTHM_KEYS[part.hi - note.pitch];
     if (key) scheduleDrum(when, dur, key, note.vel);
   } else {
@@ -3597,7 +3654,7 @@ function playSheet(sheet, fromStep, startAudioTime) {
       if (absStart < effectiveStart) continue;
       const start = t0 + (absStart - effectiveStart) * secPerStep;
       const dur = noteFracLength(n) * secPerStep * 0.95;
-      if (part.type === "rhythm") {
+      if (isRhythmPart(part)) {
         const key = RHYTHM_KEYS[part.hi - n.pitch];
         if (key) scheduleDrum(start, dur, key, n.vel);
       } else {
