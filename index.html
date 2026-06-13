@@ -475,7 +475,23 @@
     min-width: max(140px, var(--annot-shrunk-width, 140px));
     overflow: visible;
     cursor: grab;
+    padding: 5px 18px;
   }
+  .annot-card.expanded::before,
+  .annot-card.expanded::after {
+    content: "⋮";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--annot-border);
+    font-size: 13px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.7;
+  }
+  .annot-card.expanded::before { left: 5px; }
+  .annot-card.expanded::after  { right: 5px; }
   .annot-card.dragging {
     white-space: nowrap;
     min-width: 0;
@@ -483,7 +499,10 @@
     cursor: grabbing;
     opacity: 1;
     box-shadow: 0 2px 8px var(--shadow-med);
+    padding: 2px 6px;
   }
+  .annot-card.dragging::before,
+  .annot-card.dragging::after  { display: none; }
   .annot-card.dragging .annot-full,
   .annot-card.dragging .annot-actions { display: none !important; }
   .annot-card.dragging .annot-preview { display: inline !important; }
@@ -493,18 +512,33 @@
     cursor: ew-resize;
     opacity: 1;
     box-shadow: 0 2px 8px var(--shadow-med);
+    padding: 2px 6px;
   }
+  .annot-card.resizing::before,
+  .annot-card.resizing::after  { display: none; }
   .annot-card.resizing .annot-full,
   .annot-card.resizing .annot-actions { display: none !important; }
   .annot-card.resizing .annot-preview { display: inline !important; }
   .annot-card .annot-actions {
     display: none;
-    gap: 4px; margin-top: 6px; justify-content: flex-end;
+    gap: 4px; margin-top: 6px; align-items: center;
   }
   .annot-card.expanded .annot-actions { display: flex; }
   .annot-card .annot-actions button {
     font-size: 11px; padding: 2px 6px; cursor: pointer;
   }
+  .annot-card .annot-btn-edit {
+    background: none; border: none; padding: 1px 3px;
+    color: var(--annot-ink); text-decoration: underline;
+    font-size: 11px; cursor: pointer; opacity: 0.8;
+  }
+  .annot-card .annot-btn-edit:hover { opacity: 1; }
+  .annot-card .annot-btn-close {
+    background: none; border: none; padding: 1px 3px;
+    color: var(--annot-ink); font-size: 13px; line-height: 1;
+    cursor: pointer; opacity: 0.6; margin-left: auto;
+  }
+  .annot-card .annot-btn-close:hover { opacity: 1; }
   .note.annot-active {
     outline: 2px solid var(--annot-line); outline-offset: 1px; z-index: 2;
   }
@@ -1982,11 +2016,13 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     fullBody.style.display = "none";
     const actions = el("div", { class: "annot-actions" },
       el("button", {
+        class: "annot-btn-edit",
         onclick: (ev) => { ev.stopPropagation(); editAnnotationOnSheet(sheet, a.id); },
-      }, "Edit"),
+      }, "edit"),
       el("button", {
         onclick: (ev) => { ev.stopPropagation(); deleteAnnotation(sheet, a.id); },
       }, "Delete"),
+      el("button", { class: "annot-btn-close" }, "×"),
     );
     card.appendChild(previewLabel);
     card.appendChild(fullBody);
@@ -2029,6 +2065,13 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   entries.forEach(e => {
     let expandTimer = null;
     let dragging = false;
+    const closeBtnEl = e.card.querySelector(".annot-btn-close");
+    if (closeBtnEl) closeBtnEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      setExpanded(e, false);
+      setActive(e, false);
+    });
     e.card.addEventListener("mouseenter", () => {
       if (dragging) return;
       setActive(e, true);
