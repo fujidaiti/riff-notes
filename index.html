@@ -3644,7 +3644,7 @@ function handleNoteOn(pitch, midiVel) {
   let step = Math.round(cur);
   if (step < recordingStartStep) step = recordingStartStep;
   if (step >= endStep) step = endStep - 1;
-  const velIdx = Math.max(0, Math.min(VEL_LABELS.length - 1, Math.round((midiVel - 1) / 126 * (VEL_LABELS.length - 1))));
+  const velIdx = VEL_LABELS.indexOf("mf");
   if (recordingHeld.has(pitch)) {
     finalizeHeldNote(pitch, step);
   }
