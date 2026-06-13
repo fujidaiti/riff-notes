@@ -385,6 +385,22 @@
     display: none;
   }
   .playhead-line.active { display: block; }
+  .step-highlight-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #1e90ff;
+    opacity: 1.0;
+    pointer-events: none;
+    z-index: 3;
+    display: none;
+  }
+  .step-highlight-line.bar {
+    width: 4px;
+    margin-left: -2px;
+  }
+  .step-highlight-line.active { display: block; }
   .note {
     position: absolute;
     height: calc(var(--cell-h) - 2px);
@@ -2302,6 +2318,29 @@ function renderAnnotationOverlay(sheet, bandsEl) {
 const RESIZE_EDGE = 5;
 const CLICK_MAX_MOVE = 3;
 let drag = null;
+let stepHighlightEl = null;
+
+function showStepHighlight(wrap, absStep) {
+  if (!wrap) return;
+  const cellW = getCellW();
+  if (!stepHighlightEl || stepHighlightEl.parentNode !== wrap) {
+    if (stepHighlightEl && stepHighlightEl.parentNode) {
+      stepHighlightEl.parentNode.removeChild(stepHighlightEl);
+    }
+    stepHighlightEl = el("div", { class: "step-highlight-line" });
+    wrap.appendChild(stepHighlightEl);
+  }
+  stepHighlightEl.style.left = (absStep * cellW) + "px";
+  stepHighlightEl.classList.toggle("bar", absStep % STEPS_PER_BAR === 0);
+  stepHighlightEl.classList.add("active");
+}
+
+function hideStepHighlight() {
+  if (stepHighlightEl && stepHighlightEl.parentNode) {
+    stepHighlightEl.parentNode.removeChild(stepHighlightEl);
+  }
+  stepHighlightEl = null;
+}
 
 function handlePointerDown(ev, sheet, part, wrap) {
   if (ev.button !== 0) return;
@@ -2559,6 +2598,7 @@ document.addEventListener("pointermove", (ev) => {
     const sheet = drag.sheet;
     const anchorX = drag.startX, anchorY = drag.startY;
     drag = null;
+    hideStepHighlight();
     startGlobalRubberBand({ sheet, additive: false, anchorX, anchorY });
     rubberBandTick(ev);
     return;
@@ -2613,6 +2653,18 @@ document.addEventListener("pointermove", (ev) => {
       }
     }
     if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part, drag.sheet);
+    if (drag.moved) {
+      let minAbsSub = Infinity;
+      for (const g of drag.group) {
+        const absSub = g.note.start * SUB_PER_STEP + (g.note.subOffset || 0);
+        if (absSub < minAbsSub) minAbsSub = absSub;
+      }
+      if (minAbsSub !== Infinity && minAbsSub % SUB_PER_STEP === 0) {
+        showStepHighlight(drag.wrap, minAbsSub / SUB_PER_STEP);
+      } else {
+        hideStepHighlight();
+      }
+    }
   } else if (drag.mode === "resize-right") {
     const useSub = isCreateModifier(ev);
     let minLenSub = Infinity;
@@ -2677,6 +2729,7 @@ document.addEventListener("pointerup", () => {
   if (!drag) return;
   const d = drag; drag = null;
   document.body.classList.remove("dragging-notes");
+  hideStepHighlight();
 
   if (d.mode === "rubber-band") {
     if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
