@@ -1941,8 +1941,8 @@ function renderAnnotationOverlay(sheet, bandsEl) {
     if (!pos) pos = computeCardPosition(members);
     const card = el("div", { class: "annot-card annot-side-" + pos.side });
     card.dataset.annotationId = a.id;
-    const preview = a.text.replace(/\s+/g, " ").slice(0, 10);
-    const previewLabel = el("span", { class: "annot-preview" }, preview + (a.text.length > 10 ? "…" : ""));
+    const preview = a.text.replace(/\s+/g, " ");
+    const previewLabel = el("span", { class: "annot-preview" }, preview);
     const fullBody = el("div", { class: "annot-full" });
     fullBody.textContent = a.text;
     fullBody.style.display = "none";
