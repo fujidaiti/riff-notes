@@ -475,23 +475,8 @@
     min-width: max(140px, var(--annot-shrunk-width, 140px));
     overflow: visible;
     cursor: grab;
-    padding: 5px 18px;
+    padding: 5px 8px;
   }
-  .annot-card.expanded::before,
-  .annot-card.expanded::after {
-    content: "⋮";
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--annot-border);
-    font-size: 13px;
-    line-height: 1;
-    pointer-events: none;
-    user-select: none;
-    opacity: 0.7;
-  }
-  .annot-card.expanded::before { left: 5px; }
-  .annot-card.expanded::after  { right: 5px; }
   .annot-card.dragging {
     white-space: nowrap;
     min-width: 0;
@@ -501,8 +486,6 @@
     box-shadow: 0 2px 8px var(--shadow-med);
     padding: 2px 6px;
   }
-  .annot-card.dragging::before,
-  .annot-card.dragging::after  { display: none; }
   .annot-card.dragging .annot-full,
   .annot-card.dragging .annot-actions { display: none !important; }
   .annot-card.dragging .annot-preview { display: inline !important; }
@@ -514,8 +497,6 @@
     box-shadow: 0 2px 8px var(--shadow-med);
     padding: 2px 6px;
   }
-  .annot-card.resizing::before,
-  .annot-card.resizing::after  { display: none; }
   .annot-card.resizing .annot-full,
   .annot-card.resizing .annot-actions { display: none !important; }
   .annot-card.resizing .annot-preview { display: inline !important; }
