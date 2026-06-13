@@ -430,7 +430,6 @@
   .annot-overlay {
     position: absolute; inset: 0;
     pointer-events: none;
-    z-index: 5;
   }
   body.dragging-notes .annot-overlay { display: none; }
   .annot-overlay svg {
@@ -438,6 +437,7 @@
     width: 100%; height: 100%;
     pointer-events: none;
     overflow: visible;
+    z-index: 5;
   }
   .annot-line {
     stroke: var(--annot-line); stroke-width: 2; fill: none;
@@ -463,6 +463,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     box-sizing: border-box;
+    z-index: 5;
   }
   .annot-card.annot-side-top    { transform: translate(-50%, -100%); transform-origin: bottom center; }
   .annot-card.annot-side-bottom { transform: translate(-50%, 0);     transform-origin: top center; }
