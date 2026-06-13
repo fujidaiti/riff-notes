@@ -671,7 +671,6 @@ function makeSheet(title = "Sheet") {
   return {
     id: uid(), title, notes: "", bpm: 120,
     scale: { root: 0, mode: "major" },
-    pitchDisplay: "note",
     parts: [makePart("Part 1")],
     barCount: 1,
     annotations: [],
@@ -879,7 +878,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 const STORAGE_KEY = "midi-editor:state";
 
 // Annotation card sizing — must be declared before serialize/deserialize
@@ -901,7 +900,6 @@ function serializeProject(p) {
       notes: s.notes,
       bpm: s.bpm,
       scale: { root: s.scale.root, mode: s.scale.mode },
-      pitchDisplay: s.pitchDisplay || "note",
       barCount: Math.max(1, s.barCount | 0),
       parts: s.parts.map(pt => ({
         id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi, type: pt.type || "pitched",
@@ -939,7 +937,6 @@ function deserializeProject(doc) {
         root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
         mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
       },
-      pitchDisplay: s.pitchDisplay === "degree" ? "degree" : "note",
       barCount,
       parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
         .map(pt => {
@@ -1099,13 +1096,8 @@ function pitchName(midi) {
   const n = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[n] + (Math.floor(midi / 12) - 1);
 }
-const DEGREE_NAMES = ["I","♭II","II","♭III","III","IV","♭V","V","♭VI","VI","♭VII","VII"];
 function pitchDisplayName(midi, sheet, withOctave) {
   const octave = Math.floor(midi / 12) - 1;
-  if (sheet.pitchDisplay === "degree") {
-    const offset = (((midi - sheet.scale.root) % 12) + 12) % 12;
-    return DEGREE_NAMES[offset] + (withOctave ? octave : "");
-  }
   const pc = ((midi % 12) + 12) % 12;
   return PITCH_NAMES[pc] + (withOctave ? octave : "");
 }
@@ -1495,16 +1487,11 @@ function renderSheet(sheet, idx) {
   PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === sheet.scale.root }, n)));
   const modeSelect = el("select", { onchange: (e) => { sheet.scale.mode = e.target.value; renderAll(); } });
   SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === sheet.scale.mode }, label)));
-  const displaySelect = el("select", { onchange: (e) => { sheet.pitchDisplay = e.target.value; renderAll(); } });
-  [["note","Note"],["degree","Degree"]].forEach(([v,label]) =>
-    displaySelect.appendChild(el("option", { value: v, selected: v === (sheet.pitchDisplay || "note") }, label)));
-
   const metaRow = el("div", { class: "sheet-meta-row" },
     titleInput,
     el("label", {}, "BPM ", bpmInput),
     el("label", {}, "Root ", rootSelect),
     el("label", {}, "Mode ", modeSelect),
-    el("label", {}, "Display ", displaySelect),
   );
 
   const notesArea = el("textarea", {
@@ -1851,6 +1838,7 @@ function renderBand(sheet) {
           if (!hit) { chosen = c; break; }
         }
         const labelEl = el("span", { class: "note-label" });
+        labelEl.dataset.noteId = r.n.id;
         labelEl.textContent = PITCH_NAMES[((r.n.pitch % 12) + 12) % 12];
         labelEl.style.left = (chosen.cx - LABEL_W / 2) + "px";
         labelEl.style.top = (chosen.cy - LABEL_H / 2) + "px";
@@ -2468,7 +2456,15 @@ document.addEventListener("pointermove", (ev) => {
   const dx = ev.clientX - drag.startX;
   const dy = ev.clientY - drag.startY;
   const overThreshold = Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE;
-  if (overThreshold) drag.moved = true;
+  if (!drag.moved && overThreshold) {
+    drag.moved = true;
+    if (drag.mode === "move") {
+      for (const g of drag.group) {
+        const lbl = drag.wrap.querySelector(`.note-label[data-note-id="${g.note.id}"]`);
+        if (lbl) lbl.style.display = "none";
+      }
+    }
+  }
 
   // empty-pending: morph into global rubber-band on first real movement.
   if (drag.mode === "empty-pending" && overThreshold) {
