@@ -728,12 +728,6 @@
     <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
     <input type="file" id="file-load" accept="application/json,.json" class="hidden">
     <span class="spacer"></span>
-    <label class="volume-control" title="Master volume">
-      <span aria-hidden="true">🔊</span>
-      <input id="volume-slider" type="range" min="0" max="100" value="100">
-      <span class="volume-value" id="volume-value">100%</span>
-    </label>
-    <span class="hint" id="saved-indicator">Not saved yet</span>
   </div>
   <div class="toolbar-sheet" id="toolbar-sheet"></div>
 </div>
@@ -1793,13 +1787,32 @@ function renderFooter(sheet) {
     openFooterOverflowMenu(menuBtn);
   });
 
+  const volumePct = Math.round(masterVolume * 100);
+  const volumeLabel = el("span", { class: "volume-value", id: "volume-value" }, volumePct + "%");
+  const volumeSlider = el("input", {
+    id: "volume-slider", type: "range", min: 0, max: 100, value: String(volumePct),
+    oninput: (e) => {
+      const pct = parseInt(e.target.value, 10);
+      masterVolume = Math.max(0, Math.min(1, pct / 100));
+      volumeLabel.textContent = pct + "%";
+      if (masterGain && audioCtx) {
+        masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
+      }
+    },
+  });
+  const volumeControl = el("label", { class: "volume-control", title: "Master volume" },
+    el("span", { "aria-hidden": "true" }, "🔊"),
+    volumeSlider,
+    volumeLabel,
+  );
+
   return el("div", { class: "sheet-actions" },
     playBtn, stopBtn,
     el("button", {
       class: "repeat" + (repeatEnabled ? " active" : ""),
       onclick: () => { repeatEnabled = !repeatEnabled; renderAll(); },
     }, "⟳ Repeat"),
-    el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
+    volumeControl,
     menuBtn,
   );
 }
@@ -1808,9 +1821,12 @@ function openFooterOverflowMenu(anchor) {
   const rect = anchor.getBoundingClientRect();
   const themePref = (window.__themeApi && window.__themeApi.read()) || "auto";
   const THEME_LABELS = { auto: "Auto", light: "Light", dark: "Dark" };
+  const sheet = project.sheets.find(s => s.id === activeSheetId);
   openContextMenu(rect.left, rect.top, [
     { label: "Save JSON", onClick: () => saveProjectJson() },
     { label: "Load JSON", onClick: () => document.getElementById("file-load").click() },
+    { sep: true },
+    { label: "Export current sheet as MIDI", onClick: () => sheet && exportSheetMidi(sheet) },
     { sep: true },
     { label: `Theme: ${THEME_LABELS[themePref]}`, onClick: () => window.__themeApi && window.__themeApi.cycle() },
     { sep: true },
@@ -3589,20 +3605,6 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     if (mql.addEventListener) mql.addEventListener("change", onChange);
     else if (mql.addListener) mql.addListener(onChange);
   }
-}
-
-// ---------- Master volume ----------
-{
-  const slider = document.getElementById("volume-slider");
-  const label = document.getElementById("volume-value");
-  slider.addEventListener("input", (e) => {
-    const pct = parseInt(e.target.value, 10);
-    masterVolume = Math.max(0, Math.min(1, pct / 100));
-    label.textContent = pct + "%";
-    if (masterGain && audioCtx) {
-      masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
-    }
-  });
 }
 
 // ---------- Project name ----------
