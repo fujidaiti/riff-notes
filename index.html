@@ -2001,9 +2001,6 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         class: "annot-btn-edit",
         onclick: (ev) => { ev.stopPropagation(); editAnnotationOnSheet(sheet, a.id); },
       }, "edit"),
-      el("button", {
-        onclick: (ev) => { ev.stopPropagation(); deleteAnnotation(sheet, a.id); },
-      }, "Delete"),
       el("button", { class: "annot-btn-close" }, "×"),
     );
     card.appendChild(previewLabel);
