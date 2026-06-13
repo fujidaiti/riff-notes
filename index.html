@@ -1476,6 +1476,7 @@ function renderAll() {
   renderTabs();
   const prevBands = sheetsEl.querySelector(".bands");
   const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
+  const prevScrollTop = prevBands ? prevBands.scrollTop : 0;
   sheetsEl.innerHTML = "";
   footerActionsEl.innerHTML = "";
   toolbarSheetEl.innerHTML = "";
@@ -1492,6 +1493,7 @@ function renderAll() {
     if (bandsEl) {
       renderAnnotationOverlay(sheet, bandsEl);
       bandsEl.scrollLeft = prevScrollLeft;
+      bandsEl.scrollTop = prevScrollTop;
     }
   } else {
     footerEl.style.display = "none";
