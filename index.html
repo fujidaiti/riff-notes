@@ -1532,6 +1532,24 @@ function renderSheet(sheet, idx) {
 
   const actions = el("div", { class: "sheet-actions" },
     el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
+    el("button", {
+      disabled: sheet.barCount <= 1,
+      onclick: () => {
+        if (sheet.barCount <= 1) return;
+        pushUndo();
+        const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+        const toRemove = new Set();
+        for (const p of sheet.parts) {
+          for (const n of p.notes) {
+            if (n.start >= lastBarStart) toRemove.add(n.id);
+          }
+        }
+        if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
+        sheet.barCount -= 1;
+        renderAll();
+        persist();
+      },
+    }, "- Bar"),
     el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
     playBtn, stopBtn,
     el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
