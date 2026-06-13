@@ -330,6 +330,32 @@
     justify-content: center;
   }
   .part-menu-btn:hover { border-color: var(--line); background: var(--input-bg); }
+  .part-add-gap {
+    grid-column: 1;
+    position: sticky;
+    left: 0;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+  }
+  .part-add-btn {
+    width: 28px;
+    height: 16px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 10px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-add-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
   .part-rec-btn:hover:not(:disabled) { border-color: #d23; }
   .part-rec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .part-rec-btn.recording { background: #d23; color: #fff; border-color: #d23; animation: rec-pulse 1s ease-in-out infinite; }
@@ -1698,10 +1724,6 @@ function renderFooter(sheet) {
   });
 
   return el("div", { class: "sheet-actions" },
-    el("button", { onclick: () => {
-      sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`));
-      renderAll(); persist();
-    } }, "+ Add Part"),
     el("button", {
       disabled: sheet.barCount <= 1,
       onclick: () => {
@@ -1883,7 +1905,7 @@ function renderBand(sheet) {
   // Opaque sticky rail spanning the full band height at the left edge so
   // the part-side column appears as one continuous floating bar while
   // horizontally scrolling.
-  const railRows = 2 + sheet.parts.length;
+  const railRows = 3 + 2 * sheet.parts.length;
   bandEl.appendChild(el("div", {
     class: "band-left-rail",
     style: `grid-row: 1 / span ${railRows};`,
@@ -1931,9 +1953,27 @@ function renderBand(sheet) {
 
   // Rows: one per part
   const scaleSet = inScaleSet(sheet);
+  const appendInsertGap = (insertAt, gridRow) => {
+    const addBtn = el("button", {
+      class: "part-add-btn",
+      type: "button",
+      title: "Insert part",
+    }, "+");
+    addBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      pushUndo();
+      sheet.parts.splice(insertAt, 0, makePart(`Part ${sheet.parts.length + 1}`));
+      renderAll();
+      persist();
+    });
+    const gap = el("div", { class: "part-add-gap" }, addBtn);
+    gap.style.gridRow = String(gridRow);
+    bandEl.appendChild(gap);
+  };
   sheet.parts.forEach((part, partIdx) => {
+    appendInsertGap(partIdx, 3 + 2 * partIdx);
     const partRow = el("div", { class: "band-row" });
-    partRow.style.gridRow = String(3 + partIdx);
+    partRow.style.gridRow = String(4 + 2 * partIdx);
     partRow.dataset.partId = part.id;
     const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
     const rhythmPart = isRhythmPart(part);
@@ -2118,6 +2158,7 @@ function renderBand(sheet) {
     partRow.appendChild(gridRow);
     bandEl.appendChild(partRow);
   });
+  appendInsertGap(sheet.parts.length, 3 + 2 * sheet.parts.length);
   return bandEl;
 }
 
