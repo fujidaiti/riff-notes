@@ -1297,6 +1297,7 @@ async function editAnnotationOnSheet(sheet, annotationId) {
 }
 
 function deleteAnnotation(sheet, annotationId) {
+  pushUndo();
   sheet.annotations = sheet.annotations.filter(x => x.id !== annotationId);
   renderAll();
   persist();
