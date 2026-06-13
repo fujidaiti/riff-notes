@@ -1624,10 +1624,28 @@ function renderBand(sheet) {
           y: (part.hi - n.pitch) * cellH,
           w: noteWidthPx(noteFracLength(n), cellW),
           h: cellH,
+          bar: Math.floor(n.start / STEPS_PER_BAR),
         }));
       labeled.sort((a, b) => a.x - b.x || b.n.pitch - a.n.pitch);
       const others = labeled.slice();
+      // Label suppression (within this part, since `labeled` is built from `part.notes`):
+      //   1. At most one label per (bar, pitch). Earliest-starting note wins.
+      //   2. Across bars, suppress if the previous labeled note at the same pitch
+      //      is within 3 steps (start delta <= 3) — handles repeats that straddle
+      //      a bar line and would otherwise read as visually adjacent duplicates.
+      // Iteration is `start` ascending (the existing x-sort is monotonic in start),
+      // so a single forward pass with these two guards is sufficient.
+      // Suppressed notes still participate in `others` collision avoidance so that
+      // labels we do render don't land on top of unlabeled notes.
+      const labeledKeys = new Set();
+      const lastLabeledStart = new Map();
       for (const r of labeled) {
+        const key = r.bar + ":" + r.n.pitch;
+        if (labeledKeys.has(key)) continue;
+        const prevStart = lastLabeledStart.get(r.n.pitch);
+        if (prevStart !== undefined && r.n.start - prevStart <= 3) continue;
+        labeledKeys.add(key);
+        lastLabeledStart.set(r.n.pitch, r.n.start);
         const cxMid = r.x + r.w / 2;
         const cyMid = r.y + r.h / 2;
         const left = r.x - LABEL_W / 2;
