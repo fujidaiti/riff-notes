@@ -313,7 +313,7 @@
   .part-side {
     grid-column: 1;
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto 1fr auto;
     justify-items: center;
     row-gap: 6px;
     font-size: 10px;
@@ -332,6 +332,14 @@
     flex-direction: column;
     align-items: center;
     gap: 6px;
+  }
+  .part-side .part-side-bottom {
+    grid-row: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 4px;
   }
   .part-side .part-name {
     grid-row: 2;
@@ -384,6 +392,24 @@
     align-items: center;
     justify-content: center;
   }
+  .part-ms-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-ms-btn.on.mute { background: #c0392b; color: #fff; border-color: #a93226; }
+  .part-ms-btn.on.solo { background: #e0a800; color: #1a1a1a; border-color: #c69200; }
   .part-menu-btn:hover { border-color: var(--line); background: var(--input-bg); }
   .part-add-gap {
     grid-column: 1;
@@ -1593,27 +1619,13 @@ function buildPartStrip(sheet, part) {
     type: "button",
     class: "toggle mute" + (pm.mute ? " on" : ""),
     title: "Mute",
-    onclick: () => {
-      pm.mute = !pm.mute;
-      if (pm.mute) pm.solo = false;
-      muteBtn.classList.toggle("on", pm.mute);
-      soloBtn.classList.toggle("on", pm.solo);
-      applyPartGainsLive(sheet);
-      persist();
-    },
+    onclick: () => togglePartMute(sheet, part),
   }, "M");
   const soloBtn = el("button", {
     type: "button",
     class: "toggle solo" + (pm.solo ? " on" : ""),
     title: "Solo",
-    onclick: () => {
-      pm.solo = !pm.solo;
-      if (pm.solo) pm.mute = false;
-      soloBtn.classList.toggle("on", pm.solo);
-      muteBtn.classList.toggle("on", pm.mute);
-      applyPartGainsLive(sheet);
-      persist();
-    },
+    onclick: () => togglePartSolo(sheet, part),
   }, "S");
   return el("div", { class: "mixer-strip" },
     el("div", { class: "name", title: part.name }, part.name || "Part"),
@@ -2258,7 +2270,27 @@ function renderBand(sheet) {
       }
       openContextMenu(rect.left, rect.bottom, items);
     });
+    const pm = ensurePartMix(sheet, part.id);
+    const muteBtn = el("button", {
+      class: "part-ms-btn mute" + (pm.mute ? " on" : ""),
+      title: "Mute",
+      type: "button",
+    }, "M");
+    const soloBtn = el("button", {
+      class: "part-ms-btn solo" + (pm.solo ? " on" : ""),
+      title: "Solo",
+      type: "button",
+    }, "S");
+    muteBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      togglePartMute(sheet, part);
+    });
+    soloBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      togglePartSolo(sheet, part);
+    });
     const topActions = el("div", { class: "part-side-top" }, menuBtn);
+    const bottomActions = el("div", { class: "part-side-bottom" }, muteBtn, soloBtn);
     if (!rhythmPart) {
       const recDisabled = recordingState !== "idle" && !isRecHere;
       const recBtn = el("button", {
@@ -2286,6 +2318,7 @@ function renderBand(sheet) {
           persist();
         },
       }),
+      bottomActions,
     );
     const numRows = part.hi - part.lo + 1;
     const gridRow = el("div", { class: "bar-grid" });
@@ -3905,6 +3938,34 @@ function partDestFor(sheet, part) {
   if (!part) return masterGain || audioCtx.destination;
   const node = partGainNodes.get(part.id);
   return node || masterGain || audioCtx.destination;
+}
+
+function syncPartMuteSoloDom(sheet, partId) {
+  const pm = sheet.mix.parts[partId];
+  if (!pm) return;
+  document.querySelectorAll(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${partId}"] .part-ms-btn.mute`
+  ).forEach(b => b.classList.toggle("on", pm.mute));
+  document.querySelectorAll(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${partId}"] .part-ms-btn.solo`
+  ).forEach(b => b.classList.toggle("on", pm.solo));
+  if (mixerDialog.open && mixerSheetId === sheet.id) populateMixer(sheet);
+}
+function togglePartMute(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  pm.mute = !pm.mute;
+  if (pm.mute) pm.solo = false;
+  applyPartGainsLive(sheet);
+  syncPartMuteSoloDom(sheet, part.id);
+  persist();
+}
+function togglePartSolo(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  pm.solo = !pm.solo;
+  if (pm.solo) pm.mute = false;
+  applyPartGainsLive(sheet);
+  syncPartMuteSoloDom(sheet, part.id);
+  persist();
 }
 
 function teardownPlayback() {
