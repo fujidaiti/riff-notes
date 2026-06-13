@@ -47,6 +47,8 @@
     --shadow-soft: rgba(0,0,0,0.12);
     --shadow-med: rgba(0,0,0,0.18);
     --note-inset: rgba(0,0,0,0.15);
+    --note-sel-outline: #000000;
+    --note-sel-tint: rgba(0, 0, 0, 0.08);
     --play-tint: #ffe6c2;
     --kbd-ink: #333;
   }
@@ -91,6 +93,8 @@
     --shadow-soft: rgba(0,0,0,0.45);
     --shadow-med: rgba(0,0,0,0.6);
     --note-inset: rgba(0,0,0,0.35);
+    --note-sel-outline: #ffffff;
+    --note-sel-tint: rgba(255, 255, 255, 0.08);
     --play-tint: #5a3a1c;
     --kbd-ink: #e0e0d8;
   }
@@ -405,19 +409,27 @@
     position: absolute;
     height: calc(var(--cell-h) - 2px);
     top: 1px;
-    background: var(--note);
     border-radius: 2px;
     cursor: grab;
-    box-shadow: inset 0 0 0 1px var(--note-inset);
     touch-action: none;
     z-index: 1;
   }
-  .note.in-scale { background: var(--note-in-scale); }
-  .note.drum-hihat { background: #e3c44a; }
-  .note.drum-snare { background: #d24a4a; }
-  .note.drum-kick  { background: #9056c8; }
-  .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 3; }
-  .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 2; }
+  .note::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background: var(--note);
+    box-shadow: inset 0 0 0 1px var(--note-inset);
+    opacity: var(--vel-opacity, 1);
+    z-index: -1;
+  }
+  .note.in-scale::before { background: var(--note-in-scale); }
+  .note.drum-hihat::before { background: #e3c44a; }
+  .note.drum-snare::before { background: #d24a4a; }
+  .note.drum-kick::before  { background: #9056c8; }
+  .note.selected { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 3; }
+  .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: -2px; z-index: 2; }
   .note-label {
     position: absolute;
     pointer-events: none;
@@ -434,7 +446,7 @@
     position: fixed;
     pointer-events: none;
     box-sizing: border-box;
-    border: 2px solid var(--note-hover);
+    border: 2px solid var(--note-sel-outline);
     border-radius: 2px;
     z-index: 1;
     display: none;
@@ -443,17 +455,17 @@
     position: fixed;
     pointer-events: none;
     box-sizing: border-box;
-    border: 1px solid var(--note-hover);
-    background: rgba(10, 163, 155, 0.12);
+    border: 1px solid var(--note-sel-outline);
+    background: var(--note-sel-tint);
     z-index: 9998;
   }
   .cell-selected {
     position: absolute;
     pointer-events: none;
     box-sizing: border-box;
-    border: 2px solid var(--note-sel);
+    border: 2px solid var(--note-sel-outline);
     border-radius: 2px;
-    background: rgba(43, 108, 176, 0.10);
+    background: var(--note-sel-tint);
     z-index: 1;
   }
 
@@ -563,7 +575,7 @@
   }
   .annot-card .annot-btn-edit:hover { opacity: 1; }
   .note.annot-active {
-    outline: 2px solid var(--annot-line); outline-offset: 1px; z-index: 2;
+    outline: 2px solid var(--annot-line); outline-offset: -2px; z-index: 2;
   }
   .ctx-menu {
     position: fixed;
@@ -1862,7 +1874,7 @@ function renderBand(sheet) {
       noteEl.style.left = (noteFracStart(n) * cellW) + "px";
       noteEl.style.top = top + "px";
       noteEl.style.width = noteWidthPx(noteFracLength(n), cellW) + "px";
-      noteEl.style.opacity = VEL_OPACITY[n.vel];
+      noteEl.style.setProperty('--vel-opacity', VEL_OPACITY[n.vel]);
       noteEl.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -2441,7 +2453,7 @@ function handlePointerDown(ev, sheet, part, wrap) {
     noteEl.style.left = (noteFracStart(note) * cellW) + "px";
     noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
     noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
-    noteEl.style.opacity = VEL_OPACITY[note.vel];
+    noteEl.style.setProperty('--vel-opacity', VEL_OPACITY[note.vel]);
     wrap.appendChild(noteEl);
 
     drag = {
