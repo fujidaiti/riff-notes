@@ -130,9 +130,18 @@
     min-width: 80px; max-width: 280px;
   }
   .project-name:hover, .project-name:focus { border-color: var(--line); background: var(--input-bg); outline: none; }
-  .volume-control { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
-  .volume-control input[type=range] { width: 100px; padding: 0; }
-  .volume-value { font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+  .mix-btn { font-size: 12px; }
+  #mixer-dialog { min-width: 360px; max-width: 560px; }
+  #mixer-dialog h3 { margin: 0 0 10px; font-size: 14px; }
+  .mixer-strips { display: flex; flex-direction: column; gap: 6px; }
+  .mixer-strip { display: grid; grid-template-columns: 110px 1fr 44px 28px 28px; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--input-bg); }
+  .mixer-strip.master { background: var(--kbd-bg, var(--input-bg)); }
+  .mixer-strip .name { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mixer-strip input[type=range] { width: 100%; padding: 0; }
+  .mixer-strip .vol-value { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-soft); text-align: right; }
+  .mixer-strip button.toggle { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+  .mixer-strip button.toggle.on.mute { background: #c0392b; color: #fff; border-color: #a93226; }
+  .mixer-strip button.toggle.on.solo { background: #e0a800; color: #1a1a1a; border-color: #c69200; }
   .spacer { flex: 1; }
   .hint { font-size: 11px; color: var(--ink-soft); padding: 6px 12px; }
 
@@ -768,6 +777,13 @@
     <button id="alert-ok">OK</button>
   </div>
 </dialog>
+<dialog id="mixer-dialog">
+  <h3 id="mixer-title">Mixer</h3>
+  <div id="mixer-body" class="mixer-strips"></div>
+  <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+    <button id="mixer-close" type="button">Close</button>
+  </div>
+</dialog>
 <dialog id="part-config-dialog">
   <h3 id="part-config-title" style="margin:0 0 8px; font-size:14px;">Part</h3>
   <div id="part-config-body" class="part-config-body"></div>
@@ -849,16 +865,46 @@ function findNote(sheet, noteId) {
   return null;
 }
 function makeSheet(title = "Sheet") {
+  const parts = [makePart("Part 1")];
   return {
     id: uid(), title, notes: "", bpm: 120,
     scale: { root: 0, mode: "major" },
-    parts: [makePart("Part 1")],
+    parts,
     barCount: 1,
     annotations: [],
+    mix: makeDefaultMix(parts),
     selectedNoteIds: new Set(),
     selectedCell: null,
     playStart: 0,
   };
+}
+function makeDefaultMix(parts) {
+  const partsMix = {};
+  for (const p of parts) partsMix[p.id] = { vol: 1, mute: false, solo: false };
+  return { master: { vol: 1, mute: false }, parts: partsMix };
+}
+function defaultPartMix() { return { vol: 1, mute: false, solo: false }; }
+function ensurePartMix(sheet, partId) {
+  if (!sheet.mix) sheet.mix = makeDefaultMix(sheet.parts);
+  if (!sheet.mix.parts[partId]) sheet.mix.parts[partId] = defaultPartMix();
+  return sheet.mix.parts[partId];
+}
+function anyPartSoloed(sheet) {
+  if (!sheet.mix) return false;
+  for (const k of Object.keys(sheet.mix.parts)) if (sheet.mix.parts[k] && sheet.mix.parts[k].solo) return true;
+  return false;
+}
+function effectivePartGain(sheet, part) {
+  if (!sheet.mix) return 1;
+  if (sheet.mix.master.mute) return 0;
+  const pm = ensurePartMix(sheet, part.id);
+  if (pm.mute) return 0;
+  if (anyPartSoloed(sheet) && !pm.solo) return 0;
+  return pm.vol;
+}
+function effectiveMasterValue(sheet) {
+  if (!sheet || !sheet.mix) return 1;
+  return sheet.mix.master.mute ? 0 : sheet.mix.master.vol;
 }
 function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId); }
 function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); sheet.selectedCell = null; }
@@ -1058,7 +1104,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 const STORAGE_KEY = "midi-editor:state";
 
 // Annotation card sizing — must be declared before serialize/deserialize
@@ -1069,6 +1115,48 @@ const ANNOT_MAX_WIDTH = 320;
 const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
 const ANNOT_GAP = 6;
 const ANNOT_SHRUNK_HEIGHT = 22;
+
+function serializeMix(s) {
+  const mix = s.mix || makeDefaultMix(s.parts);
+  const partsOut = {};
+  for (const pt of s.parts) {
+    const pm = mix.parts[pt.id] || defaultPartMix();
+    partsOut[pt.id] = {
+      vol: clamp01(Number.isFinite(pm.vol) ? pm.vol : 1),
+      mute: !!pm.mute,
+      solo: !!pm.solo,
+    };
+  }
+  return {
+    master: {
+      vol: clamp01(Number.isFinite(mix.master?.vol) ? mix.master.vol : 1),
+      mute: !!mix.master?.mute,
+    },
+    parts: partsOut,
+  };
+}
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function deserializeMix(raw, parts) {
+  const out = makeDefaultMix(parts);
+  if (!raw || typeof raw !== "object") return out;
+  if (raw.master && typeof raw.master === "object") {
+    if (Number.isFinite(raw.master.vol)) out.master.vol = clamp01(raw.master.vol);
+    out.master.mute = !!raw.master.mute;
+  }
+  if (raw.parts && typeof raw.parts === "object") {
+    for (const pt of parts) {
+      const pm = raw.parts[pt.id];
+      if (pm && typeof pm === "object") {
+        out.parts[pt.id] = {
+          vol: clamp01(Number.isFinite(pm.vol) ? pm.vol : 1),
+          mute: !!pm.mute,
+          solo: !!pm.solo,
+        };
+      }
+    }
+  }
+  return out;
+}
 
 function serializeProject(p) {
   return {
@@ -1091,6 +1179,7 @@ function serializeProject(p) {
           subLength: n.subLength || 0,
         })),
       })),
+      mix: serializeMix(s),
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
         shrunkWidth: Number.isFinite(a.shrunkWidth) ? a.shrunkWidth : ANNOT_DEFAULT_SHRUNK_WIDTH,
@@ -1170,6 +1259,9 @@ function deserializeProject(doc) {
       playStart: 0,
     };
   });
+  for (let i = 0; i < sheets.length; i++) {
+    sheets[i].mix = deserializeMix(doc.sheets[i].mix, sheets[i].parts);
+  }
   return { name: typeof doc.name === "string" ? doc.name : "", sheets };
 }
 
@@ -1433,6 +1525,102 @@ function openPartConfig(sheet, part) {
   if (!partConfigDialog.open) partConfigDialog.showModal();
 }
 
+// ---------- Mixer dialog ----------
+const mixerDialog = document.getElementById("mixer-dialog");
+const mixerTitleEl = document.getElementById("mixer-title");
+const mixerBodyEl = document.getElementById("mixer-body");
+document.getElementById("mixer-close").addEventListener("click", () => mixerDialog.close());
+mixerDialog.addEventListener("click", (ev) => {
+  if (ev.target === mixerDialog) mixerDialog.close();
+});
+let mixerSheetId = null;
+
+function openMixerDialog(sheet) {
+  if (!sheet) return;
+  if (!sheet.mix) sheet.mix = makeDefaultMix(sheet.parts);
+  mixerSheetId = sheet.id;
+  populateMixer(sheet);
+  if (!mixerDialog.open) mixerDialog.showModal();
+}
+
+function populateMixer(sheet) {
+  mixerTitleEl.textContent = `Mixer — ${sheet.title || "Sheet"}`;
+  mixerBodyEl.innerHTML = "";
+  mixerBodyEl.appendChild(buildMasterStrip(sheet));
+  for (const part of sheet.parts) {
+    mixerBodyEl.appendChild(buildPartStrip(sheet, part));
+  }
+}
+
+function buildMasterStrip(sheet) {
+  const m = sheet.mix.master;
+  const pct = Math.round(m.vol * 100);
+  const valueEl = el("span", { class: "vol-value" }, pct + "%");
+  const slider = el("input", {
+    type: "range", min: 0, max: 100, value: String(pct),
+    oninput: (e) => {
+      const p = parseInt(e.target.value, 10);
+      m.vol = clamp01(p / 100);
+      valueEl.textContent = p + "%";
+      applyActiveMasterGain(sheet);
+      persist();
+    },
+  });
+  return el("div", { class: "mixer-strip master" },
+    el("div", { class: "name" }, "Master"),
+    slider,
+    valueEl,
+    el("span", {}),
+    el("span", {}),
+  );
+}
+
+function buildPartStrip(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  const pct = Math.round(pm.vol * 100);
+  const valueEl = el("span", { class: "vol-value" }, pct + "%");
+  const slider = el("input", {
+    type: "range", min: 0, max: 100, value: String(pct),
+    oninput: (e) => {
+      const p = parseInt(e.target.value, 10);
+      pm.vol = clamp01(p / 100);
+      valueEl.textContent = p + "%";
+      persist();
+    },
+  });
+  const muteBtn = el("button", {
+    type: "button",
+    class: "toggle mute" + (pm.mute ? " on" : ""),
+    title: "Mute",
+    onclick: () => {
+      pm.mute = !pm.mute;
+      if (pm.mute) pm.solo = false;
+      muteBtn.classList.toggle("on", pm.mute);
+      soloBtn.classList.toggle("on", pm.solo);
+      persist();
+    },
+  }, "M");
+  const soloBtn = el("button", {
+    type: "button",
+    class: "toggle solo" + (pm.solo ? " on" : ""),
+    title: "Solo",
+    onclick: () => {
+      pm.solo = !pm.solo;
+      if (pm.solo) pm.mute = false;
+      soloBtn.classList.toggle("on", pm.solo);
+      muteBtn.classList.toggle("on", pm.mute);
+      persist();
+    },
+  }, "S");
+  return el("div", { class: "mixer-strip" },
+    el("div", { class: "name", title: part.name }, part.name || "Part"),
+    slider,
+    valueEl,
+    muteBtn,
+    soloBtn,
+  );
+}
+
 function populatePartConfig(sheet, part) {
   partConfigTitleEl.textContent = part.name || "Part";
   partConfigBodyEl.innerHTML = "";
@@ -1651,6 +1839,7 @@ function renderAll() {
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
     const sheet = project.sheets[idx];
+    applyActiveMasterGain(sheet);
     const sheetEl = renderSheet(sheet, idx);
     sheetsEl.appendChild(sheetEl);
     footerActionsEl.appendChild(renderFooter(sheet));
@@ -1789,24 +1978,11 @@ function renderFooter(sheet) {
     openFooterOverflowMenu(menuBtn);
   });
 
-  const volumePct = Math.round(masterVolume * 100);
-  const volumeLabel = el("span", { class: "volume-value", id: "volume-value" }, volumePct + "%");
-  const volumeSlider = el("input", {
-    id: "volume-slider", type: "range", min: 0, max: 100, value: String(volumePct),
-    oninput: (e) => {
-      const pct = parseInt(e.target.value, 10);
-      masterVolume = Math.max(0, Math.min(1, pct / 100));
-      volumeLabel.textContent = pct + "%";
-      if (masterGain && audioCtx) {
-        masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
-      }
-    },
-  });
-  const volumeControl = el("label", { class: "volume-control", title: "Master volume" },
-    el("span", { "aria-hidden": "true" }, "🔊"),
-    volumeSlider,
-    volumeLabel,
-  );
+  const mixBtn = el("button", {
+    class: "mix-btn",
+    title: "Mixer",
+    onclick: () => openMixerDialog(sheet),
+  }, "🎚 Mix");
 
   return el("div", { class: "sheet-actions" },
     playBtn, stopBtn,
@@ -1814,7 +1990,7 @@ function renderFooter(sheet) {
       class: "repeat" + (repeatEnabled ? " active" : ""),
       onclick: () => { repeatEnabled = !repeatEnabled; renderAll(); },
     }, "⟳ Repeat"),
-    volumeControl,
+    mixBtn,
     menuBtn,
   );
 }
@@ -1961,6 +2137,7 @@ async function deletePart(sheet, idx) {
   pushUndo();
   const doomed = new Set(part.notes.map(n => n.id));
   sheet.parts.splice(idx, 1);
+  if (sheet.mix && sheet.mix.parts) delete sheet.mix.parts[part.id];
   if (doomed.size > 0 && sheet.annotations && sheet.annotations.length > 0) {
     sheet.annotations = sheet.annotations
       .map(a => ({ ...a, noteIds: a.noteIds.filter(id => !doomed.has(id)) }))
@@ -2042,7 +2219,9 @@ function renderBand(sheet) {
     addBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
       pushUndo();
-      sheet.parts.splice(insertAt, 0, makePart(`Part ${sheet.parts.length + 1}`));
+      const newPart = makePart(`Part ${sheet.parts.length + 1}`);
+      sheet.parts.splice(insertAt, 0, newPart);
+      ensurePartMix(sheet, newPart.id);
       renderAll();
       persist();
     });
@@ -3671,15 +3850,20 @@ function triggerDownload(blob, filename) {
 
 // ---------- Playback (per sheet, exclusive) ----------
 let masterGain = null;
-let masterVolume = 1.0; // 0..1, runtime-only (not persisted)
 function ensureAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (!masterGain) {
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = masterVolume;
+    const s = project.sheets.find(s => s.id === activeSheetId);
+    masterGain.gain.value = effectiveMasterValue(s);
     masterGain.connect(audioCtx.destination);
   }
   if (audioCtx.state === "suspended") audioCtx.resume();
+}
+function applyActiveMasterGain(sheet) {
+  if (!masterGain || !audioCtx) return;
+  const v = effectiveMasterValue(sheet);
+  masterGain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.01);
 }
 
 function teardownPlayback() {
@@ -3729,9 +3913,10 @@ function getNoiseBuffer() {
   return noiseBuffer;
 }
 
-function scheduleDrum(when, durSec, drumKey, vel) {
+function scheduleDrum(when, durSec, drumKey, vel, gainMul = 1) {
   const dest = masterGain || audioCtx.destination;
-  const peak = VEL_GAIN[vel];
+  const peak = VEL_GAIN[vel] * gainMul;
+  if (peak <= 0) return;
   const stops = [];
   if (drumKey === "kick") {
     const osc = audioCtx.createOscillator();
@@ -3799,21 +3984,23 @@ function auditionNote(sheet, note) {
   const dur = secPerStep * 0.95;
   const when = audioCtx.currentTime + 0.005;
   const part = sheet.parts.find(p => p.id === note.partId);
+  const gainMul = part ? effectivePartGain(sheet, part) : 1;
   if (part && isRhythmPart(part)) {
     const key = RHYTHM_KEYS[part.hi - note.pitch];
-    if (key) scheduleDrum(when, dur, key, note.vel);
+    if (key) scheduleDrum(when, dur, key, note.vel, gainMul);
   } else {
-    scheduleNote(when, dur, note.pitch, note.vel);
+    scheduleNote(when, dur, note.pitch, note.vel, gainMul);
   }
 }
 
-function scheduleNote(when, durSec, midi, vel) {
+function scheduleNote(when, durSec, midi, vel, gainMul = 1) {
+  const peak = VEL_GAIN[vel] * gainMul;
+  if (peak <= 0) return;
   const freq = 440 * Math.pow(2, (midi - 69) / 12);
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = "triangle";
   osc.frequency.setValueAtTime(freq, when);
-  const peak = VEL_GAIN[vel];
   gain.gain.setValueAtTime(0, when);
   gain.gain.linearRampToValueAtTime(peak, when + 0.005);
   gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
@@ -3847,6 +4034,7 @@ function playSheet(sheet, fromStep, startAudioTime) {
   const t0 = isSeamlessRepeat ? startAudioTime : audioCtx.currentTime + 0.05;
   let lastEnd = t0;
   for (const part of sheet.parts) {
+    const gainMul = effectivePartGain(sheet, part);
     for (const n of part.notes) {
       const absStart = noteFracStart(n);
       if (absStart < effectiveStart) continue;
@@ -3854,13 +4042,14 @@ function playSheet(sheet, fromStep, startAudioTime) {
       const dur = noteFracLength(n) * secPerStep * 0.95;
       if (isRhythmPart(part)) {
         const key = RHYTHM_KEYS[part.hi - n.pitch];
-        if (key) scheduleDrum(start, dur, key, n.vel);
+        if (key) scheduleDrum(start, dur, key, n.vel, gainMul);
       } else {
-        scheduleNote(start, dur, n.pitch, n.vel);
+        scheduleNote(start, dur, n.pitch, n.vel, gainMul);
       }
       if (start + dur > lastEnd) lastEnd = start + dur;
     }
   }
+  applyActiveMasterGain(sheet);
   playbackT0 = t0;
   playbackStartStep = effectiveStart;
   playbackSecPerStep = secPerStep;
