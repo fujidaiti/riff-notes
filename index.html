@@ -465,8 +465,6 @@
     box-sizing: border-box;
     z-index: 5;
   }
-  .annot-card.annot-side-top    { transform: translate(-50%, -100%); transform-origin: bottom center; }
-  .annot-card.annot-side-bottom { transform: translate(-50%, 0);     transform-origin: top center; }
   .annot-card.active { opacity: 1; box-shadow: 0 2px 8px var(--shadow-med); }
   .annot-card.expanded {
     white-space: pre-wrap;
@@ -477,7 +475,6 @@
     overflow: visible;
     cursor: grab;
   }
-  .annot-card.annot-side-free   { transform: translate(0, 0); transform-origin: top left; }
   .annot-card.dragging {
     white-space: nowrap;
     min-width: 0;
@@ -715,7 +712,7 @@ function toggleNoteSelection(sheet, note) {
 // but at least one member was not, re-anchor to the earliest non-moved member
 // and preserve the card's bands-relative visual position. Group moves (every
 // member moved) leave (dx, dy) unchanged so the card follows the move.
-function reconcileManualPlacementAfterMove(sheet, movedIdSet) {
+function reconcilePlacementAfterMove(sheet, movedIdSet) {
   if (!sheet.annotations || sheet.annotations.length === 0) return;
   const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
   const bandsEl = sheetEl && sheetEl.querySelector(".bands");
@@ -728,9 +725,8 @@ function reconcileManualPlacementAfterMove(sheet, movedIdSet) {
     return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
   };
   for (const a of sheet.annotations) {
-    const mp = a.manualPlacement;
-    if (!mp) continue;
-    if (!movedIdSet.has(mp.anchorNoteId)) continue;
+    const p = a.placement;
+    if (!movedIdSet.has(p.anchorNoteId)) continue;
     if (a.noteIds.every(id => movedIdSet.has(id))) continue;
     const nonMoved = a.noteIds.filter(id => !movedIdSet.has(id));
     const candidates = nonMoved.map(id => ({ id, c: centerOf(id) })).filter(s => s.c);
@@ -742,7 +738,7 @@ function reconcileManualPlacementAfterMove(sheet, movedIdSet) {
     const oldCardX = parseFloat(cardEl.style.left);
     const oldCardY = parseFloat(cardEl.style.top);
     if (!Number.isFinite(oldCardX) || !Number.isFinite(oldCardY)) continue;
-    a.manualPlacement = {
+    a.placement = {
       anchorNoteId: newAnchor.id,
       dx: oldCardX - newAnchor.c.x,
       dy: oldCardY - newAnchor.c.y,
@@ -750,10 +746,10 @@ function reconcileManualPlacementAfterMove(sheet, movedIdSet) {
   }
 }
 
-// For each annotation with a manualPlacement whose anchor is about to be
-// deleted: pick the earliest surviving member as the new anchor and recompute
-// (dx, dy) so the card's bands-relative visual position stays put.
-function reconcileManualPlacementBeforeDelete(sheet, idSet) {
+// For each annotation whose anchor is about to be deleted: pick the earliest
+// surviving member as the new anchor and recompute (dx, dy) so the card's
+// bands-relative visual position stays put.
+function reconcilePlacementBeforeDelete(sheet, idSet) {
   if (!sheet.annotations || sheet.annotations.length === 0) return;
   const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
   const bandsEl = sheetEl && sheetEl.querySelector(".bands");
@@ -766,25 +762,29 @@ function reconcileManualPlacementBeforeDelete(sheet, idSet) {
     return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
   };
   for (const a of sheet.annotations) {
-    const mp = a.manualPlacement;
-    if (!mp) continue;
-    if (!idSet.has(mp.anchorNoteId)) continue;
+    const p = a.placement;
+    if (!idSet.has(p.anchorNoteId)) continue;
     const survivingIds = a.noteIds.filter(id => !idSet.has(id));
     if (survivingIds.length === 0) continue;
     const candidates = survivingIds
       .map(id => ({ id, c: centerOf(id) }))
       .filter(s => s.c);
-    if (candidates.length === 0) { a.manualPlacement = null; continue; }
-    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
-    const newAnchor = candidates[0];
-    const oldAnchorC = centerOf(mp.anchorNoteId);
-    if (!oldAnchorC) {
-      a.manualPlacement = { anchorNoteId: newAnchor.id, dx: mp.dx, dy: mp.dy };
+    if (candidates.length === 0) {
+      // No DOM rect for any surviving note (transient render state) — keep
+      // the offset and just point the anchor at any surviving note.
+      a.placement = { anchorNoteId: survivingIds[0], dx: p.dx, dy: p.dy };
       continue;
     }
-    const oldCardX = oldAnchorC.x + mp.dx;
-    const oldCardY = oldAnchorC.y + mp.dy;
-    a.manualPlacement = {
+    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
+    const newAnchor = candidates[0];
+    const oldAnchorC = centerOf(p.anchorNoteId);
+    if (!oldAnchorC) {
+      a.placement = { anchorNoteId: newAnchor.id, dx: p.dx, dy: p.dy };
+      continue;
+    }
+    const oldCardX = oldAnchorC.x + p.dx;
+    const oldCardY = oldAnchorC.y + p.dy;
+    a.placement = {
       anchorNoteId: newAnchor.id,
       dx: oldCardX - newAnchor.c.x,
       dy: oldCardY - newAnchor.c.y,
@@ -805,13 +805,15 @@ function removeNotesByIds(sheet, idSet) {
     });
   }
   if (sheet.annotations && sheet.annotations.length > 0) {
-    reconcileManualPlacementBeforeDelete(sheet, idSet);
+    reconcilePlacementBeforeDelete(sheet, idSet);
     sheet.annotations = sheet.annotations
       .map(a => {
         const noteIds = a.noteIds.filter(id => !idSet.has(id));
-        let mp = a.manualPlacement;
-        if (mp && !noteIds.includes(mp.anchorNoteId)) mp = null;
-        return { ...a, noteIds, manualPlacement: mp };
+        let placement = a.placement;
+        if (placement && !noteIds.includes(placement.anchorNoteId) && noteIds.length > 0) {
+          placement = { anchorNoteId: noteIds[0], dx: placement.dx, dy: placement.dy };
+        }
+        return { ...a, noteIds, placement };
       })
       .filter(a => a.noteIds.length > 0);
   }
@@ -876,7 +878,7 @@ function redo() {
 // model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 const STORAGE_KEY = "midi-editor:state";
 
 // Annotation card sizing — must be declared before serialize/deserialize
@@ -885,6 +887,8 @@ const ANNOT_RESIZE_EDGE = 6;
 const ANNOT_MIN_WIDTH = 24;
 const ANNOT_MAX_WIDTH = 320;
 const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
+const ANNOT_GAP = 6;
+const ANNOT_SHRUNK_HEIGHT = 22;
 
 function serializeProject(p) {
   return {
@@ -910,9 +914,11 @@ function serializeProject(p) {
       annotations: (s.annotations || []).map(a => ({
         id: a.id, text: a.text, noteIds: [...a.noteIds],
         shrunkWidth: Number.isFinite(a.shrunkWidth) ? a.shrunkWidth : ANNOT_DEFAULT_SHRUNK_WIDTH,
-        manualPlacement: a.manualPlacement
-          ? { anchorNoteId: a.manualPlacement.anchorNoteId, dx: a.manualPlacement.dx, dy: a.manualPlacement.dy }
-          : null,
+        placement: {
+          anchorNoteId: a.placement.anchorNoteId,
+          dx: a.placement.dx,
+          dy: a.placement.dy,
+        },
       })),
     })),
   };
@@ -958,18 +964,24 @@ function deserializeProject(doc) {
             .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
             .map(a => {
               const noteIds = a.noteIds.filter(x => typeof x === "string");
-              const mp = a.manualPlacement;
-              const manualPlacement = (mp
-                && typeof mp.anchorNoteId === "string"
-                && Number.isFinite(mp.dx) && Number.isFinite(mp.dy)
-                && noteIds.includes(mp.anchorNoteId))
-                ? { anchorNoteId: mp.anchorNoteId, dx: mp.dx, dy: mp.dy }
-                : null;
+              const p = a.placement;
+              if (!p || typeof p.anchorNoteId !== "string"
+                  || !Number.isFinite(p.dx) || !Number.isFinite(p.dy)
+                  || !noteIds.includes(p.anchorNoteId)) {
+                return null;
+              }
               const sw = Number.isFinite(a.shrunkWidth)
                 ? Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, a.shrunkWidth))
                 : ANNOT_DEFAULT_SHRUNK_WIDTH;
-              return { id: a.id || uid(), text: a.text, noteIds, shrunkWidth: sw, manualPlacement };
+              return {
+                id: a.id || uid(),
+                text: a.text,
+                noteIds,
+                shrunkWidth: sw,
+                placement: { anchorNoteId: p.anchorNoteId, dx: p.dx, dy: p.dy },
+              };
             })
+            .filter(Boolean)
         : [],
       // runtime/view state — never persisted, always defaulted
       selectedNoteIds: new Set(),
@@ -1243,7 +1255,20 @@ async function createAnnotation(sheet, noteIds) {
   if (!noteIds || noteIds.length === 0) return;
   const res = await editAnnotation({ isEdit: false });
   if (res.action !== "save") return;
-  sheet.annotations.push({ id: uid(), text: res.text, noteIds: [...noteIds], shrunkWidth: ANNOT_DEFAULT_SHRUNK_WIDTH, manualPlacement: null });
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  const members = computeMemberRects(sheet, noteIds, bandsEl);
+  if (members.length === 0) return;
+  members.sort((p, q) => (p.x - q.x) || (p.y - q.y));
+  const anchor = members[0];
+  const placement = computeDefaultPlacement(members, anchor, ANNOT_DEFAULT_SHRUNK_WIDTH);
+  sheet.annotations.push({
+    id: uid(),
+    text: res.text,
+    noteIds: [...noteIds],
+    shrunkWidth: ANNOT_DEFAULT_SHRUNK_WIDTH,
+    placement,
+  });
   renderAll();
   persist();
 }
@@ -1861,8 +1886,10 @@ function renderBand(sheet) {
 // bottom rect). Returns { x, y, side } where side ∈ {"top","bottom","left",
 // "right"} and the card is anchored just outside the member-bbox on that side,
 // so expansion can grow away from the notes without overlapping them.
-function computeCardPosition(members) {
-  const GAP = 6;
+// Default card top-left for a freshly-created annotation: horizontally
+// centered on the member-notes' bounding-box midX, placed above or below
+// the group depending on which side the vertical centroid leans toward.
+function computeDefaultCardTopLeft(members, shrunkWidth) {
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
   let sy = 0;
   for (const m of members) {
@@ -1874,9 +1901,45 @@ function computeCardPosition(members) {
   }
   const cy = sy / members.length;
   const midX = (left + right) / 2;
-  const side = (cy - top) <= (bottom - cy) ? "top" : "bottom";
-  if (side === "top") return { x: midX, y: top - GAP, side };
-  return { x: midX, y: bottom + GAP, side };
+  const goesAbove = (cy - top) <= (bottom - cy);
+  return {
+    x: midX - shrunkWidth / 2,
+    y: goesAbove ? top - ANNOT_GAP - ANNOT_SHRUNK_HEIGHT : bottom + ANNOT_GAP,
+  };
+}
+
+function computeDefaultPlacement(members, anchor, shrunkWidth) {
+  const tl = computeDefaultCardTopLeft(members, shrunkWidth);
+  return { anchorNoteId: anchor.note.id, dx: tl.x - anchor.x, dy: tl.y - anchor.y };
+}
+
+// Build member-rect entries (centers + edges in bands-relative coords) for
+// the given noteIds by reading the live DOM. Shared between render and the
+// initial-placement computation at annotation creation.
+function computeMemberRects(sheet, noteIds, bandsEl) {
+  if (!bandsEl) return [];
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const noteById = new Map();
+  for (const pt of sheet.parts) for (const n of pt.notes) noteById.set(n.id, n);
+  const out = [];
+  for (const id of noteIds) {
+    const note = noteById.get(id);
+    if (!note) continue;
+    const domEl = bandsEl.querySelector(`.note[data-note-id="${id}"]`);
+    if (!domEl) continue;
+    const r = domEl.getBoundingClientRect();
+    const left = r.left - bandsRect.left;
+    const top = r.top - bandsRect.top;
+    const right = r.right - bandsRect.left;
+    const bottom = r.bottom - bandsRect.top;
+    out.push({
+      note, domEl,
+      left, top, right, bottom,
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+    });
+  }
+  return out;
 }
 
 function renderAnnotationOverlay(sheet, bandsEl) {
@@ -1885,17 +1948,6 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   if (prev) prev.remove();
   if (!annotationsVisible) return;
   if (!sheet.annotations || sheet.annotations.length === 0) return;
-
-  const bandsRect = bandsEl.getBoundingClientRect();
-
-  // Look up each note's model and DOM element once.
-  const noteById = new Map();
-  for (const p of sheet.parts) for (const n of p.notes) noteById.set(n.id, n);
-  const elByNoteId = new Map();
-  bandsEl.querySelectorAll(".note").forEach(el => {
-    const id = el.dataset.noteId;
-    if (id) elByNoteId.set(id, el);
-  });
 
   const overlay = el("div", { class: "annot-overlay" });
   const SVG_NS = "http://www.w3.org/2000/svg";
@@ -1906,22 +1958,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
   const entries = []; // { id, card, line|null, noteEls:[] }
 
   sheet.annotations.forEach(a => {
-    const members = a.noteIds
-      .map(id => ({ note: noteById.get(id), domEl: elByNoteId.get(id) }))
-      .filter(m => m.note && m.domEl)
-      .map(m => {
-        const r = m.domEl.getBoundingClientRect();
-        const left = r.left - bandsRect.left;
-        const top = r.top - bandsRect.top;
-        const right = r.right - bandsRect.left;
-        const bottom = r.bottom - bandsRect.top;
-        return {
-          ...m,
-          left, top, right, bottom,
-          x: (left + right) / 2,
-          y: (top + bottom) / 2,
-        };
-      });
+    const members = computeMemberRects(sheet, a.noteIds, bandsEl);
     if (members.length === 0) return;
     // Sort visually: left-to-right, then top-to-bottom within the same column.
     members.sort((p, q) => (p.x - q.x) || (p.y - q.y));
@@ -1937,17 +1974,12 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       svg.appendChild(lineEl);
     }
 
-    // Card. If a manual placement exists and its anchor is still a member,
-    // position relative to that anchor; otherwise fall back to auto-placement.
-    let pos = null;
-    if (a.manualPlacement) {
-      const anchor = members.find(m => m.note.id === a.manualPlacement.anchorNoteId);
-      if (anchor) {
-        pos = { x: anchor.x + a.manualPlacement.dx, y: anchor.y + a.manualPlacement.dy, side: "free" };
-      }
-    }
-    if (!pos) pos = computeCardPosition(members);
-    const card = el("div", { class: "annot-card annot-side-" + pos.side });
+    // Card position: anchor-relative top-left. The anchor should always be a
+    // member (deserialize/pruning guarantees this); members[0] is a defensive
+    // fallback in case a render races a removal.
+    const anchor = members.find(m => m.note.id === a.placement.anchorNoteId) || members[0];
+    const pos = { x: anchor.x + a.placement.dx, y: anchor.y + a.placement.dy };
+    const card = el("div", { class: "annot-card" });
     card.dataset.annotationId = a.id;
     const preview = a.text.replace(/\s+/g, " ");
     const previewLabel = el("span", { class: "annot-preview" }, preview);
@@ -2032,10 +2064,10 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       e.card.style.cursor = edgeHit(ev) ? "ew-resize" : "";
     });
 
-    // Card pointerdown: edges → resize (center-anchored); interior → reposition
-    // drag (below the click threshold the press is treated as a click so the
-    // Edit/Delete buttons still work). On release we persist either
-    // `shrunkWidth` (resize) or `manualPlacement` (reposition).
+    // Card pointerdown: edges → resize; interior → reposition drag (below the
+    // click threshold the press is treated as a click so the Edit/Delete
+    // buttons still work). On release we persist either `shrunkWidth`
+    // (resize) or `placement` (reposition).
     e.card.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       if (!e.card.classList.contains("expanded")) return;
@@ -2054,7 +2086,6 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       const startX = ev.clientX;
       const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
       const bandsRect0 = bandsEl.getBoundingClientRect();
-      const wasFree = e.card.classList.contains("annot-side-free");
 
       dragging = true;
       if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
@@ -2062,21 +2093,9 @@ function renderAnnotationOverlay(sheet, bandsEl) {
       e.card.classList.add("resizing");
       e.card.style.width = startWidth + "px";
 
-      // Snap to shrunk width first, then measure the visual rect so we have
-      // the shrunk card's true edges (which depend on whether it's centered
-      // via translate(-50%, …) or top-left positioned). Promote
-      // centroid-tracked cards to free placement at those coordinates so
-      // the resize can anchor a real edge instead of the CSS-centered one.
-      void e.card.offsetWidth; // force layout
-      const shrunkRect = e.card.getBoundingClientRect();
-      const startLeftInBands = shrunkRect.left - bandsRect0.left;
-      if (!wasFree) {
-        const shrunkTopInBands = shrunkRect.top - bandsRect0.top;
-        e.card.classList.remove("annot-side-top", "annot-side-bottom");
-        e.card.classList.add("annot-side-free");
-        e.card.style.left = startLeftInBands + "px";
-        e.card.style.top = shrunkTopInBands + "px";
-      }
+      // After collapse + width snap the card's `style.left` already places it
+      // at the shrunk top-left (no CSS centering exists anymore).
+      const startLeftInBands = parseFloat(e.card.style.left);
       try { e.card.setPointerCapture(pointerId); } catch {}
 
       let newWidth = startWidth;
@@ -2103,32 +2122,20 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         if (newWidth !== startWidth) {
           pushUndo();
           e.annotation.shrunkWidth = newWidth;
-          // Re-derive manualPlacement from the card's final visual position
-          // so the same code path handles both already-free cards (only dx
-          // shifts) and newly-promoted ones (dx and dy are both set fresh).
           const finalLeft = parseFloat(e.card.style.left);
           const finalTop = parseFloat(e.card.style.top);
           const memberById = new Map(e.members.map(m => [m.note.id, m]));
-          const existingAnchorId = e.annotation.manualPlacement && e.annotation.manualPlacement.anchorNoteId;
-          const anchor = (existingAnchorId && memberById.get(existingAnchorId)) || e.members[0];
-          if (anchor) {
-            e.annotation.manualPlacement = {
-              anchorNoteId: anchor.note.id,
-              dx: finalLeft - anchor.x,
-              dy: finalTop - anchor.y,
-            };
-          }
+          const anchor = memberById.get(e.annotation.placement.anchorNoteId) || e.members[0];
+          e.annotation.placement = {
+            anchorNoteId: anchor.note.id,
+            dx: finalLeft - anchor.x,
+            dy: finalTop - anchor.y,
+          };
           persist();
           renderAll();
-        } else if (!wasFree) {
-          // No-op click that promoted a centroid card — re-render to undo
-          // the temporary side-free promotion.
-          dragging = false;
-          renderAll();
-          return;
         } else {
-          // No-op click on an already-free card — restore the expanded view
-          // in place so the user doesn't appear to have collapsed the card.
+          // No-op click on an edge — restore the expanded view in place so
+          // the user doesn't appear to have collapsed the card.
           if (edge === "left") {
             e.card.style.left = startLeftInBands + "px";
           }
@@ -2157,8 +2164,7 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         grabDy = startY - cardRect.top;
         const startLeft = cardRect.left - bandsRect0.left;
         const startTop = cardRect.top - bandsRect0.top;
-        e.card.classList.remove("annot-side-top", "annot-side-bottom");
-        e.card.classList.add("annot-side-free", "dragging");
+        e.card.classList.add("dragging");
         setExpanded(e, false);
         e.card.style.left = startLeft + "px";
         e.card.style.top = startTop + "px";
@@ -2186,12 +2192,11 @@ function renderAnnotationOverlay(sheet, bandsEl) {
         const finalTop = parseFloat(e.card.style.top);
 
         const memberById = new Map(e.members.map(m => [m.note.id, m]));
-        const existingAnchorId = e.annotation.manualPlacement && e.annotation.manualPlacement.anchorNoteId;
-        const anchor = (existingAnchorId && memberById.get(existingAnchorId)) || e.members[0];
+        const anchor = memberById.get(e.annotation.placement.anchorNoteId) || e.members[0];
         if (!anchor) { dragging = false; return; }
 
         pushUndo();
-        e.annotation.manualPlacement = {
+        e.annotation.placement = {
           anchorNoteId: anchor.note.id,
           dx: finalLeft - anchor.x,
           dy: finalTop - anchor.y,
@@ -2625,7 +2630,7 @@ document.addEventListener("pointerup", () => {
     if (!d.isExisting) auditionNote(d.sheet, d.primaryNote);
     if (d.group && d.group.length > 0) {
       const movedIds = new Set(d.group.map(g => g.note.id));
-      reconcileManualPlacementAfterMove(d.sheet, movedIds);
+      reconcilePlacementAfterMove(d.sheet, movedIds);
     }
     renderAll();
     refreshCellTooltipAtLastPointer();
