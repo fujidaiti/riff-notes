@@ -158,6 +158,13 @@
   }
   .tab .tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .tab .tab-playing { color: var(--playhead); font-size: 11px; }
+  .tab .tab-close {
+    background: transparent; border: none; padding: 0;
+    width: 16px; height: 16px; line-height: 16px; border-radius: 3px;
+    font-size: 13px; color: var(--ink-soft); cursor: pointer;
+  }
+  .tab .tab-close:hover:not(:disabled) { background: var(--panel-hover); color: var(--ink); }
+  .tab .tab-close:disabled { opacity: 0.3; cursor: not-allowed; }
   .tab-add {
     padding: 6px 10px;
     background: transparent;
@@ -188,6 +195,16 @@
   .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .sheet-actions button.play.playing { background: var(--play-tint); }
+
+  /* Persistent footer (sheet-wise actions) */
+  .footer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 8px 12px; background: var(--panel-bg);
+    border-top: 1px solid var(--line);
+  }
+  .footer button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .footer button.play.playing { background: var(--play-tint); }
 
   /* Parts panel (per-sheet) */
   .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
@@ -586,6 +603,7 @@
 </div>
 <div class="tabstrip" id="tabstrip"></div>
 <div class="sheets" id="sheets"></div>
+<div class="footer" id="footer"></div>
 <dialog id="help-dialog">
   <h3>Keyboard & mouse shortcuts</h3>
   <table id="help-table"></table>
@@ -1324,6 +1342,7 @@ function openNoteContextMenu(ev, sheet, note) {
 // ---------- Rendering ----------
 const sheetsEl = document.getElementById("sheets");
 const tabstripEl = document.getElementById("tabstrip");
+const footerEl = document.getElementById("footer");
 
 function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
 function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
@@ -1362,9 +1381,19 @@ function renderTabs() {
     const playMark = playingSheetId === s.id
       ? el("span", { class: "tab-playing", title: "Playing" }, "▶")
       : (pausedSheetId === s.id ? el("span", { class: "tab-playing", title: "Paused" }, "⏸") : null);
+    const closeBtn = el("button", {
+      class: "tab-close",
+      title: "Delete sheet",
+      disabled: project.sheets.length <= 1,
+    }, "×");
+    closeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      deleteSheet(s);
+    });
     const tab = el("div", { class: "tab" + (s.id === activeSheetId ? " active" : "") },
       el("span", { class: "tab-label" }, s.title || `Sheet ${i + 1}`),
       playMark,
+      closeBtn,
     );
     tab.dataset.sheetId = s.id;
     tab.addEventListener("click", () => {
@@ -1393,17 +1422,22 @@ function renderAll() {
   const prevBands = sheetsEl.querySelector(".bands");
   const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
   sheetsEl.innerHTML = "";
+  footerEl.innerHTML = "";
   const idx = project.sheets.findIndex(s => s.id === activeSheetId);
   if (idx >= 0) {
     const sheet = project.sheets[idx];
     const sheetEl = renderSheet(sheet, idx);
     sheetsEl.appendChild(sheetEl);
+    footerEl.appendChild(renderFooter(sheet));
+    footerEl.style.display = "";
     updatePlayheadDom(sheet);
     const bandsEl = sheetEl.querySelector(".bands");
     if (bandsEl) {
       renderAnnotationOverlay(sheet, bandsEl);
       bandsEl.scrollLeft = prevScrollLeft;
     }
+  } else {
+    footerEl.style.display = "none";
   }
   persist();
 }
@@ -1475,6 +1509,66 @@ function updatePlaybackPlayhead(absStep, sheet) {
   });
 }
 
+function renderFooter(sheet) {
+  const isPlayingThis = playingSheetId === sheet.id;
+  const isPausedThis = pausedSheetId === sheet.id;
+  const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
+  const isRecordingThis = recordingSheetId === sheet.id;
+  const playBtn = el("button", {
+    class: "play" + (isPlayingThis ? " playing" : ""),
+    disabled: isRecordingThis,
+  }, playLabel);
+  playBtn.addEventListener("click", () => {
+    if (recordingState !== "idle") return;
+    if (playingSheetId === sheet.id) pausePlayback();
+    else if (pausedSheetId === sheet.id) resumePlayback(sheet);
+    else playSheet(sheet);
+  });
+  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis && !isRecordingThis }, "■ Stop");
+  stopBtn.addEventListener("click", () => {
+    if (isRecordingThis) { finishRecording("stop"); return; }
+    if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
+  });
+
+  return el("div", { class: "sheet-actions" },
+    el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
+    el("button", {
+      disabled: sheet.barCount <= 1,
+      onclick: () => {
+        if (sheet.barCount <= 1) return;
+        pushUndo();
+        const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+        const toRemove = new Set();
+        for (const p of sheet.parts) {
+          for (const n of p.notes) {
+            if (n.start >= lastBarStart) toRemove.add(n.id);
+          }
+        }
+        if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
+        sheet.barCount -= 1;
+        renderAll();
+        persist();
+      },
+    }, "- Bar"),
+    el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
+    playBtn, stopBtn,
+    el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
+  );
+}
+
+async function deleteSheet(sheet) {
+  if (project.sheets.length <= 1) { alert("At least one sheet is required."); return; }
+  if (!(await confirmAsync("Delete this sheet and all its notes?"))) return;
+  if (playingSheetId === sheet.id) stopPlayback();
+  const removedIdx = project.sheets.findIndex(s => s.id === sheet.id);
+  if (removedIdx < 0) return;
+  project.sheets.splice(removedIdx, 1);
+  const next = project.sheets[removedIdx] || project.sheets[removedIdx - 1] || project.sheets[0];
+  activeSheetId = next ? next.id : null;
+  lastFocusedSheetId = activeSheetId;
+  renderAll();
+}
+
 function renderSheet(sheet, idx) {
   const sheetEl = el("div", { class: "sheet" });
   sheetEl.dataset.sheetId = sheet.id;
@@ -1510,67 +1604,7 @@ function renderSheet(sheet, idx) {
     oninput: (e) => { sheet.notes = e.target.value; persist(); },
   }, sheet.notes || "");
 
-  const isPlayingThis = playingSheetId === sheet.id;
-  const isPausedThis = pausedSheetId === sheet.id;
-  const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
-  const isRecordingThis = recordingSheetId === sheet.id;
-  const playBtn = el("button", {
-    class: "play" + (isPlayingThis ? " playing" : ""),
-    disabled: isRecordingThis,
-  }, playLabel);
-  playBtn.addEventListener("click", () => {
-    if (recordingState !== "idle") return;
-    if (playingSheetId === sheet.id) pausePlayback();
-    else if (pausedSheetId === sheet.id) resumePlayback(sheet);
-    else playSheet(sheet);
-  });
-  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis && !isRecordingThis }, "■ Stop");
-  stopBtn.addEventListener("click", () => {
-    if (isRecordingThis) { finishRecording("stop"); return; }
-    if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
-  });
-
-  const actions = el("div", { class: "sheet-actions" },
-    el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
-    el("button", {
-      disabled: sheet.barCount <= 1,
-      onclick: () => {
-        if (sheet.barCount <= 1) return;
-        pushUndo();
-        const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
-        const toRemove = new Set();
-        for (const p of sheet.parts) {
-          for (const n of p.notes) {
-            if (n.start >= lastBarStart) toRemove.add(n.id);
-          }
-        }
-        if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
-        sheet.barCount -= 1;
-        renderAll();
-        persist();
-      },
-    }, "- Bar"),
-    el("button", { onclick: () => { sheet.barCount += 1; renderAll(); } }, "+ Bar"),
-    playBtn, stopBtn,
-    el("button", { onclick: () => exportSheetMidi(sheet) }, "Export MIDI"),
-    el("button", {
-      onclick: async () => {
-        if (project.sheets.length <= 1) { alert("At least one sheet is required."); return; }
-        if (await confirmAsync("Delete this sheet and all its notes?")) {
-          if (playingSheetId === sheet.id) stopPlayback();
-          const removedIdx = project.sheets.findIndex(s => s.id === sheet.id);
-          project.sheets.splice(removedIdx, 1);
-          // pick neighbor as new active
-          const next = project.sheets[removedIdx] || project.sheets[removedIdx - 1] || project.sheets[0];
-          activeSheetId = next ? next.id : null;
-          lastFocusedSheetId = activeSheetId;
-          renderAll();
-        }
-      },
-    }, "✕ Sheet"),
-  );
-
-  const header = el("div", { class: "sheet-header" }, metaRow, notesArea, actions);
+  const header = el("div", { class: "sheet-header" }, metaRow, notesArea);
   sheetEl.appendChild(header);
 
   // Parts panel
@@ -3092,6 +3126,7 @@ document.addEventListener("pointerdown", (ev) => {
   const t = ev.target;
   if (!t || !t.closest) return;
   if (t.closest(".toolbar")) return;
+  if (t.closest(".footer")) return;
   if (t.closest("dialog")) return;
   if (t.closest(".tabstrip")) return;
   if (t.closest(".ctx-menu")) return;
