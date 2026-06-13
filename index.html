@@ -313,7 +313,7 @@
   .part-side {
     grid-column: 1;
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr;
     justify-items: center;
     row-gap: 6px;
     font-size: 10px;
@@ -333,16 +333,15 @@
     align-items: center;
     gap: 6px;
   }
-  .part-side .part-side-bottom {
-    grid-row: 3;
+  .part-side .part-ms-row {
+    grid-row: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding-top: 4px;
+    gap: 3px;
   }
   .part-side .part-name {
-    grid-row: 2;
+    grid-row: 3;
     align-self: center;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
@@ -2290,7 +2289,6 @@ function renderBand(sheet) {
       togglePartSolo(sheet, part);
     });
     const topActions = el("div", { class: "part-side-top" }, menuBtn);
-    const bottomActions = el("div", { class: "part-side-bottom" }, muteBtn, soloBtn);
     if (!rhythmPart) {
       const recDisabled = recordingState !== "idle" && !isRecHere;
       const recBtn = el("button", {
@@ -2305,8 +2303,10 @@ function renderBand(sheet) {
       });
       topActions.appendChild(recBtn);
     }
+    const msRow = el("div", { class: "part-ms-row" }, muteBtn, soloBtn);
     const side = el("div", { class: "part-side" },
       topActions,
+      msRow,
       el("input", {
         class: "part-name", type: "text", value: part.name,
         title: "Part name",
@@ -2318,7 +2318,6 @@ function renderBand(sheet) {
           persist();
         },
       }),
-      bottomActions,
     );
     const numRows = part.hi - part.lo + 1;
     const gridRow = el("div", { class: "bar-grid" });
