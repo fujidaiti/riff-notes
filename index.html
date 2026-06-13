@@ -370,6 +370,17 @@
   .note.drum-kick  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel); outline-offset: 1px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-hover); outline-offset: 1px; z-index: 2; }
+  .note-label {
+    position: absolute;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.55);
+    white-space: nowrap;
+    text-align: center;
+    z-index: 2;
+  }
   .cell-hover {
     position: fixed;
     pointer-events: none;
@@ -1599,6 +1610,61 @@ function renderBand(sheet) {
         openNoteContextMenu(ev, sheet, n);
       });
       wrap.appendChild(noteEl);
+    }
+
+    if (!rhythm) {
+      const LABEL_W = 14, LABEL_H = 12;
+      const wrapW = sheetSteps * cellW;
+      const wrapH = numRows * cellH;
+      const labeled = part.notes
+        .filter(n => n.pitch >= part.lo && n.pitch <= part.hi)
+        .map(n => ({
+          n,
+          x: noteFracStart(n) * cellW,
+          y: (part.hi - n.pitch) * cellH,
+          w: noteWidthPx(noteFracLength(n), cellW),
+          h: cellH,
+        }));
+      labeled.sort((a, b) => a.x - b.x || b.n.pitch - a.n.pitch);
+      const others = labeled.slice();
+      for (const r of labeled) {
+        const cxMid = r.x + r.w / 2;
+        const cyMid = r.y + r.h / 2;
+        const left = r.x - LABEL_W / 2;
+        const right = r.x + r.w + LABEL_W / 2;
+        const top = r.y - LABEL_H / 2;
+        const bot = r.y + r.h + LABEL_H / 2;
+        const candidates = [
+          { cx: right, cy: top },     // top-right corner
+          { cx: cxMid, cy: top },     // top-center
+          { cx: right, cy: cyMid },   // right
+          { cx: right, cy: bot },     // bottom-right corner
+          { cx: cxMid, cy: bot },     // bottom-center
+          { cx: left,  cy: bot },     // bottom-left corner
+          { cx: left,  cy: cyMid },   // left
+          { cx: left,  cy: top },     // top-left corner
+          { cx: cxMid, cy: cyMid },   // center (fallback)
+        ];
+        let chosen = candidates[candidates.length - 1];
+        for (const c of candidates) {
+          const lx = c.cx - LABEL_W / 2;
+          const ly = c.cy - LABEL_H / 2;
+          if (lx < 0 || ly < 0 || lx + LABEL_W > wrapW || ly + LABEL_H > wrapH) continue;
+          let hit = false;
+          for (const o of others) {
+            if (o === r) continue;
+            if (lx < o.x + o.w && lx + LABEL_W > o.x && ly < o.y + o.h && ly + LABEL_H > o.y) { hit = true; break; }
+          }
+          if (!hit) { chosen = c; break; }
+        }
+        const labelEl = el("span", { class: "note-label" });
+        labelEl.textContent = PITCH_NAMES[((r.n.pitch % 12) + 12) % 12];
+        labelEl.style.left = (chosen.cx - LABEL_W / 2) + "px";
+        labelEl.style.top = (chosen.cy - LABEL_H / 2) + "px";
+        labelEl.style.width = LABEL_W + "px";
+        labelEl.style.height = LABEL_H + "px";
+        wrap.appendChild(labelEl);
+      }
     }
 
     if (sheet.selectedCell &&
