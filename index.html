@@ -228,13 +228,11 @@
   .footer-actions button.repeat.active { background: var(--play-tint); }
 
   /* Parts panel (per-sheet) */
-  .parts-panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin-top: 6px; }
-  .parts-panel.hidden { display: none; }
-  .parts-panel h4 { margin: 0 0 6px; font-size: 12px; color: var(--ink-soft); }
-  .part-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
-  .part-row input[type=text] { flex: 0 0 160px; }
-  .part-row button { font-size: 11px; padding: 2px 6px; cursor: pointer; }
-  .range-controls { display: inline-flex; align-items: center; gap: 2px; }
+  .part-config-body { display: flex; flex-direction: column; gap: 8px; min-width: 280px; }
+  .part-config-row { display: flex; gap: 6px; align-items: center; }
+  .part-config-row > label { font-size: 11px; color: var(--ink-soft); flex: 0 0 70px; }
+  .part-config-row input[type=text] { flex: 1 1 auto; }
+  .range-controls { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
   .range-controls select { font-size: 12px; padding: 1px 2px; }
   .range-controls .range-sep { color: var(--ink-muted); padding: 0 4px; }
 
@@ -308,6 +306,22 @@
     align-items: center;
     justify-content: center;
   }
+  .part-menu-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-menu-btn:hover { border-color: var(--line); background: var(--input-bg); }
   .part-rec-btn:hover:not(:disabled) { border-color: #d23; }
   .part-rec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .part-rec-btn.recording { background: #d23; color: #fff; border-color: #d23; animation: rec-pulse 1s ease-in-out infinite; }
@@ -686,6 +700,13 @@
     <button id="alert-ok">OK</button>
   </div>
 </dialog>
+<dialog id="part-config-dialog">
+  <h3 id="part-config-title" style="margin:0 0 8px; font-size:14px;">Part</h3>
+  <div id="part-config-body" class="part-config-body"></div>
+  <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+    <button id="part-config-close" type="button">Close</button>
+  </div>
+</dialog>
 
 <script>
 (() => {
@@ -768,7 +789,6 @@ function makeSheet(title = "Sheet") {
     annotations: [],
     selectedNoteIds: new Set(),
     selectedCell: null,
-    partsPanelOpen: false,
     playStart: 0,
   };
 }
@@ -967,7 +987,7 @@ function redo() {
 
 // ---------- Persistence schema ----------
 // The persisted document is intentionally decoupled from the runtime project
-// model. View/runtime state (selectedNoteIds, partsPanelOpen, activeSheetId,
+// model. View/runtime state (selectedNoteIds, activeSheetId,
 // playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
 // changes and add a migration branch in deserializeProject.
 const SCHEMA_VERSION = 13;
@@ -1079,7 +1099,6 @@ function deserializeProject(doc) {
       // runtime/view state — never persisted, always defaulted
       selectedNoteIds: new Set(),
       selectedCell: null,
-      partsPanelOpen: false,
       playStart: 0,
     };
   });
@@ -1333,6 +1352,71 @@ function editAnnotation({ initialText = "", isEdit = false } = {}) {
     annotationDialog.showModal();
     setTimeout(() => annotationTextEl.focus(), 0);
   });
+}
+
+// ---------- Part config dialog ----------
+const partConfigDialog = document.getElementById("part-config-dialog");
+const partConfigTitleEl = document.getElementById("part-config-title");
+const partConfigBodyEl = document.getElementById("part-config-body");
+document.getElementById("part-config-close").addEventListener("click", () => partConfigDialog.close());
+
+function openPartConfig(sheet, part) {
+  populatePartConfig(sheet, part);
+  if (!partConfigDialog.open) partConfigDialog.showModal();
+}
+
+function populatePartConfig(sheet, part) {
+  partConfigTitleEl.textContent = part.name || "Part";
+  partConfigBodyEl.innerHTML = "";
+
+  const nameInput = el("input", {
+    type: "text",
+    value: part.name,
+    oninput: (e) => {
+      part.name = e.target.value;
+      partConfigTitleEl.textContent = part.name || "Part";
+      updatePartSideLabels(sheet.id, part.id, part.name);
+    },
+  });
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Name"),
+      nameInput,
+    )
+  );
+
+  const instSelect = el("select", { title: "Instrument" });
+  INSTRUMENT_OPTIONS.forEach(([id, label]) => {
+    instSelect.appendChild(el("option", { value: id, selected: id === part.instrument }, label));
+  });
+  instSelect.addEventListener("change", async (e) => {
+    await changePartInstrument(sheet, part, e.target.value);
+    populatePartConfig(sheet, part);
+  });
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Instrument"),
+      instSelect,
+    )
+  );
+
+  const rangeOrBadge = isRhythmPart(part)
+    ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Hi-hat / Snare / Kick"))
+    : el("div", { class: "range-controls" },
+        el("button", { title: "Lower the lowest visible pitch",  onclick: () => { stepRange(part, "lo", -1); populatePartConfig(sheet, part); } }, "−"),
+        makePitchSelect(PIANO_MIN, part.hi - 1, part.lo, (v) => { part.lo = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        el("button", { title: "Raise the lowest visible pitch",  onclick: () => { stepRange(part, "lo", +1); populatePartConfig(sheet, part); } }, "+"),
+        el("span", { class: "range-sep" }, "–"),
+        el("button", { title: "Lower the highest visible pitch", onclick: () => { stepRange(part, "hi", -1); populatePartConfig(sheet, part); } }, "−"),
+        makePitchSelect(part.lo + 1, PIANO_MAX, part.hi, (v) => { part.hi = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        el("button", { title: "Raise the highest visible pitch", onclick: () => { stepRange(part, "hi", +1); populatePartConfig(sheet, part); } }, "+"),
+      );
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Range"),
+      rangeOrBadge,
+    )
+  );
 }
 
 // ---------- Annotation operations ----------
@@ -1606,7 +1690,10 @@ function renderFooter(sheet) {
   });
 
   return el("div", { class: "sheet-actions" },
-    el("button", { onclick: () => { sheet.partsPanelOpen = !sheet.partsPanelOpen; renderAll(); } }, "Parts…"),
+    el("button", { onclick: () => {
+      sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`));
+      renderAll(); persist();
+    } }, "+ Add Part"),
     el("button", {
       disabled: sheet.barCount <= 1,
       onclick: () => {
@@ -1684,51 +1771,9 @@ function renderSheet(sheet, idx) {
   sheetEl.dataset.sheetId = sheet.id;
   sheetEl.addEventListener("pointerdown", () => { lastFocusedSheetId = sheet.id; }, true);
 
-  // Parts panel
-  if (sheet.partsPanelOpen) sheetEl.appendChild(renderPartsPanel(sheet));
-
   // Bands
   sheetEl.appendChild(renderBands(sheet));
   return sheetEl;
-}
-
-function renderPartsPanel(sheet) {
-  const panel = el("div", { class: "parts-panel" });
-  panel.appendChild(el("h4", {}, "Parts for this sheet (visible pitch range; hidden notes still play and export)"));
-  sheet.parts.forEach((p, idx) => {
-    const rangeOrBadge = isRhythmPart(p)
-      ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Hi-hat / Snare / Kick"))
-      : el("div", { class: "range-controls" },
-          el("button", { title: "Lower the lowest visible pitch",  onclick: () => stepRange(p, "lo", -1) }, "−"),
-          makePitchSelect(PIANO_MIN, p.hi - 1, p.lo, (v) => { p.lo = v; renderAll(); }, sheet),
-          el("button", { title: "Raise the lowest visible pitch",  onclick: () => stepRange(p, "lo", +1) }, "+"),
-          el("span", { class: "range-sep" }, "–"),
-          el("button", { title: "Lower the highest visible pitch", onclick: () => stepRange(p, "hi", -1) }, "−"),
-          makePitchSelect(p.lo + 1, PIANO_MAX, p.hi, (v) => { p.hi = v; renderAll(); }, sheet),
-          el("button", { title: "Raise the highest visible pitch", onclick: () => stepRange(p, "hi", +1) }, "+"),
-        );
-    const instSelect = el("select", { title: "Instrument" });
-    INSTRUMENT_OPTIONS.forEach(([id, label]) => {
-      instSelect.appendChild(el("option", { value: id, selected: id === p.instrument }, label));
-    });
-    instSelect.addEventListener("change", (e) => changePartInstrument(sheet, p, e.target.value));
-    const row = el("div", { class: "part-row" },
-      el("input", { type: "text", value: p.name, oninput: (e) => { p.name = e.target.value; updatePartSideLabels(sheet.id, p.id, p.name); } }),
-      instSelect,
-      rangeOrBadge,
-      el("button", { onclick: () => movePart(sheet, idx, -1) }, "▲"),
-      el("button", { onclick: () => movePart(sheet, idx, +1) }, "▼"),
-      el("button", { disabled: sheet.parts.length <= 1, onclick: () => deletePart(sheet, idx) }, "✕"),
-    );
-    panel.appendChild(row);
-  });
-  const addRow = el("div", { class: "part-row" },
-    el("button", {
-      onclick: () => { sheet.parts.push(makePart(`Part ${sheet.parts.length + 1}`)); renderAll(); },
-    }, "+ Add Part"),
-  );
-  panel.appendChild(addRow);
-  return panel;
 }
 
 function makePitchSelect(min, max, value, onChange, sheet) {
@@ -1796,14 +1841,6 @@ async function changePartInstrument(sheet, part, newId) {
   part.instrument = newId;
   renderAll();
   persist();
-}
-
-function movePart(sheet, idx, dir) {
-  const j = idx + dir;
-  if (j < 0 || j >= sheet.parts.length) return;
-  const [p] = sheet.parts.splice(idx, 1);
-  sheet.parts.splice(j, 0, p);
-  renderAll();
 }
 
 async function deletePart(sheet, idx) {
@@ -1892,7 +1929,27 @@ function renderBand(sheet) {
     partRow.dataset.partId = part.id;
     const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
     const rhythmPart = isRhythmPart(part);
+    const menuBtn = el("button", {
+      class: "part-menu-btn",
+      title: "Part menu",
+      type: "button",
+    }, "⋮");
+    menuBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const rect = menuBtn.getBoundingClientRect();
+      const items = [
+        { label: "Edit…", onClick: () => openPartConfig(sheet, part) },
+      ];
+      if (sheet.parts.length > 1) {
+        items.push({ label: "Delete", onClick: () => {
+          const idx = sheet.parts.indexOf(part);
+          if (idx >= 0) deletePart(sheet, idx);
+        } });
+      }
+      openContextMenu(rect.left, rect.bottom, items);
+    });
     const side = el("div", { class: "part-side" },
+      menuBtn,
       el("span", { class: "part-name" }, part.name),
     );
     if (!rhythmPart) {
