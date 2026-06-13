@@ -109,27 +109,25 @@
   .toolbar {
     position: sticky; top: 0; z-index: 20;
     flex-shrink: 0;
-    display: flex; flex-direction: column;
+    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+    padding: 8px 12px;
     background: var(--panel-bg);
     border-bottom: 1px solid var(--line);
   }
-  .toolbar-project {
-    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    padding: 8px 12px;
-  }
   .toolbar-sheet {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 6px 12px;
-    background: var(--bg);
-    border-top: 1px solid var(--line);
+    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+    flex: 1 1 auto; min-width: 0;
   }
   .toolbar-sheet:empty { display: none; }
+  .toolbar-sep { color: var(--ink-muted); padding: 0 2px; }
   .toolbar button, .toolbar input, .toolbar select { font-size: 13px; padding: 4px 8px; }
   .toolbar button { cursor: pointer; }
   .project-name {
     font-size: 15px; font-weight: 600;
     border: 1px solid transparent; background: transparent;
-    border-radius: 4px; padding: 4px 6px; min-width: 160px;
+    border-radius: 4px; padding: 4px 6px;
+    field-sizing: content;
+    min-width: 80px; max-width: 280px;
   }
   .project-name:hover, .project-name:focus { border-color: var(--line); background: var(--input-bg); outline: none; }
   .volume-control { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
@@ -200,12 +198,10 @@
     background: var(--sheet-bg);
     display: flex; flex-direction: column; min-height: 100%;
   }
-  .sheet-meta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .sheet-meta-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-soft); }
-  .sheet-meta-row input[type=number] { width: 60px; }
-  .sheet-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 220px; min-width: 160px; background: transparent; }
+  .sheet-meta-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+  .toolbar input[type=number] { width: 60px; }
+  .sheet-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 auto; min-width: 0; background: transparent; }
   .sheet-title:focus, .sheet-title:hover { border-color: var(--line); background: var(--input-bg); }
-  .sheet-notes { width: 100%; box-sizing: border-box; min-height: 36px; resize: vertical; padding: 4px 6px; font-family: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--input-bg); }
   .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .sheet-actions button.play.playing { background: var(--play-tint); }
@@ -724,11 +720,9 @@
 </head>
 <body>
 <div class="toolbar">
-  <div class="toolbar-project">
-    <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
-    <input type="file" id="file-load" accept="application/json,.json" class="hidden">
-    <span class="spacer"></span>
-  </div>
+  <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
+  <input type="file" id="file-load" accept="application/json,.json" class="hidden">
+  <span class="toolbar-sep">—</span>
   <div class="toolbar-sheet" id="toolbar-sheet"></div>
 </div>
 <div class="sheets" id="sheets"></div>
@@ -1865,17 +1859,11 @@ function renderSheetMeta(sheet) {
   PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === sheet.scale.root }, n)));
   const modeSelect = el("select", { onchange: (e) => { sheet.scale.mode = e.target.value; renderAll(); } });
   SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === sheet.scale.mode }, label)));
-  const metaRow = el("div", { class: "sheet-meta-row" },
-    titleInput,
-    el("label", {}, "BPM ", bpmInput),
-    el("label", {}, "Root ", rootSelect),
-    el("label", {}, "Mode ", modeSelect),
-  );
-  const notesArea = el("textarea", {
-    class: "sheet-notes", placeholder: "Notes for this sheet…",
-    oninput: (e) => { sheet.notes = e.target.value; persist(); },
-  }, sheet.notes || "");
-  return el("div", {}, metaRow, notesArea);
+  const frag = document.createDocumentFragment();
+  frag.appendChild(titleInput);
+  frag.appendChild(el("label", { class: "sheet-meta-label" }, "BPM ", bpmInput));
+  frag.appendChild(el("label", { class: "sheet-meta-label" }, "Scale ", rootSelect, modeSelect));
+  return frag;
 }
 
 function renderSheet(sheet, idx) {
