@@ -2223,6 +2223,9 @@ function removeLastBar(sheet) {
     }
   }
   if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
+  if (sheet.playStart >= lastBarStart) {
+    sheet.playStart = (sheet.barCount - 2) * STEPS_PER_BAR + (sheet.playStart % STEPS_PER_BAR);
+  }
   sheet.barCount -= 1;
   renderAll();
   persist();
