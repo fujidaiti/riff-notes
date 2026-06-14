@@ -870,6 +870,10 @@
     <label for="rec-auto-expand">Auto-expand range</label>
     <input type="checkbox" id="rec-auto-expand">
   </div>
+  <div class="rec-config-row">
+    <label for="rec-auto-append">Auto-append bars</label>
+    <input type="checkbox" id="rec-auto-append">
+  </div>
   <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
   <div class="rec-config-row">
     <label for="rec-quantize-pos">Position</label>
@@ -1624,6 +1628,14 @@ let recQuantizeLastPosSub = 0;
 let recQuantizeLastLenSub = 0;
 const recAutoExpandChk = document.getElementById("rec-auto-expand");
 let recAutoExpandRange = false;
+const recAutoAppendBarChk = document.getElementById("rec-auto-append");
+let recAutoAppendBar = false;
+let recAutoAddedBars = 0;
+
+function hasNotesInLastBar(sheet) {
+  const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+  return sheet.parts.some(p => p.notes.some(n => n.start >= lastBarStart));
+}
 
 function maybeAutoExpandRange(part, pitch) {
   if (!recAutoExpandRange) return;
@@ -1645,6 +1657,7 @@ function openRecConfigDialog(sheet) {
     recQuantizePosSel.value = String(recQuantizeLastPosSub);
     recQuantizeLenSel.value = String(recQuantizeLastLenSub);
     recAutoExpandChk.checked = recAutoExpandRange;
+    recAutoAppendBarChk.checked = recAutoAppendBar;
 
     const onStart = () => {
       const part = eligible.find(p => p.id === recPartSel.value);
@@ -1653,6 +1666,7 @@ function openRecConfigDialog(sheet) {
       recQuantizeLastPosSub = posSub;
       recQuantizeLastLenSub = lenSub;
       recAutoExpandRange = recAutoExpandChk.checked;
+      recAutoAppendBar = recAutoAppendBarChk.checked;
       cleanup();
       resolve(part ? { part, posSub, lenSub } : null);
     };
@@ -4605,6 +4619,12 @@ function beginRecordingPhase(sheet) {
     }
     scheduleUpcomingMetronome();
     growHeldNotes();
+    if (recAutoAppendBar && cur >= (sheet.barCount - 1) * STEPS_PER_BAR) {
+      sheet.barCount += 1;
+      recordingTotalSteps += STEPS_PER_BAR;
+      recAutoAddedBars += 1;
+      renderAll();
+    }
     if (cur >= recordingStartStep + recordingTotalSteps) {
       finishRecording("end");
       return;
@@ -4755,6 +4775,17 @@ function finishRecording(reason) {
   if (recordingCountInTimer) { clearTimeout(recordingCountInTimer); recordingCountInTimer = null; }
   for (const dispose of midiInputDisposers) { try { dispose(); } catch {} }
   midiInputDisposers = [];
+  // Drop trailing empty auto-added bars.
+  if (recAutoAddedBars > 0) {
+    const sheet = project.sheets.find(s => s.id === recordingSheetId);
+    if (sheet) {
+      while (recAutoAddedBars > 0 && sheet.barCount > 1 && !hasNotesInLastBar(sheet)) {
+        sheet.barCount -= 1;
+        recAutoAddedBars -= 1;
+      }
+    }
+    recAutoAddedBars = 0;
+  }
   // Commit the whole recording as one undo entry.
   if (recordingUndoSnap) {
     commitUndoSnapshot(recordingUndoSnap);
