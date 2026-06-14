@@ -1500,8 +1500,12 @@ let midiPreviewSubscribed = false;
 function focusedPartId(sheet) {
   if (!sheet) return null;
   if (sheet.selectedCell) return sheet.selectedCell.partId;
-  if (sheet.selectedNoteIds && sheet.selectedNoteIds.size > 0) return partOfSelection(sheet);
-  return null;
+  if (sheet.selectedNoteIds && sheet.selectedNoteIds.size > 0) {
+    const fromSel = partOfSelection(sheet);
+    if (fromSel) return fromSel;
+  }
+  const fallback = sheet.parts.find(p => !isRhythmPart(p));
+  return fallback ? fallback.id : null;
 }
 function previewMap(sheet) {
   if (!sheet._previewNotes) sheet._previewNotes = new Map();
