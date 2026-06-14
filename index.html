@@ -752,6 +752,11 @@
   }
   #annotation-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
   #annotation-dialog .actions .del { margin-right: auto; }
+  #quantize-dialog { max-width: 320px; }
+  #quantize-dialog .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }
+  #quantize-dialog .row label { font-size: 12px; color: var(--ink-soft); }
+  #quantize-dialog .row select { font: inherit; padding: 2px 4px; }
+  #quantize-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
 
   dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; background: var(--sheet-bg); color: var(--ink); }
   dialog::backdrop { background: var(--backdrop); }
@@ -805,6 +810,21 @@
     <button id="annotation-delete" class="del" type="button">Delete</button>
     <button id="annotation-cancel" type="button">Cancel</button>
     <button id="annotation-save" type="button">Save</button>
+  </div>
+</dialog>
+<dialog id="quantize-dialog">
+  <h3 style="margin:0 0 8px; font-size:14px;">Quantize selection</h3>
+  <div class="row">
+    <label for="quantize-pos">Position</label>
+    <select id="quantize-pos"></select>
+  </div>
+  <div class="row">
+    <label for="quantize-len">Length</label>
+    <select id="quantize-len"></select>
+  </div>
+  <div class="actions">
+    <button id="quantize-cancel" type="button">Cancel</button>
+    <button id="quantize-confirm" type="button">Apply</button>
   </div>
 </dialog>
 <div id="ctx-menu" class="ctx-menu"></div>
@@ -1560,6 +1580,60 @@ function editAnnotation({ initialText = "", isEdit = false } = {}) {
   });
 }
 
+// ---------- Quantize dialog ----------
+const quantizeDialog = document.getElementById("quantize-dialog");
+const quantizePosSel = document.getElementById("quantize-pos");
+const quantizeLenSel = document.getElementById("quantize-len");
+const quantizeConfirmBtn = document.getElementById("quantize-confirm");
+const quantizeCancelBtn = document.getElementById("quantize-cancel");
+
+// Grid sizes in sub-steps. 0 means "Don't change".
+const QUANTIZE_GRIDS = [
+  { label: "Don't change", sub: 0 },
+  { label: "1/64 note",    sub: 1 },
+  { label: "1/32 note",    sub: 2 },
+  { label: "1/16 note",    sub: 4 },
+  { label: "1/8 note",     sub: 8 },
+  { label: "1/4 note",     sub: 16 },
+  { label: "1/2 bar",      sub: 32 },
+  { label: "1 bar",        sub: 64 },
+];
+let quantizeLastPosSub = 4;
+let quantizeLastLenSub = 4;
+
+for (const sel of [quantizePosSel, quantizeLenSel]) {
+  for (const g of QUANTIZE_GRIDS) {
+    sel.appendChild(el("option", { value: String(g.sub) }, g.label));
+  }
+}
+
+function openQuantizeDialog() {
+  return new Promise(resolve => {
+    quantizePosSel.value = String(quantizeLastPosSub);
+    quantizeLenSel.value = String(quantizeLastLenSub);
+    const onConfirm = () => {
+      const posSub = parseInt(quantizePosSel.value, 10) || 0;
+      const lenSub = parseInt(quantizeLenSel.value, 10) || 0;
+      quantizeLastPosSub = posSub;
+      quantizeLastLenSub = lenSub;
+      cleanup(); resolve({ posSub, lenSub });
+    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    const cleanup = () => {
+      quantizeConfirmBtn.removeEventListener("click", onConfirm);
+      quantizeCancelBtn.removeEventListener("click", onCancel);
+      quantizeDialog.removeEventListener("keydown", onKey);
+      quantizeDialog.close();
+    };
+    quantizeConfirmBtn.addEventListener("click", onConfirm);
+    quantizeCancelBtn.addEventListener("click", onCancel);
+    quantizeDialog.addEventListener("keydown", onKey);
+    quantizeDialog.showModal();
+    setTimeout(() => quantizeConfirmBtn.focus(), 0);
+  });
+}
+
 // ---------- Part config dialog ----------
 const partConfigDialog = document.getElementById("part-config-dialog");
 const partConfigTitleEl = document.getElementById("part-config-title");
@@ -1760,6 +1834,49 @@ function deleteAnnotation(sheet, annotationId) {
   persist();
 }
 
+// ---------- Quantize operation ----------
+function quantizeSelection(sheet, noteIds, posSub, lenSub) {
+  if (!noteIds || noteIds.length === 0) return;
+  if (posSub <= 0 && lenSub <= 0) return;
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  const idSet = new Set(noteIds);
+  const targets = [];
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (idSet.has(n.id)) targets.push(n);
+    }
+  }
+  if (targets.length === 0) return;
+  let mutated = false;
+  let undoPushed = false;
+  for (const n of targets) {
+    const absSub = n.start * SUB_PER_STEP + (n.subOffset || 0);
+    const oldLenSub = n.length * SUB_PER_STEP + (n.subLength || 0);
+    let newLenSub = oldLenSub;
+    if (lenSub > 0) newLenSub = lenSub;
+    let newAbsSub = absSub;
+    if (posSub > 0) {
+      newAbsSub = Math.round(absSub / posSub) * posSub;
+    }
+    const maxAbsSub = Math.max(0, totalSheetSub - newLenSub);
+    if (newAbsSub < 0) newAbsSub = 0;
+    if (newAbsSub > maxAbsSub) newAbsSub = maxAbsSub;
+    if (newAbsSub === absSub && newLenSub === oldLenSub) continue;
+    if (!undoPushed) { pushUndo(); undoPushed = true; }
+    const newStart = Math.floor(newAbsSub / SUB_PER_STEP);
+    n.start = newStart;
+    n.subOffset = newAbsSub - newStart * SUB_PER_STEP;
+    const newLen = Math.floor(newLenSub / SUB_PER_STEP);
+    n.length = newLen;
+    n.subLength = newLenSub - newLen * SUB_PER_STEP;
+    mutated = true;
+  }
+  if (mutated) {
+    renderAll();
+    persist();
+  }
+}
+
 function openNoteContextMenu(ev, sheet, note) {
   // If right-clicked note isn't in the current selection, replace selection.
   if (!sheet.selectedNoteIds.has(note.id)) {
@@ -1779,6 +1896,14 @@ function openNoteContextMenu(ev, sheet, note) {
   items.push({
     label: "Annotate",
     onClick: () => createAnnotation(sheet, [...sheet.selectedNoteIds]),
+  });
+  items.push({
+    label: "Quantize…",
+    onClick: async () => {
+      const res = await openQuantizeDialog();
+      if (!res) return;
+      quantizeSelection(sheet, [...sheet.selectedNoteIds], res.posSub, res.lenSub);
+    },
   });
   openContextMenu(ev.clientX, ev.clientY, items);
 }
