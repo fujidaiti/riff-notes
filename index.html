@@ -3945,8 +3945,40 @@ document.addEventListener("keydown", (ev) => {
   }
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (ev.key === " " && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    ev.preventDefault();
+    if (recordingState !== "idle") {
+      finishRecording("stop");
+      return;
+    }
+    const playingSheet = project.sheets.find(s => s.id === playingSheetId);
+    const pausedSheet  = project.sheets.find(s => s.id === pausedSheetId);
+    const focusedSheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (playingSheet) pausePlayback();
+    else if (pausedSheet) resumePlayback(pausedSheet);
+    else if (focusedSheet) playSheet(focusedSheet);
+    return;
+  }
   if (recordingState !== "idle") return; // disable shortcuts during recording
 
+  if (ev.key === "Enter" && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    ev.preventDefault();
+    const playingSheet = project.sheets.find(s => s.id === playingSheetId);
+    const pausedSheet  = project.sheets.find(s => s.id === pausedSheetId);
+    const focusedSheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    const target = playingSheet || pausedSheet || focusedSheet;
+    if (!target) return;
+    target.playStart = 0;
+    if (playingSheet === target) {
+      playSheet(target, 0);
+    } else if (pausedSheet === target) {
+      pausedStep = 0;
+      updatePlayheadDom(target);
+    } else {
+      updatePlayheadDom(target);
+    }
+    return;
+  }
   if (isCreateModifier(ev) && (ev.key === "z" || ev.key === "Z")) {
     if (ev.shiftKey) redo(); else undo();
     ev.preventDefault();
@@ -4091,6 +4123,8 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + S`, "Download the project as a JSON file"],
     [`${MOD} + ←`, "Nudge selected notes back by 1/4 step"],
     [`${MOD} + →`, "Nudge selected notes forward by 1/4 step"],
+    ["Space", "Play / pause; stop recording if active"],
+    ["Enter", "Rewind to beginning; restart if playing"],
     ["Backspace / Delete", "Delete selected notes"],
     ["Q", "Open Quantize pane for the selected notes"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
@@ -4324,7 +4358,7 @@ function pausePlayback() {
 }
 
 function resumePlayback(sheet) {
-  const fromStep = Math.floor(pausedStep);
+  const fromStep = pausedStep;
   pausedSheetId = null;
   pausedStep = 0;
   playSheet(sheet, fromStep);
