@@ -589,12 +589,16 @@
   .note.drum-kick::before  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 2; }
-  .note.preview { pointer-events: none; cursor: default; }
-  .note.preview::before {
+  .row-preview {
+    position: absolute;
+    left: 0;
+    height: calc(var(--cell-h) - 2px);
+    border-radius: 2px;
     background: #4a8bd6;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+    opacity: var(--vel-opacity, 1);
+    pointer-events: none;
+    z-index: 0;
   }
-  .note.preview:hover { outline: none; }
   .note-label {
     position: absolute;
     pointer-events: none;
@@ -1533,16 +1537,6 @@ function midiVelToIdx(midiVel) {
   }
   return idx;
 }
-function currentPlayheadStep(sheet) {
-  if (playingSheetId === sheet.id && audioCtx) {
-    const elapsed = audioCtx.currentTime - playbackT0;
-    const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
-    const last = Math.max(0, totalSteps(sheet) - 1);
-    return Math.max(0, Math.min(last, Math.floor(cur)));
-  }
-  if (pausedSheetId === sheet.id) return Math.max(0, Math.min(totalSteps(sheet) - 1, Math.floor(pausedStep)));
-  return Math.max(0, Math.min(totalSteps(sheet) - 1, (sheet.playStart | 0) || 0));
-}
 function onMidiPreviewMessage(ev) {
   if (recordingState !== "idle") return;
   const data = ev.data;
@@ -1558,7 +1552,6 @@ function onMidiPreviewMessage(ev) {
     const part = sheet.parts.find(p => p.id === partId);
     if (!part) return;
     const velIdx = midiVelToIdx(vel);
-    const step = currentPlayheadStep(sheet);
     const inRange = pitch >= part.lo && pitch <= part.hi;
     let stopFn = null;
     try {
@@ -1568,7 +1561,7 @@ function onMidiPreviewMessage(ev) {
     if (inRange) {
       const prev = previewMap(sheet).get(pitch);
       if (prev && prev.stop) { try { prev.stop(); } catch {} }
-      previewMap(sheet).set(pitch, { partId, step, velIdx, stop: stopFn });
+      previewMap(sheet).set(pitch, { partId, velIdx, stop: stopFn });
       renderAll();
     } else if (stopFn) {
       // Out-of-range: still need to stop audio on note-off. Track without visual.
@@ -2989,13 +2982,12 @@ function renderBand(sheet) {
     }
 
     if (sheet._previewNotes && sheet._previewNotes.size > 0 && part.id === focusedPartId(sheet)) {
+      const stripW = sheetSteps * cellW;
       for (const [pitch, pv] of sheet._previewNotes) {
         if (pitch < part.lo || pitch > part.hi) continue;
-        if (pv.step < 0 || pv.step >= sheetSteps) continue;
-        const pEl = el("div", { class: "note preview" });
-        pEl.style.left = (pv.step * cellW) + "px";
-        pEl.style.top = ((part.hi - pitch) * cellH) + "px";
-        pEl.style.width = cellW + "px";
+        const pEl = el("div", { class: "row-preview" });
+        pEl.style.top = ((part.hi - pitch) * cellH + 1) + "px";
+        pEl.style.width = stripW + "px";
         pEl.style.setProperty('--vel-opacity', VEL_OPACITY[pv.velIdx]);
         wrap.appendChild(pEl);
       }
