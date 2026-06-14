@@ -2244,23 +2244,28 @@ function renderFooter(sheet) {
   const isPlayingThis = playingSheetId === sheet.id;
   const isPausedThis = pausedSheetId === sheet.id;
   const isRecordingThis = recordingSheetId === sheet.id;
+  // Another sheet may be playing/paused while the user views this one.
+  const isPlayingOther = !!playingSheetId && !isPlayingThis;
+  const isPausedOther = !!pausedSheetId && !isPausedThis;
+  const anythingActive = isPlayingThis || isPausedThis || isPlayingOther || isPausedOther || isRecordingThis;
   // During a take, playback is auto-driven by recording — show ▶ Play (disabled)
   // rather than ⏸ Pause so the button doesn't lie about what it can do.
-  const playLabel = isRecordingThis ? "▶ Play" : (isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play"));
+  const playLabel = isRecordingThis ? "▶ Play" : ((isPlayingThis || isPlayingOther) ? "⏸ Pause" : ((isPausedThis || isPausedOther) ? "▶ Resume" : "▶ Play"));
   const playBtn = el("button", {
-    class: "play" + (isPlayingThis && !isRecordingThis ? " playing" : ""),
+    class: "play" + ((isPlayingThis || isPlayingOther) && !isRecordingThis ? " playing" : ""),
     disabled: isRecordingThis,
   }, playLabel);
   playBtn.addEventListener("click", () => {
     if (recordingState !== "idle") return;
-    if (playingSheetId === sheet.id) pausePlayback();
+    if (playingSheetId) pausePlayback();
     else if (pausedSheetId === sheet.id) resumePlayback(sheet);
+    else if (pausedSheetId) resumePlayback(project.sheets.find(s => s.id === pausedSheetId));
     else playSheet(sheet);
   });
-  const stopBtn = el("button", { disabled: !isPlayingThis && !isPausedThis && !isRecordingThis }, "■ Stop");
+  const stopBtn = el("button", { disabled: !anythingActive }, "■ Stop");
   stopBtn.addEventListener("click", () => {
     if (isRecordingThis) { finishRecording("stop"); return; }
-    if (playingSheetId === sheet.id || pausedSheetId === sheet.id) stopPlayback();
+    if (playingSheetId || pausedSheetId) stopPlayback();
   });
 
   const recFooterBtn = el("button", {
