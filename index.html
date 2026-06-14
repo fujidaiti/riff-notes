@@ -109,11 +109,17 @@
   .toolbar {
     position: sticky; top: 0; z-index: 20;
     flex-shrink: 0;
-    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
-    padding: 8px 12px;
     background: var(--panel-bg);
     border-bottom: 1px solid var(--line);
   }
+  .titlebar {
+    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--line);
+  }
+  .titlebar button, .titlebar input, .titlebar select { font-size: 13px; padding: 4px 8px; }
+  .titlebar button { cursor: pointer; }
   .toolbar-sheet {
     display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
     flex: 1 1 auto; min-width: 0;
@@ -234,7 +240,6 @@
   .footer-actions {
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
     padding: 8px 12px; background: var(--panel-bg);
-    border-top: 1px solid var(--line);
   }
   .footer-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .footer-actions button.play.playing { background: var(--play-tint); }
@@ -791,15 +796,17 @@
 </head>
 <body>
 <div class="toolbar">
-  <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
-  <input type="file" id="file-load" accept="application/json,.json" class="hidden">
-  <span class="toolbar-sep">—</span>
-  <div class="toolbar-sheet" id="toolbar-sheet"></div>
+  <div class="footer-actions" id="footer-actions"></div>
 </div>
 <div class="sheets" id="sheets"></div>
 <div class="footer" id="footer">
   <div class="tabstrip" id="tabstrip"></div>
-  <div class="footer-actions" id="footer-actions"></div>
+  <div class="titlebar">
+    <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
+    <input type="file" id="file-load" accept="application/json,.json" class="hidden">
+    <span class="toolbar-sep">—</span>
+    <div class="toolbar-sheet" id="toolbar-sheet"></div>
+  </div>
 </div>
 <dialog id="help-dialog">
   <h3>Keyboard & mouse shortcuts</h3>
