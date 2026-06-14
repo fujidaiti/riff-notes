@@ -4393,54 +4393,59 @@ function handleNoteOn(pitch, midiVel) {
   const part = sheet.parts.find(p => p.id === recordingPartId);
   if (!part) return;
   const cur = currentRecordingStep();
-  const endStep = recordingStartStep + recordingTotalSteps;
-  let step = Math.round(cur);
-  if (step < recordingStartStep) step = recordingStartStep;
-  if (step >= endStep) step = endStep - 1;
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let curSubAbs = Math.round(cur * SUB_PER_STEP);
+  if (curSubAbs < recordingStartStep * SUB_PER_STEP) curSubAbs = recordingStartStep * SUB_PER_STEP;
+  if (curSubAbs >= endSubAbs) curSubAbs = endSubAbs - 1;
+  const start = Math.floor(curSubAbs / SUB_PER_STEP);
+  const subOffset = curSubAbs - start * SUB_PER_STEP;
   const velIdx = VEL_LABELS.indexOf("mf");
   if (recordingHeld.has(pitch)) {
-    finalizeHeldNote(pitch, step);
+    finalizeHeldNote(pitch, curSubAbs);
   }
   const note = {
     id: uid(),
     partId: recordingPartId,
     pitch,
-    start: step,
+    start,
     length: 1,
     vel: velIdx,
-    subOffset: 0,
+    subOffset,
     subLength: 0,
   };
   part.notes.push(note);
-  recordingHeld.set(pitch, { note, startStep: step });
+  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs });
   renderAll();
 }
 
 function handleNoteOff(pitch) {
   if (!recordingHeld.has(pitch)) return;
   const cur = currentRecordingStep();
-  const endStep = recordingStartStep + recordingTotalSteps;
-  let step = Math.round(cur);
-  if (step > endStep) step = endStep;
-  finalizeHeldNote(pitch, step);
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let curSubAbs = Math.round(cur * SUB_PER_STEP);
+  if (curSubAbs > endSubAbs) curSubAbs = endSubAbs;
+  finalizeHeldNote(pitch, curSubAbs);
 }
 
-function finalizeHeldNote(pitch, endStepAbs) {
+function finalizeHeldNote(pitch, endSubAbs) {
   const entry = recordingHeld.get(pitch);
   if (!entry) return;
   recordingHeld.delete(pitch);
-  updateHeldNoteLength(entry, endStepAbs);
+  updateHeldNoteLength(entry, endSubAbs);
 }
 
-function updateHeldNoteLength(entry, endStepAbs) {
+function updateHeldNoteLength(entry, endSubAbs) {
   const sheet = project.sheets.find(s => s.id === recordingSheetId);
   if (!sheet) return;
-  const totalSheetSteps = totalSteps(sheet);
-  const endCapped = Math.min(endStepAbs, totalSheetSteps);
-  const maxLen = totalSheetSteps - entry.startStep;
-  const newLen = Math.max(1, Math.min(endCapped - entry.startStep, maxLen));
-  if (newLen === entry.note.length) return;
-  entry.note.length = newLen;
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  const endCappedSub = Math.min(endSubAbs, totalSheetSub);
+  const maxLenSub = totalSheetSub - entry.startSubAbs;
+  const newLenSub = Math.max(1, Math.min(endCappedSub - entry.startSubAbs, maxLenSub));
+  const newLength = Math.floor(newLenSub / SUB_PER_STEP);
+  const newSubLength = newLenSub - newLength * SUB_PER_STEP;
+  if (entry.note.length === newLength && (entry.note.subLength || 0) === newSubLength) return;
+  entry.note.length = newLength;
+  entry.note.subLength = newSubLength;
   const part = sheet.parts.find(p => p.id === entry.note.partId);
   if (!part) return;
   if (entry.note.pitch < part.lo || entry.note.pitch > part.hi) return;
@@ -4453,27 +4458,27 @@ function updateHeldNoteLength(entry, endStepAbs) {
 function growHeldNotes() {
   if (recordingHeld.size === 0) return;
   const cur = currentRecordingStep();
-  const endStep = recordingStartStep + recordingTotalSteps;
-  const step = Math.min(Math.round(cur), endStep);
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  const curSubAbs = Math.min(Math.round(cur * SUB_PER_STEP), endSubAbs);
   for (const entry of recordingHeld.values()) {
-    updateHeldNoteLength(entry, step);
+    updateHeldNoteLength(entry, curSubAbs);
   }
 }
 
 function finishRecording(reason) {
   if (recordingState === "idle") return;
-  // Close any still-held notes at the current step (clamped to end).
-  const endStep = recordingStartStep + recordingTotalSteps;
-  let closeStep;
+  // Close any still-held notes at the current sub-step (clamped to end).
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let closeSubAbs;
   if (recordingState === "recording") {
     const cur = currentRecordingStep();
-    closeStep = Math.min(Math.round(cur), endStep);
+    closeSubAbs = Math.min(Math.round(cur * SUB_PER_STEP), endSubAbs);
   } else {
     // Stopped during count-in: no notes were recorded.
-    closeStep = recordingStartStep;
+    closeSubAbs = recordingStartStep * SUB_PER_STEP;
   }
   for (const pitch of Array.from(recordingHeld.keys())) {
-    finalizeHeldNote(pitch, closeStep);
+    finalizeHeldNote(pitch, closeSubAbs);
   }
   if (recordingRaf) { cancelAnimationFrame(recordingRaf); recordingRaf = null; }
   if (recordingCountInTimer) { clearTimeout(recordingCountInTimer); recordingCountInTimer = null; }
