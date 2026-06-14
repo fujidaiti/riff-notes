@@ -1596,15 +1596,18 @@ function subscribePreviewToInput(input) {
 function unsubscribePreviewFromInput(input) {
   input.removeEventListener("midimessage", onMidiPreviewMessage);
 }
-function startSustainedPreviewTone(sheet, part, pitch, velIdx) {
+function startSustainedPreviewTone(sheet, part, pitch, velIdx, opts) {
   if (!audioCtx) return null;
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
   if (isRhythmPart(part)) {
     // Drums are inherently percussive — fire and forget.
-    auditionNote(sheet, { id: "_preview", partId: part.id, pitch, start: 0, length: 1, vel: velIdx });
+    auditionNote(sheet, { id: "_preview", partId: part.id, pitch, start: 0, length: 1, vel: velIdx }, { bypassPartGain });
     return null;
   }
   ensurePartGainNodes(sheet);
-  const dest = partDestFor(sheet, part) || masterGain || audioCtx.destination;
+  const dest = bypassPartGain
+    ? (masterGain || audioCtx.destination)
+    : (partDestFor(sheet, part) || masterGain || audioCtx.destination);
   const peak = VEL_GAIN[velIdx];
   const freq = 440 * Math.pow(2, (pitch - 69) / 12);
   const osc = audioCtx.createOscillator();
@@ -4671,14 +4674,15 @@ function scheduleDrum(when, durSec, drumKey, vel, dest) {
   for (const s of stops) activeOscillators.push(s);
 }
 
-function auditionNote(sheet, note) {
+function auditionNote(sheet, note, opts) {
   ensureAudio();
   const secPerStep = 60 / sheet.bpm / 4;
   const dur = secPerStep * 0.95;
   const when = audioCtx.currentTime + 0.005;
   const part = sheet.parts.find(p => p.id === note.partId);
   ensurePartGainNodes(sheet);
-  const dest = partDestFor(sheet, part);
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
+  const dest = bypassPartGain ? (masterGain || audioCtx.destination) : partDestFor(sheet, part);
   if (part && isRhythmPart(part)) {
     const key = RHYTHM_KEYS[part.hi - note.pitch];
     if (key) scheduleDrum(when, dur, key, note.vel, dest);
@@ -4964,7 +4968,7 @@ function handleNoteOn(pitch, midiVel) {
   }
   const start = Math.floor(curSubAbs / SUB_PER_STEP);
   const subOffset = curSubAbs - start * SUB_PER_STEP;
-  const velIdx = VEL_LABELS.indexOf("mf");
+  const velIdx = midiVelToIdx(midiVel);
   if (recordingHeld.has(pitch)) {
     finalizeHeldNote(pitch, curSubAbs);
   }
@@ -4980,7 +4984,12 @@ function handleNoteOn(pitch, midiVel) {
   };
   part.notes.push(note);
   maybeAutoExpandRange(part, pitch);
-  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs });
+  let stopMonitor = null;
+  try {
+    ensureAudio();
+    stopMonitor = startSustainedPreviewTone(sheet, part, pitch, velIdx, { bypassPartGain: true });
+  } catch {}
+  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs, stopMonitor });
   renderAll();
 }
 
@@ -4997,6 +5006,7 @@ function finalizeHeldNote(pitch, endSubAbs) {
   const entry = recordingHeld.get(pitch);
   if (!entry) return;
   recordingHeld.delete(pitch);
+  if (entry.stopMonitor) { try { entry.stopMonitor(); } catch {} }
   updateHeldNoteLength(entry, endSubAbs);
 }
 
