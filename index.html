@@ -884,6 +884,10 @@
     <label for="rec-auto-append">Auto-append bars</label>
     <input type="checkbox" id="rec-auto-append">
   </div>
+  <div class="rec-config-row">
+    <label for="rec-bpm-override">BPM</label>
+    <input type="number" id="rec-bpm-override" min="20" max="300" step="1" style="font: inherit; padding: 2px 4px; width: 70px;">
+  </div>
   <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
   <div class="rec-config-row">
     <label for="rec-quantize-pos">Position</label>
@@ -1474,6 +1478,7 @@ let recordingHeld = new Map(); // midiPitch -> { startStep, velIdx }
 let recordingUndoSnap = null;
 let recordingRaf = null;
 let recordingCountInTimer = null;
+let recordingOriginalBpm = 0;
 let metronomeNextBeat = 0; // next absolute step index to schedule a click for
 let midiAccess = null;
 let midiInputDisposers = [];
@@ -1641,6 +1646,28 @@ let recAutoExpandRange = false;
 const recAutoAppendBarChk = document.getElementById("rec-auto-append");
 let recAutoAppendBar = false;
 let recAutoAddedBars = 0;
+const recBpmOverrideInput = document.getElementById("rec-bpm-override");
+// Per-sheet recording BPM override (was previously a single global)., persisted in localStorage only (NOT in the
+// JSON document). Map of sheetId -> bpm (1..300). Missing/0 means "use sheet.bpm".
+const REC_BPM_KEY = "midi-editor:rec-bpm";
+function loadRecBpmMap() {
+  try {
+    const raw = localStorage.getItem(REC_BPM_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return (obj && typeof obj === "object") ? obj : {};
+  } catch { return {}; }
+}
+function getRecBpmForSheet(sheetId) {
+  const v = loadRecBpmMap()[sheetId];
+  return (typeof v === "number" && v >= 20 && v <= 300) ? v : 0;
+}
+function setRecBpmForSheet(sheetId, bpm) {
+  const map = loadRecBpmMap();
+  if (bpm > 0) map[sheetId] = bpm;
+  else delete map[sheetId];
+  try { localStorage.setItem(REC_BPM_KEY, JSON.stringify(map)); } catch {}
+}
 
 function hasNotesInLastBar(sheet) {
   const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
@@ -1668,6 +1695,9 @@ function openRecConfigDialog(sheet) {
     recQuantizeLenSel.value = String(recQuantizeLastLenSub);
     recAutoExpandChk.checked = recAutoExpandRange;
     recAutoAppendBarChk.checked = recAutoAppendBar;
+    recBpmOverrideInput.placeholder = String(sheet.bpm);
+    const sheetRecBpm = getRecBpmForSheet(sheet.id);
+    recBpmOverrideInput.value = sheetRecBpm > 0 ? String(sheetRecBpm) : "";
 
     const onStart = () => {
       const part = eligible.find(p => p.id === recPartSel.value);
@@ -1677,8 +1707,11 @@ function openRecConfigDialog(sheet) {
       recQuantizeLastLenSub = lenSub;
       recAutoExpandRange = recAutoExpandChk.checked;
       recAutoAppendBar = recAutoAppendBarChk.checked;
+      const bpmRaw = parseInt(recBpmOverrideInput.value, 10);
+      const bpmOverride = (Number.isFinite(bpmRaw) && bpmRaw >= 20 && bpmRaw <= 300) ? bpmRaw : 0;
+      setRecBpmForSheet(sheet.id, bpmOverride);
       cleanup();
-      resolve(part ? { part, posSub, lenSub } : null);
+      resolve(part ? { part, posSub, lenSub, bpmOverride } : null);
     };
     const onCancel = () => { cleanup(); resolve(null); };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
@@ -2270,7 +2303,7 @@ function renderFooter(sheet) {
   }, el("span", { style: "color:#d23" }, "●"), " Rec");
   recFooterBtn.addEventListener("click", async () => {
     const res = await openRecConfigDialog(sheet);
-    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub);
+    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
   });
 
   const menuBtn = el("button", {
@@ -2346,6 +2379,7 @@ function renderSheetMeta(sheet) {
   let bpmEditStartValue = null;
   const bpmInput = el("input", {
     type: "number", min: 20, max: 300, value: sheet.bpm,
+    disabled: recordingState !== "idle",
     onfocus: () => { bpmEditSnap = snapshotProject(); bpmEditStartValue = sheet.bpm; },
     oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) sheet.bpm = v; persist(); },
     onchange: () => {
@@ -2629,7 +2663,7 @@ function renderBand(sheet) {
       recBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         if (isRecHere) finishRecording("stop");
-        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub);
+        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
       });
       topActions.appendChild(recBtn);
     }
@@ -4579,7 +4613,7 @@ function currentRecordingStep() {
   return recordingStartStep + elapsed / recordingSecPerStep;
 }
 
-async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
+async function startRecording(sheet, part, posSub = 0, lenSub = 0, bpmOverride = 0) {
   if (recordingState !== "idle") return;
   if (playingSheetId || pausedSheetId) stopPlayback();
   // Note: we DO start playback ourselves at beginRecordingPhase so the user
@@ -4615,6 +4649,8 @@ async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
   recordingQuantizePosSub = posSub;
   recordingQuantizeLenSub = lenSub;
   recordingStartStep = effectiveStart;
+  recordingOriginalBpm = sheet.bpm;
+  if (bpmOverride > 0) sheet.bpm = bpmOverride;
   recordingSecPerStep = 60 / sheet.bpm / 4;
   recordingTotalSteps = totalSheetSteps - effectiveStart;
   recordingHeld = new Map();
@@ -4831,6 +4867,14 @@ function finishRecording(reason) {
       }
     }
     recAutoAddedBars = 0;
+  }
+  // Restore sheet.bpm if a per-take BPM override swapped it. Done before the
+  // undo commit so both the snapshot (taken pre-swap) and the current state
+  // reflect the real sheet BPM — the override never enters persisted state.
+  if (recordingOriginalBpm > 0) {
+    const sheetForBpm = project.sheets.find(s => s.id === recordingSheetId);
+    if (sheetForBpm) sheetForBpm.bpm = recordingOriginalBpm;
+    recordingOriginalBpm = 0;
   }
   // Commit the whole recording as one undo entry.
   if (recordingUndoSnap) {
