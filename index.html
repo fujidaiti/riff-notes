@@ -300,21 +300,21 @@
     column-gap: 8px;
     align-items: center;
   }
-  .part-bar-actions {
+  .ruler-bar-actions {
     grid-column: 3;
-    align-self: stretch;
+    grid-row: 2;
     display: flex;
-    flex-direction: column;
-    width: 18px;
-    gap: 6px;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
   }
   .part-bar-btn {
-    flex: 1 1 0;
-    min-height: 0;
+    width: 28px;
+    height: 18px;
     border: 1px solid var(--line);
     background: var(--input-bg);
     color: var(--ink-soft);
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1;
     padding: 0;
     cursor: pointer;
@@ -486,7 +486,8 @@
   .band-ruler {
     grid-column: 2;
     grid-row: 2;
-    margin-top: 2px;
+    display: flex;
+    align-items: center;
   }
   .ruler-track {
     position: relative;
@@ -2518,6 +2519,27 @@ function renderBand(sheet) {
   rulerRow.appendChild(track);
   headerEl.appendChild(rulerRow);
 
+  const removeBarBtn = el("button", {
+    class: "part-bar-btn",
+    type: "button",
+    title: "Remove last bar",
+    disabled: sheet.barCount <= 1,
+  }, "−");
+  removeBarBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    removeLastBar(sheet);
+  });
+  const addBarBtn = el("button", {
+    class: "part-bar-btn",
+    type: "button",
+    title: "Add bar",
+  }, "+");
+  addBarBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    addBar(sheet);
+  });
+  headerEl.appendChild(el("div", { class: "ruler-bar-actions" }, removeBarBtn, addBarBtn));
+
   // Rows: one per part
   const scaleSet = inScaleSet(sheet);
   const appendInsertGap = (insertAt, gridRow) => {
@@ -2754,30 +2776,8 @@ function renderBand(sheet) {
 
     wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap));
 
-    const addBarBtn = el("button", {
-      class: "part-bar-btn",
-      type: "button",
-      title: "Add bar",
-    }, "+");
-    addBarBtn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      addBar(sheet);
-    });
-    const removeBarBtn = el("button", {
-      class: "part-bar-btn",
-      type: "button",
-      title: "Remove last bar",
-      disabled: sheet.barCount <= 1,
-    }, "-");
-    removeBarBtn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      removeLastBar(sheet);
-    });
-    const barActions = el("div", { class: "part-bar-actions" }, addBarBtn, removeBarBtn);
-
     partRow.appendChild(side);
     partRow.appendChild(gridRow);
-    partRow.appendChild(barActions);
     bandEl.appendChild(partRow);
   });
   appendInsertGap(sheet.parts.length, 3 + 2 * sheet.parts.length);
