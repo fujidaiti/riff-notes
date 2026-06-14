@@ -866,6 +866,15 @@
     <label for="rec-part-sel">Part</label>
     <select id="rec-part-sel"></select>
   </div>
+  <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
+  <div class="rec-config-row">
+    <label for="rec-quantize-pos">Position</label>
+    <select id="rec-quantize-pos"></select>
+  </div>
+  <div class="rec-config-row">
+    <label for="rec-quantize-len">Length</label>
+    <select id="rec-quantize-len"></select>
+  </div>
   <p id="rec-config-hint" style="display:none; font-size:11px; color:var(--ink-soft); margin:4px 0 0;">No recordable parts in this sheet.</p>
   <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
     <button id="rec-config-cancel" type="button">Cancel</button>
@@ -1437,6 +1446,8 @@ let repeatEnabled = false;
 let recordingSheetId = null;
 let recordingPartId = null;
 let recordingState = "idle"; // "idle" | "count-in" | "recording"
+let recordingQuantizePosSub = 0;
+let recordingQuantizeLenSub = 0;
 let recordingT0 = 0;
 let recordingStartStep = 0;
 let recordingSecPerStep = 0;
@@ -1598,11 +1609,15 @@ function editAnnotation({ initialText = "", isEdit = false } = {}) {
 }
 
 // ---------- Rec config dialog ----------
-const recConfigDialog = document.getElementById("rec-config-dialog");
-const recPartSel      = document.getElementById("rec-part-sel");
-const recConfigCancel = document.getElementById("rec-config-cancel");
-const recConfigStart  = document.getElementById("rec-config-start");
-const recConfigHint   = document.getElementById("rec-config-hint");
+const recConfigDialog  = document.getElementById("rec-config-dialog");
+const recPartSel       = document.getElementById("rec-part-sel");
+const recQuantizePosSel = document.getElementById("rec-quantize-pos");
+const recQuantizeLenSel = document.getElementById("rec-quantize-len");
+const recConfigCancel  = document.getElementById("rec-config-cancel");
+const recConfigStart   = document.getElementById("rec-config-start");
+const recConfigHint    = document.getElementById("rec-config-hint");
+let recQuantizeLastPosSub = 0;
+let recQuantizeLastLenSub = 0;
 
 function openRecConfigDialog(sheet) {
   return new Promise(resolve => {
@@ -1615,11 +1630,17 @@ function openRecConfigDialog(sheet) {
     recPartSel.disabled = !hasEligible;
     recConfigStart.disabled = !hasEligible;
     recConfigHint.style.display = hasEligible ? "none" : "";
+    recQuantizePosSel.value = String(recQuantizeLastPosSub);
+    recQuantizeLenSel.value = String(recQuantizeLastLenSub);
 
     const onStart = () => {
       const part = eligible.find(p => p.id === recPartSel.value);
+      const posSub = parseInt(recQuantizePosSel.value, 10) || 0;
+      const lenSub = parseInt(recQuantizeLenSel.value, 10) || 0;
+      recQuantizeLastPosSub = posSub;
+      recQuantizeLastLenSub = lenSub;
       cleanup();
-      resolve(part ?? null);
+      resolve(part ? { part, posSub, lenSub } : null);
     };
     const onCancel = () => { cleanup(); resolve(null); };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
@@ -1658,7 +1679,7 @@ const QUANTIZE_GRIDS = [
 let quantizeLastPosSub = 4;
 let quantizeLastLenSub = 4;
 
-for (const sel of [quantizePosSel, quantizeLenSel]) {
+for (const sel of [quantizePosSel, quantizeLenSel, recQuantizePosSel, recQuantizeLenSel]) {
   for (const g of QUANTIZE_GRIDS) {
     sel.appendChild(el("option", { value: String(g.sub) }, g.label));
   }
@@ -2207,8 +2228,8 @@ function renderFooter(sheet) {
     title: "Record MIDI into a part",
   }, el("span", { style: "color:#d23" }, "●"), " Rec");
   recFooterBtn.addEventListener("click", async () => {
-    const part = await openRecConfigDialog(sheet);
-    if (part) startRecording(sheet, part);
+    const res = await openRecConfigDialog(sheet);
+    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub);
   });
 
   const menuBtn = el("button", {
@@ -2546,7 +2567,7 @@ function renderBand(sheet) {
       recBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         if (isRecHere) finishRecording("stop");
-        else startRecording(sheet, part);
+        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub);
       });
       topActions.appendChild(recBtn);
     }
@@ -4484,7 +4505,7 @@ function currentRecordingStep() {
   return recordingStartStep + elapsed / recordingSecPerStep;
 }
 
-async function startRecording(sheet, part) {
+async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
   if (recordingState !== "idle") return;
   if (playingSheetId || pausedSheetId) stopPlayback();
   // Note: we DO start playback ourselves at beginRecordingPhase so the user
@@ -4517,6 +4538,8 @@ async function startRecording(sheet, part) {
   recordingUndoSnap = snapshotProject();
   recordingSheetId = sheet.id;
   recordingPartId = part.id;
+  recordingQuantizePosSub = posSub;
+  recordingQuantizeLenSub = lenSub;
   recordingStartStep = effectiveStart;
   recordingSecPerStep = 60 / sheet.bpm / 4;
   recordingTotalSteps = totalSheetSteps - effectiveStart;
@@ -4618,6 +4641,11 @@ function handleNoteOn(pitch, midiVel) {
   let curSubAbs = Math.round(cur * SUB_PER_STEP);
   if (curSubAbs < recordingStartStep * SUB_PER_STEP) curSubAbs = recordingStartStep * SUB_PER_STEP;
   if (curSubAbs >= endSubAbs) curSubAbs = endSubAbs - 1;
+  if (recordingQuantizePosSub > 0) {
+    curSubAbs = Math.round(curSubAbs / recordingQuantizePosSub) * recordingQuantizePosSub;
+    const startSub = recordingStartStep * SUB_PER_STEP;
+    curSubAbs = Math.max(startSub, Math.min(curSubAbs, endSubAbs - 1));
+  }
   const start = Math.floor(curSubAbs / SUB_PER_STEP);
   const subOffset = curSubAbs - start * SUB_PER_STEP;
   const velIdx = VEL_LABELS.indexOf("mf");
@@ -4661,7 +4689,14 @@ function updateHeldNoteLength(entry, endSubAbs) {
   const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
   const endCappedSub = Math.min(endSubAbs, totalSheetSub);
   const maxLenSub = totalSheetSub - entry.startSubAbs;
-  const newLenSub = Math.max(1, Math.min(endCappedSub - entry.startSubAbs, maxLenSub));
+  let newLenSub = Math.max(1, Math.min(endCappedSub - entry.startSubAbs, maxLenSub));
+  if (recordingQuantizeLenSub > 0) {
+    newLenSub = Math.max(
+      recordingQuantizeLenSub,
+      Math.round(newLenSub / recordingQuantizeLenSub) * recordingQuantizeLenSub
+    );
+    newLenSub = Math.min(newLenSub, maxLenSub);
+  }
   const newLength = Math.floor(newLenSub / SUB_PER_STEP);
   const newSubLength = newLenSub - newLength * SUB_PER_STEP;
   if (entry.note.length === newLength && (entry.note.subLength || 0) === newSubLength) return;
