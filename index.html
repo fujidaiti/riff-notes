@@ -589,6 +589,12 @@
   .note.drum-kick::before  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 2; }
+  .note.preview { pointer-events: none; cursor: default; }
+  .note.preview::before {
+    background: #4a8bd6;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+  }
+  .note.preview:hover { outline: none; }
   .note-label {
     position: absolute;
     pointer-events: none;
@@ -1482,6 +1488,163 @@ let recordingOriginalBpm = 0;
 let metronomeNextBeat = 0; // next absolute step index to schedule a click for
 let midiAccess = null;
 let midiInputDisposers = [];
+let midiPreviewSubscribed = false;
+
+// ---------- MIDI input preview (runtime only) ----------
+// Per-sheet: sheet._previewNotes is a Map<midiPitch, { partId, step, velIdx }>.
+// Lazily created; never persisted (serializeProject ignores _-prefixed fields).
+function focusedPartId(sheet) {
+  if (!sheet) return null;
+  if (sheet.selectedCell) return sheet.selectedCell.partId;
+  if (sheet.selectedNoteIds && sheet.selectedNoteIds.size > 0) return partOfSelection(sheet);
+  return null;
+}
+function previewMap(sheet) {
+  if (!sheet._previewNotes) sheet._previewNotes = new Map();
+  return sheet._previewNotes;
+}
+function stopAllPreviewAudio(sheet) {
+  if (!sheet) return;
+  if (sheet._previewNotes) {
+    for (const e of sheet._previewNotes.values()) {
+      if (e && e.stop) { try { e.stop(); } catch {} }
+    }
+  }
+  if (sheet._previewAudioOnly) {
+    for (const stop of sheet._previewAudioOnly.values()) {
+      if (stop) { try { stop(); } catch {} }
+    }
+    sheet._previewAudioOnly.clear();
+  }
+}
+function clearPreviewNotes(sheet) {
+  stopAllPreviewAudio(sheet);
+  if (sheet && sheet._previewNotes && sheet._previewNotes.size > 0) {
+    sheet._previewNotes.clear();
+  }
+}
+function midiVelToIdx(midiVel) {
+  // Same bucket boundaries as VEL_MIDI thresholds — pick the closest index.
+  let idx = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < VEL_MIDI.length; i++) {
+    const d = Math.abs(midiVel - VEL_MIDI[i]);
+    if (d < bestDiff) { bestDiff = d; idx = i; }
+  }
+  return idx;
+}
+function currentPlayheadStep(sheet) {
+  if (playingSheetId === sheet.id && audioCtx) {
+    const elapsed = audioCtx.currentTime - playbackT0;
+    const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+    const last = Math.max(0, totalSteps(sheet) - 1);
+    return Math.max(0, Math.min(last, Math.floor(cur)));
+  }
+  if (pausedSheetId === sheet.id) return Math.max(0, Math.min(totalSteps(sheet) - 1, Math.floor(pausedStep)));
+  return Math.max(0, Math.min(totalSteps(sheet) - 1, (sheet.playStart | 0) || 0));
+}
+function onMidiPreviewMessage(ev) {
+  if (recordingState !== "idle") return;
+  const data = ev.data;
+  if (!data || data.length < 2) return;
+  const status = data[0] & 0xf0;
+  const pitch = data[1];
+  const vel = data.length > 2 ? data[2] : 0;
+  const sheet = project.sheets.find(s => s.id === activeSheetId);
+  if (!sheet) return;
+  if (status === 0x90 && vel > 0) {
+    const partId = focusedPartId(sheet);
+    if (!partId) return;
+    const part = sheet.parts.find(p => p.id === partId);
+    if (!part) return;
+    const velIdx = midiVelToIdx(vel);
+    const step = currentPlayheadStep(sheet);
+    const inRange = pitch >= part.lo && pitch <= part.hi;
+    let stopFn = null;
+    try {
+      ensureAudio();
+      stopFn = startSustainedPreviewTone(sheet, part, pitch, velIdx);
+    } catch {}
+    if (inRange) {
+      const prev = previewMap(sheet).get(pitch);
+      if (prev && prev.stop) { try { prev.stop(); } catch {} }
+      previewMap(sheet).set(pitch, { partId, step, velIdx, stop: stopFn });
+      renderAll();
+    } else if (stopFn) {
+      // Out-of-range: still need to stop audio on note-off. Track without visual.
+      if (!sheet._previewAudioOnly) sheet._previewAudioOnly = new Map();
+      const prev = sheet._previewAudioOnly.get(pitch);
+      if (prev) { try { prev(); } catch {} }
+      sheet._previewAudioOnly.set(pitch, stopFn);
+    }
+  } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+    let changed = false;
+    if (sheet._previewNotes && sheet._previewNotes.has(pitch)) {
+      const entry = sheet._previewNotes.get(pitch);
+      if (entry && entry.stop) { try { entry.stop(); } catch {} }
+      sheet._previewNotes.delete(pitch);
+      changed = true;
+    }
+    if (sheet._previewAudioOnly && sheet._previewAudioOnly.has(pitch)) {
+      const stop = sheet._previewAudioOnly.get(pitch);
+      if (stop) { try { stop(); } catch {} }
+      sheet._previewAudioOnly.delete(pitch);
+    }
+    if (changed) renderAll();
+  }
+}
+function subscribePreviewToInput(input) {
+  input.addEventListener("midimessage", onMidiPreviewMessage);
+}
+function unsubscribePreviewFromInput(input) {
+  input.removeEventListener("midimessage", onMidiPreviewMessage);
+}
+function startSustainedPreviewTone(sheet, part, pitch, velIdx) {
+  if (!audioCtx) return null;
+  if (isRhythmPart(part)) {
+    // Drums are inherently percussive — fire and forget.
+    auditionNote(sheet, { id: "_preview", partId: part.id, pitch, start: 0, length: 1, vel: velIdx });
+    return null;
+  }
+  ensurePartGainNodes(sheet);
+  const dest = partDestFor(sheet, part) || masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[velIdx];
+  const freq = 440 * Math.pow(2, (pitch - 69) / 12);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const t0 = audioCtx.currentTime;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(peak, t0 + 0.01);
+  osc.connect(gain).connect(dest);
+  osc.start(t0);
+  return () => {
+    const tOff = audioCtx.currentTime;
+    try {
+      gain.gain.cancelScheduledValues(tOff);
+      gain.gain.setValueAtTime(gain.gain.value, tOff);
+      gain.gain.linearRampToValueAtTime(0.0001, tOff + 0.05);
+      osc.stop(tOff + 0.08);
+      setTimeout(() => { try { osc.disconnect(); gain.disconnect(); } catch {} }, 200);
+    } catch {}
+  };
+}
+
+function initMidiInput() {
+  if (!navigator.requestMIDIAccess) return;
+  navigator.requestMIDIAccess({ sysex: false }).then(access => {
+    midiAccess = access;
+    midiPreviewSubscribed = true;
+    access.inputs.forEach(subscribePreviewToInput);
+    access.addEventListener("statechange", (e) => {
+      const port = e.port;
+      if (!port || port.type !== "input") return;
+      if (port.state === "connected") subscribePreviewToInput(port);
+      else if (port.state === "disconnected") unsubscribePreviewFromInput(port);
+    });
+  }).catch(() => {});
+}
 
 // ---------- Pitch helpers ----------
 function pitchName(midi) {
@@ -2152,6 +2315,14 @@ function renderTabs() {
 
 function renderAll() {
   ensureActiveSheet();
+  // Drop preview ghosts on any sheet that no longer has a focused part, or on
+  // any non-active sheet (preview only renders on the active sheet anyway).
+  for (const s of project.sheets) {
+    const hasPrev = s._previewNotes && s._previewNotes.size > 0;
+    const hasAudioOnly = s._previewAudioOnly && s._previewAudioOnly.size > 0;
+    if (!hasPrev && !hasAudioOnly) continue;
+    if (s.id !== activeSheetId || !focusedPartId(s)) clearPreviewNotes(s);
+  }
   renderTabs();
   const prevBands = sheetsEl.querySelector(".bands");
   const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
@@ -2815,6 +2986,19 @@ function renderBand(sheet) {
       selEl.style.width = (cellW + 1) + "px";
       selEl.style.height = (cellH - 1) + "px";
       wrap.appendChild(selEl);
+    }
+
+    if (sheet._previewNotes && sheet._previewNotes.size > 0 && part.id === focusedPartId(sheet)) {
+      for (const [pitch, pv] of sheet._previewNotes) {
+        if (pitch < part.lo || pitch > part.hi) continue;
+        if (pv.step < 0 || pv.step >= sheetSteps) continue;
+        const pEl = el("div", { class: "note preview" });
+        pEl.style.left = (pv.step * cellW) + "px";
+        pEl.style.top = ((part.hi - pitch) * cellH) + "px";
+        pEl.style.width = cellW + "px";
+        pEl.style.setProperty('--vel-opacity', VEL_OPACITY[pv.velIdx]);
+        wrap.appendChild(pEl);
+      }
     }
 
     const playLine = el("div", { class: "playhead-line" });
@@ -4622,12 +4806,15 @@ async function startRecording(sheet, part, posSub = 0, lenSub = 0, bpmOverride =
     await alertAsync("Live MIDI recording requires a Chromium-based browser (Chrome, Edge, Opera).");
     return;
   }
-  try {
-    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
-  } catch (e) {
-    await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
-    return;
+  if (!midiAccess) {
+    try {
+      midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+    } catch (e) {
+      await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
+      return;
+    }
   }
+  clearPreviewNotes(sheet);
   if (midiAccess.inputs.size === 0) {
     await alertAsync("No MIDI input devices detected. Connect a MIDI keyboard and try again.");
     return;
@@ -4951,6 +5138,7 @@ function exportSheetMidi(sheet) {
 }
 
 // ---------- Init ----------
+initMidiInput();
 renderAll();
 
 })();
