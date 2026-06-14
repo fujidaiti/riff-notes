@@ -1769,12 +1769,26 @@ function populatePartConfig(sheet, part) {
     ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Hi-hat / Snare / Kick"))
     : el("div", { class: "range-controls" },
         el("button", { title: "Lower the lowest visible pitch",  onclick: () => { stepRange(part, "lo", -1); populatePartConfig(sheet, part); } }, "−"),
-        makePitchSelect(PIANO_MIN, part.hi - 1, part.lo, (v) => { part.lo = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        makePitchSelect(PIANO_MIN, part.hi - 1, part.lo, (v) => { if (v === part.lo) return; pushUndo(); part.lo = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
         el("button", { title: "Raise the lowest visible pitch",  onclick: () => { stepRange(part, "lo", +1); populatePartConfig(sheet, part); } }, "+"),
         el("span", { class: "range-sep" }, "–"),
         el("button", { title: "Lower the highest visible pitch", onclick: () => { stepRange(part, "hi", -1); populatePartConfig(sheet, part); } }, "−"),
-        makePitchSelect(part.lo + 1, PIANO_MAX, part.hi, (v) => { part.hi = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        makePitchSelect(part.lo + 1, PIANO_MAX, part.hi, (v) => { if (v === part.hi) return; pushUndo(); part.hi = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
         el("button", { title: "Raise the highest visible pitch", onclick: () => { stepRange(part, "hi", +1); populatePartConfig(sheet, part); } }, "+"),
+        el("button", { title: "Fit range to existing notes in this part", onclick: () => {
+          if (!part.notes.length) return;
+          let min = Infinity, max = -Infinity;
+          for (const n of part.notes) {
+            if (n.pitch < min) min = n.pitch;
+            if (n.pitch > max) max = n.pitch;
+          }
+          if (part.lo === min && part.hi === max) return;
+          pushUndo();
+          part.lo = min;
+          part.hi = max;
+          renderAll();
+          populatePartConfig(sheet, part);
+        } }, "Fit"),
       );
   partConfigBodyEl.appendChild(
     el("div", { class: "part-config-row" },
@@ -2255,10 +2269,12 @@ function stepRange(part, which, delta) {
   if (which === "lo") {
     const next = part.lo + delta;
     if (next < PIANO_MIN || next >= part.hi) return;
+    pushUndo();
     part.lo = next;
   } else {
     const next = part.hi + delta;
     if (next > PIANO_MAX || next <= part.lo) return;
+    pushUndo();
     part.hi = next;
   }
   renderAll();
