@@ -4970,6 +4970,13 @@ function handleNoteOn(pitch, midiVel) {
   const subOffset = curSubAbs - start * SUB_PER_STEP;
   const velIdx = midiVelToIdx(midiVel);
   if (recordingHeld.has(pitch)) {
+    const existing = recordingHeld.get(pitch);
+    if (curSubAbs <= existing.startSubAbs) {
+      // Duplicate note-on within the same sub-step (e.g. MIDI Thru echo
+      // or keyboard re-trigger). Keep the existing held note and monitor
+      // intact — finalizing it now would clamp it to a 1-sub-step ghost.
+      return;
+    }
     finalizeHeldNote(pitch, curSubAbs);
   }
   const note = {
