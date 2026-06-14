@@ -3945,7 +3945,7 @@ document.addEventListener("keydown", (ev) => {
   }
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-  if (ev.key === " " && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+  if (ev.key === " " && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.repeat) {
     ev.preventDefault();
     if (recordingState !== "idle") {
       finishRecording("stop");
