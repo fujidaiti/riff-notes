@@ -4250,6 +4250,22 @@ document.addEventListener("keydown", (ev) => {
     return;
   }
 
+  if ((ev.key === "r" || ev.key === "R") && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+    const sheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sheet) return;
+    const partId = (sheet.selectedCell && sheet.selectedCell.partId) || partOfSelection(sheet);
+    const part = partId ? sheet.parts.find(p => p.id === partId) : null;
+    ev.preventDefault();
+    if (part) {
+      startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
+    } else {
+      openRecConfigDialog(sheet).then(res => {
+        if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
+      });
+    }
+    return;
+  }
+
   if ((ev.key === "q" || ev.key === "Q") && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec || sec.selectedNoteIds.size === 0) return;
@@ -4343,6 +4359,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     ["Enter", "Rewind to beginning; restart if playing"],
     ["Backspace / Delete", "Delete selected notes"],
     ["Q", "Open Quantize pane for the selected notes"],
+    ["R", "Start recording into the selected part (else open Rec dialog)"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
     [`${MOD} + Click empty cell`, "Create a new note"],
     ["Drag empty cell", "Rubber-band select notes in the same part"],
