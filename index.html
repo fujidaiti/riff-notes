@@ -3639,6 +3639,11 @@ async function pasteClipboard(sheet) {
 
 // ---------- Keyboard ----------
 document.addEventListener("keydown", (ev) => {
+  if (isCreateModifier(ev) && (ev.key === "s" || ev.key === "S")) {
+    ev.preventDefault();
+    saveProjectJson();
+    return;
+  }
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (recordingState !== "idle") return; // disable shortcuts during recording
@@ -3772,6 +3777,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + X`, "Cut selected notes"],
     [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
     [`${MOD} + A`, "Show / hide all annotations"],
+    [`${MOD} + S`, "Download the project as a JSON file"],
     [`${MOD} + ←`, "Nudge selected notes back by 1/4 step"],
     [`${MOD} + →`, "Nudge selected notes forward by 1/4 step"],
     ["Backspace / Delete", "Delete selected notes"],
