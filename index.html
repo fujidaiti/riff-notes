@@ -2056,13 +2056,24 @@ function renderSheetMeta(sheet) {
       persist();
     },
   });
+  let bpmEditSnap = null;
+  let bpmEditStartValue = null;
   const bpmInput = el("input", {
     type: "number", min: 20, max: 300, value: sheet.bpm,
+    onfocus: () => { bpmEditSnap = snapshotProject(); bpmEditStartValue = sheet.bpm; },
     oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) sheet.bpm = v; persist(); },
+    onchange: () => {
+      if (bpmEditSnap && sheet.bpm !== bpmEditStartValue) commitUndoSnapshot(bpmEditSnap);
+      bpmEditSnap = null; bpmEditStartValue = null;
+    },
+    onblur: () => {
+      if (bpmEditSnap && sheet.bpm !== bpmEditStartValue) commitUndoSnapshot(bpmEditSnap);
+      bpmEditSnap = null; bpmEditStartValue = null;
+    },
   });
-  const rootSelect = el("select", { onchange: (e) => { sheet.scale.root = parseInt(e.target.value, 10); renderAll(); } });
+  const rootSelect = el("select", { onchange: (e) => { pushUndo(); sheet.scale.root = parseInt(e.target.value, 10); renderAll(); persist(); } });
   PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === sheet.scale.root }, n)));
-  const modeSelect = el("select", { onchange: (e) => { sheet.scale.mode = e.target.value; renderAll(); } });
+  const modeSelect = el("select", { onchange: (e) => { pushUndo(); sheet.scale.mode = e.target.value; renderAll(); persist(); } });
   SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === sheet.scale.mode }, label)));
   const frag = document.createDocumentFragment();
   frag.appendChild(titleInput);
