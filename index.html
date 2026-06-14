@@ -3860,6 +3860,18 @@ document.addEventListener("keydown", (ev) => {
     return;
   }
 
+  if ((ev.key === "q" || ev.key === "Q") && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec || sec.selectedNoteIds.size === 0) return;
+    ev.preventDefault();
+    const ids = [...sec.selectedNoteIds];
+    openQuantizeDialog().then(res => {
+      if (!res) return;
+      quantizeSelection(sec, ids, res.posSub, res.lenSub);
+    });
+    return;
+  }
+
   if (ev.key !== "Backspace" && ev.key !== "Delete") return;
   const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
   if (!sec || sec.selectedNoteIds.size === 0) return;
@@ -3938,6 +3950,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     [`${MOD} + ←`, "Nudge selected notes back by 1/4 step"],
     [`${MOD} + →`, "Nudge selected notes forward by 1/4 step"],
     ["Backspace / Delete", "Delete selected notes"],
+    ["Q", "Open Quantize pane for the selected notes"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
     [`${MOD} + Click empty cell`, "Create a new note"],
     ["Drag empty cell", "Rubber-band select notes in the same part"],
