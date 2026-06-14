@@ -866,6 +866,10 @@
     <label for="rec-part-sel">Part</label>
     <select id="rec-part-sel"></select>
   </div>
+  <div class="rec-config-row" style="margin-top:8px;">
+    <label for="rec-auto-expand">Auto-expand range</label>
+    <input type="checkbox" id="rec-auto-expand">
+  </div>
   <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
   <div class="rec-config-row">
     <label for="rec-quantize-pos">Position</label>
@@ -1618,6 +1622,14 @@ const recConfigStart   = document.getElementById("rec-config-start");
 const recConfigHint    = document.getElementById("rec-config-hint");
 let recQuantizeLastPosSub = 0;
 let recQuantizeLastLenSub = 0;
+const recAutoExpandChk = document.getElementById("rec-auto-expand");
+let recAutoExpandRange = false;
+
+function maybeAutoExpandRange(part, pitch) {
+  if (!recAutoExpandRange) return;
+  if (pitch < part.lo) part.lo = pitch;
+  if (pitch > part.hi) part.hi = pitch;
+}
 
 function openRecConfigDialog(sheet) {
   return new Promise(resolve => {
@@ -1632,6 +1644,7 @@ function openRecConfigDialog(sheet) {
     recConfigHint.style.display = hasEligible ? "none" : "";
     recQuantizePosSel.value = String(recQuantizeLastPosSub);
     recQuantizeLenSel.value = String(recQuantizeLastLenSub);
+    recAutoExpandChk.checked = recAutoExpandRange;
 
     const onStart = () => {
       const part = eligible.find(p => p.id === recPartSel.value);
@@ -1639,6 +1652,7 @@ function openRecConfigDialog(sheet) {
       const lenSub = parseInt(recQuantizeLenSel.value, 10) || 0;
       recQuantizeLastPosSub = posSub;
       recQuantizeLastLenSub = lenSub;
+      recAutoExpandRange = recAutoExpandChk.checked;
       cleanup();
       resolve(part ? { part, posSub, lenSub } : null);
     };
@@ -4663,6 +4677,7 @@ function handleNoteOn(pitch, midiVel) {
     subLength: 0,
   };
   part.notes.push(note);
+  maybeAutoExpandRange(part, pitch);
   recordingHeld.set(pitch, { note, startSubAbs: curSubAbs });
   renderAll();
 }
