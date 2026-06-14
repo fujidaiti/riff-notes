@@ -921,6 +921,8 @@ function anyPartSoloed(sheet) {
   return false;
 }
 function effectivePartGain(sheet, part) {
+  // Armed part is silent during a take so its existing notes don't bleed into the live input.
+  if (recordingState !== "idle" && recordingSheetId === sheet.id && recordingPartId === part.id) return 0;
   if (!sheet.mix) return 1;
   if (sheet.mix.master.mute) return 0;
   const pm = ensurePartMix(sheet, part.id);
@@ -1965,10 +1967,12 @@ function removeLastBar(sheet) {
 function renderFooter(sheet) {
   const isPlayingThis = playingSheetId === sheet.id;
   const isPausedThis = pausedSheetId === sheet.id;
-  const playLabel = isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play");
   const isRecordingThis = recordingSheetId === sheet.id;
+  // During a take, playback is auto-driven by recording — show ▶ Play (disabled)
+  // rather than ⏸ Pause so the button doesn't lie about what it can do.
+  const playLabel = isRecordingThis ? "▶ Play" : (isPlayingThis ? "⏸ Pause" : (isPausedThis ? "▶ Resume" : "▶ Play"));
   const playBtn = el("button", {
-    class: "play" + (isPlayingThis ? " playing" : ""),
+    class: "play" + (isPlayingThis && !isRecordingThis ? " playing" : ""),
     disabled: isRecordingThis,
   }, playLabel);
   playBtn.addEventListener("click", () => {
@@ -4169,7 +4173,8 @@ function playSheet(sheet, fromStep, startAudioTime) {
   const earlyMs = Math.max(0, (endStepTime - audioCtx.currentTime) * 1000 - 50);
   playStopTimer = setTimeout(() => {
     if (playingSheetId !== myId) return;
-    if (repeatEnabled) {
+    // Suppress repeat during a recording take — finishRecording stops playback at the take's end.
+    if (repeatEnabled && recordingState === "idle") {
       playSheet(sheet, 0, endStepTime);
     } else {
       // Wait for any notes that extend past endStepTime before stopping.
@@ -4223,6 +4228,8 @@ function currentRecordingStep() {
 async function startRecording(sheet, part) {
   if (recordingState !== "idle") return;
   if (playingSheetId || pausedSheetId) stopPlayback();
+  // Note: we DO start playback ourselves at beginRecordingPhase so the user
+  // hears the rest of the arrangement while overdubbing the armed part.
   if (!navigator.requestMIDIAccess) {
     await alertAsync("Live MIDI recording requires a Chromium-based browser (Chrome, Edge, Opera).");
     return;
@@ -4286,6 +4293,9 @@ function beginRecordingPhase(sheet) {
   if (recordingState !== "count-in") return;
   recordingState = "recording";
   recordingT0 = performance.now();
+  // Punch-in: play the rest of the sheet alongside the take. The armed part is
+  // forced silent by effectivePartGain; every other part still obeys sheet.mix.
+  playSheet(sheet, recordingStartStep);
   // Schedule metronome clicks during recording — every beat from startStep onward.
   metronomeNextBeat = Math.ceil(recordingStartStep / 4) * 4;
   scheduleUpcomingMetronome();
@@ -4436,10 +4446,15 @@ function finishRecording(reason) {
     commitUndoSnapshot(recordingUndoSnap);
     recordingUndoSnap = null;
   }
+  const recordedSheetId = recordingSheetId;
   recordingSheetId = null;
   recordingPartId = null;
   recordingState = "idle";
   recordingHeld = new Map();
+  // Stop the punch-in backing playback we started in beginRecordingPhase.
+  if (playingSheetId === recordedSheetId || pausedSheetId === recordedSheetId) {
+    stopPlayback();
+  }
   renderAll();
   persist();
 }
