@@ -226,7 +226,8 @@
   .sheet-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 auto; min-width: 0; background: transparent; }
   .sheet-title:focus, .sheet-title:hover { border-color: var(--line); background: var(--input-bg); }
   .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .sheet-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .sheet-actions button { font-size: 12px; padding: 3px 10px; line-height: 1; cursor: pointer; }
+  .sheet-actions button.play { width: 90px; }
   .sheet-actions button.play.playing { background: var(--play-tint); }
   .sheet-actions button.repeat.active { background: var(--play-tint); }
 
@@ -241,7 +242,8 @@
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
     padding: 8px 12px; background: var(--panel-bg);
   }
-  .footer-actions button { font-size: 12px; padding: 3px 10px; cursor: pointer; }
+  .footer-actions button { font-size: 12px; padding: 3px 10px; line-height: 1; cursor: pointer; }
+  .footer-actions button.play { width: 90px; }
   .footer-actions button.play.playing { background: var(--play-tint); }
   .footer-actions button.repeat.active { background: var(--play-tint); }
   .footer-actions > .sheet-actions { flex: 1 1 auto; }
