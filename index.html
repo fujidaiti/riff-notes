@@ -589,6 +589,16 @@
   .note.drum-kick::before  { background: #9056c8; }
   .note.selected { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 3; }
   .note:hover:not(.selected) { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 2; }
+  .row-preview {
+    position: absolute;
+    left: 0;
+    height: calc(var(--cell-h) - 2px);
+    border-radius: 2px;
+    background: #4a8bd6;
+    opacity: var(--vel-opacity, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
   .note-label {
     position: absolute;
     pointer-events: none;
@@ -883,6 +893,10 @@
   <div class="rec-config-row">
     <label for="rec-auto-append">Auto-append bars</label>
     <input type="checkbox" id="rec-auto-append">
+  </div>
+  <div class="rec-config-row">
+    <label for="rec-bpm-override">BPM</label>
+    <input type="number" id="rec-bpm-override" min="20" max="300" step="1" style="font: inherit; padding: 2px 4px; width: 70px;">
   </div>
   <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
   <div class="rec-config-row">
@@ -1474,9 +1488,163 @@ let recordingHeld = new Map(); // midiPitch -> { startStep, velIdx }
 let recordingUndoSnap = null;
 let recordingRaf = null;
 let recordingCountInTimer = null;
+let recordingOriginalBpm = 0;
 let metronomeNextBeat = 0; // next absolute step index to schedule a click for
 let midiAccess = null;
 let midiInputDisposers = [];
+let midiPreviewSubscribed = false;
+
+// ---------- MIDI input preview (runtime only) ----------
+// Per-sheet: sheet._previewNotes is a Map<midiPitch, { partId, step, velIdx }>.
+// Lazily created; never persisted (serializeProject ignores _-prefixed fields).
+function focusedPartId(sheet) {
+  if (!sheet) return null;
+  if (sheet.selectedCell) return sheet.selectedCell.partId;
+  if (sheet.selectedNoteIds && sheet.selectedNoteIds.size > 0) {
+    const fromSel = partOfSelection(sheet);
+    if (fromSel) return fromSel;
+  }
+  const fallback = sheet.parts.find(p => !isRhythmPart(p));
+  return fallback ? fallback.id : null;
+}
+function previewMap(sheet) {
+  if (!sheet._previewNotes) sheet._previewNotes = new Map();
+  return sheet._previewNotes;
+}
+function stopAllPreviewAudio(sheet) {
+  if (!sheet) return;
+  if (sheet._previewNotes) {
+    for (const e of sheet._previewNotes.values()) {
+      if (e && e.stop) { try { e.stop(); } catch {} }
+    }
+  }
+  if (sheet._previewAudioOnly) {
+    for (const stop of sheet._previewAudioOnly.values()) {
+      if (stop) { try { stop(); } catch {} }
+    }
+    sheet._previewAudioOnly.clear();
+  }
+}
+function clearPreviewNotes(sheet) {
+  stopAllPreviewAudio(sheet);
+  if (sheet && sheet._previewNotes && sheet._previewNotes.size > 0) {
+    sheet._previewNotes.clear();
+  }
+}
+function midiVelToIdx(midiVel) {
+  // Same bucket boundaries as VEL_MIDI thresholds — pick the closest index.
+  let idx = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < VEL_MIDI.length; i++) {
+    const d = Math.abs(midiVel - VEL_MIDI[i]);
+    if (d < bestDiff) { bestDiff = d; idx = i; }
+  }
+  return idx;
+}
+function onMidiPreviewMessage(ev) {
+  if (recordingState !== "idle") return;
+  const data = ev.data;
+  if (!data || data.length < 2) return;
+  const status = data[0] & 0xf0;
+  const pitch = data[1];
+  const vel = data.length > 2 ? data[2] : 0;
+  const sheet = project.sheets.find(s => s.id === activeSheetId);
+  if (!sheet) return;
+  if (status === 0x90 && vel > 0) {
+    const partId = focusedPartId(sheet);
+    if (!partId) return;
+    const part = sheet.parts.find(p => p.id === partId);
+    if (!part) return;
+    const velIdx = midiVelToIdx(vel);
+    const inRange = pitch >= part.lo && pitch <= part.hi;
+    let stopFn = null;
+    try {
+      ensureAudio();
+      stopFn = startSustainedPreviewTone(sheet, part, pitch, velIdx);
+    } catch {}
+    if (inRange) {
+      const prev = previewMap(sheet).get(pitch);
+      if (prev && prev.stop) { try { prev.stop(); } catch {} }
+      previewMap(sheet).set(pitch, { partId, velIdx, stop: stopFn });
+      renderAll();
+    } else if (stopFn) {
+      // Out-of-range: still need to stop audio on note-off. Track without visual.
+      if (!sheet._previewAudioOnly) sheet._previewAudioOnly = new Map();
+      const prev = sheet._previewAudioOnly.get(pitch);
+      if (prev) { try { prev(); } catch {} }
+      sheet._previewAudioOnly.set(pitch, stopFn);
+    }
+  } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+    let changed = false;
+    if (sheet._previewNotes && sheet._previewNotes.has(pitch)) {
+      const entry = sheet._previewNotes.get(pitch);
+      if (entry && entry.stop) { try { entry.stop(); } catch {} }
+      sheet._previewNotes.delete(pitch);
+      changed = true;
+    }
+    if (sheet._previewAudioOnly && sheet._previewAudioOnly.has(pitch)) {
+      const stop = sheet._previewAudioOnly.get(pitch);
+      if (stop) { try { stop(); } catch {} }
+      sheet._previewAudioOnly.delete(pitch);
+    }
+    if (changed) renderAll();
+  }
+}
+function subscribePreviewToInput(input) {
+  input.addEventListener("midimessage", onMidiPreviewMessage);
+}
+function unsubscribePreviewFromInput(input) {
+  input.removeEventListener("midimessage", onMidiPreviewMessage);
+}
+function startSustainedPreviewTone(sheet, part, pitch, velIdx, opts) {
+  if (!audioCtx) return null;
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
+  if (isRhythmPart(part)) {
+    // Drums are inherently percussive — fire and forget.
+    auditionNote(sheet, { id: "_preview", partId: part.id, pitch, start: 0, length: 1, vel: velIdx }, { bypassPartGain });
+    return null;
+  }
+  ensurePartGainNodes(sheet);
+  const dest = bypassPartGain
+    ? (masterGain || audioCtx.destination)
+    : (partDestFor(sheet, part) || masterGain || audioCtx.destination);
+  const peak = VEL_GAIN[velIdx];
+  const freq = 440 * Math.pow(2, (pitch - 69) / 12);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const t0 = audioCtx.currentTime;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(peak, t0 + 0.01);
+  osc.connect(gain).connect(dest);
+  osc.start(t0);
+  return () => {
+    const tOff = audioCtx.currentTime;
+    try {
+      gain.gain.cancelScheduledValues(tOff);
+      gain.gain.setValueAtTime(gain.gain.value, tOff);
+      gain.gain.linearRampToValueAtTime(0.0001, tOff + 0.05);
+      osc.stop(tOff + 0.08);
+      setTimeout(() => { try { osc.disconnect(); gain.disconnect(); } catch {} }, 200);
+    } catch {}
+  };
+}
+
+function initMidiInput() {
+  if (!navigator.requestMIDIAccess) return;
+  navigator.requestMIDIAccess({ sysex: false }).then(access => {
+    midiAccess = access;
+    midiPreviewSubscribed = true;
+    access.inputs.forEach(subscribePreviewToInput);
+    access.addEventListener("statechange", (e) => {
+      const port = e.port;
+      if (!port || port.type !== "input") return;
+      if (port.state === "connected") subscribePreviewToInput(port);
+      else if (port.state === "disconnected") unsubscribePreviewFromInput(port);
+    });
+  }).catch(() => {});
+}
 
 // ---------- Pitch helpers ----------
 function pitchName(midi) {
@@ -1641,6 +1809,28 @@ let recAutoExpandRange = false;
 const recAutoAppendBarChk = document.getElementById("rec-auto-append");
 let recAutoAppendBar = false;
 let recAutoAddedBars = 0;
+const recBpmOverrideInput = document.getElementById("rec-bpm-override");
+// Per-sheet recording BPM override (was previously a single global)., persisted in localStorage only (NOT in the
+// JSON document). Map of sheetId -> bpm (1..300). Missing/0 means "use sheet.bpm".
+const REC_BPM_KEY = "midi-editor:rec-bpm";
+function loadRecBpmMap() {
+  try {
+    const raw = localStorage.getItem(REC_BPM_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return (obj && typeof obj === "object") ? obj : {};
+  } catch { return {}; }
+}
+function getRecBpmForSheet(sheetId) {
+  const v = loadRecBpmMap()[sheetId];
+  return (typeof v === "number" && v >= 20 && v <= 300) ? v : 0;
+}
+function setRecBpmForSheet(sheetId, bpm) {
+  const map = loadRecBpmMap();
+  if (bpm > 0) map[sheetId] = bpm;
+  else delete map[sheetId];
+  try { localStorage.setItem(REC_BPM_KEY, JSON.stringify(map)); } catch {}
+}
 
 function hasNotesInLastBar(sheet) {
   const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
@@ -1668,6 +1858,9 @@ function openRecConfigDialog(sheet) {
     recQuantizeLenSel.value = String(recQuantizeLastLenSub);
     recAutoExpandChk.checked = recAutoExpandRange;
     recAutoAppendBarChk.checked = recAutoAppendBar;
+    recBpmOverrideInput.placeholder = String(sheet.bpm);
+    const sheetRecBpm = getRecBpmForSheet(sheet.id);
+    recBpmOverrideInput.value = sheetRecBpm > 0 ? String(sheetRecBpm) : "";
 
     const onStart = () => {
       const part = eligible.find(p => p.id === recPartSel.value);
@@ -1677,8 +1870,11 @@ function openRecConfigDialog(sheet) {
       recQuantizeLastLenSub = lenSub;
       recAutoExpandRange = recAutoExpandChk.checked;
       recAutoAppendBar = recAutoAppendBarChk.checked;
+      const bpmRaw = parseInt(recBpmOverrideInput.value, 10);
+      const bpmOverride = (Number.isFinite(bpmRaw) && bpmRaw >= 20 && bpmRaw <= 300) ? bpmRaw : 0;
+      setRecBpmForSheet(sheet.id, bpmOverride);
       cleanup();
-      resolve(part ? { part, posSub, lenSub } : null);
+      resolve(part ? { part, posSub, lenSub, bpmOverride } : null);
     };
     const onCancel = () => { cleanup(); resolve(null); };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
@@ -2119,6 +2315,14 @@ function renderTabs() {
 
 function renderAll() {
   ensureActiveSheet();
+  // Drop preview ghosts on any sheet that no longer has a focused part, or on
+  // any non-active sheet (preview only renders on the active sheet anyway).
+  for (const s of project.sheets) {
+    const hasPrev = s._previewNotes && s._previewNotes.size > 0;
+    const hasAudioOnly = s._previewAudioOnly && s._previewAudioOnly.size > 0;
+    if (!hasPrev && !hasAudioOnly) continue;
+    if (s.id !== activeSheetId || !focusedPartId(s)) clearPreviewNotes(s);
+  }
   renderTabs();
   const prevBands = sheetsEl.querySelector(".bands");
   const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
@@ -2275,7 +2479,7 @@ function renderFooter(sheet) {
   }, el("span", { style: "color:#d23" }, "●"), " Rec");
   recFooterBtn.addEventListener("click", async () => {
     const res = await openRecConfigDialog(sheet);
-    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub);
+    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
   });
 
   const menuBtn = el("button", {
@@ -2351,6 +2555,7 @@ function renderSheetMeta(sheet) {
   let bpmEditStartValue = null;
   const bpmInput = el("input", {
     type: "number", min: 20, max: 300, value: sheet.bpm,
+    disabled: recordingState !== "idle",
     onfocus: () => { bpmEditSnap = snapshotProject(); bpmEditStartValue = sheet.bpm; },
     oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) sheet.bpm = v; persist(); },
     onchange: () => {
@@ -2634,7 +2839,7 @@ function renderBand(sheet) {
       recBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         if (isRecHere) finishRecording("stop");
-        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub);
+        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
       });
       topActions.appendChild(recBtn);
     }
@@ -2786,6 +2991,18 @@ function renderBand(sheet) {
       selEl.style.width = (cellW + 1) + "px";
       selEl.style.height = (cellH - 1) + "px";
       wrap.appendChild(selEl);
+    }
+
+    if (sheet._previewNotes && sheet._previewNotes.size > 0 && part.id === focusedPartId(sheet)) {
+      const stripW = sheetSteps * cellW;
+      for (const [pitch, pv] of sheet._previewNotes) {
+        if (pitch < part.lo || pitch > part.hi) continue;
+        const pEl = el("div", { class: "row-preview" });
+        pEl.style.top = ((part.hi - pitch) * cellH + 1) + "px";
+        pEl.style.width = stripW + "px";
+        pEl.style.setProperty('--vel-opacity', VEL_OPACITY[pv.velIdx]);
+        wrap.appendChild(pEl);
+      }
     }
 
     const playLine = el("div", { class: "playhead-line" });
@@ -4041,6 +4258,22 @@ document.addEventListener("keydown", (ev) => {
     return;
   }
 
+  if ((ev.key === "r" || ev.key === "R") && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+    const sheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sheet) return;
+    const partId = (sheet.selectedCell && sheet.selectedCell.partId) || partOfSelection(sheet);
+    const part = partId ? sheet.parts.find(p => p.id === partId) : null;
+    ev.preventDefault();
+    if (part) {
+      startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
+    } else {
+      openRecConfigDialog(sheet).then(res => {
+        if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
+      });
+    }
+    return;
+  }
+
   if ((ev.key === "q" || ev.key === "Q") && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
     const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
     if (!sec || sec.selectedNoteIds.size === 0) return;
@@ -4134,6 +4367,7 @@ sheetsEl.addEventListener("pointerdown", (ev) => {
     ["Enter", "Rewind to beginning; restart if playing"],
     ["Backspace / Delete", "Delete selected notes"],
     ["Q", "Open Quantize pane for the selected notes"],
+    ["R", "Start recording into the selected part (else open Rec dialog)"],
     ["Click empty cell", "Select that cell (paste target; clears note selection)"],
     [`${MOD} + Click empty cell`, "Create a new note"],
     ["Drag empty cell", "Rubber-band select notes in the same part"],
@@ -4445,14 +4679,15 @@ function scheduleDrum(when, durSec, drumKey, vel, dest) {
   for (const s of stops) activeOscillators.push(s);
 }
 
-function auditionNote(sheet, note) {
+function auditionNote(sheet, note, opts) {
   ensureAudio();
   const secPerStep = 60 / sheet.bpm / 4;
   const dur = secPerStep * 0.95;
   const when = audioCtx.currentTime + 0.005;
   const part = sheet.parts.find(p => p.id === note.partId);
   ensurePartGainNodes(sheet);
-  const dest = partDestFor(sheet, part);
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
+  const dest = bypassPartGain ? (masterGain || audioCtx.destination) : partDestFor(sheet, part);
   if (part && isRhythmPart(part)) {
     const key = RHYTHM_KEYS[part.hi - note.pitch];
     if (key) scheduleDrum(when, dur, key, note.vel, dest);
@@ -4584,7 +4819,7 @@ function currentRecordingStep() {
   return recordingStartStep + elapsed / recordingSecPerStep;
 }
 
-async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
+async function startRecording(sheet, part, posSub = 0, lenSub = 0, bpmOverride = 0) {
   if (recordingState !== "idle") return;
   if (playingSheetId || pausedSheetId) stopPlayback();
   // Note: we DO start playback ourselves at beginRecordingPhase so the user
@@ -4593,12 +4828,15 @@ async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
     await alertAsync("Live MIDI recording requires a Chromium-based browser (Chrome, Edge, Opera).");
     return;
   }
-  try {
-    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
-  } catch (e) {
-    await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
-    return;
+  if (!midiAccess) {
+    try {
+      midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+    } catch (e) {
+      await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
+      return;
+    }
   }
+  clearPreviewNotes(sheet);
   if (midiAccess.inputs.size === 0) {
     await alertAsync("No MIDI input devices detected. Connect a MIDI keyboard and try again.");
     return;
@@ -4620,6 +4858,8 @@ async function startRecording(sheet, part, posSub = 0, lenSub = 0) {
   recordingQuantizePosSub = posSub;
   recordingQuantizeLenSub = lenSub;
   recordingStartStep = effectiveStart;
+  recordingOriginalBpm = sheet.bpm;
+  if (bpmOverride > 0) sheet.bpm = bpmOverride;
   recordingSecPerStep = 60 / sheet.bpm / 4;
   recordingTotalSteps = totalSheetSteps - effectiveStart;
   recordingHeld = new Map();
@@ -4733,8 +4973,15 @@ function handleNoteOn(pitch, midiVel) {
   }
   const start = Math.floor(curSubAbs / SUB_PER_STEP);
   const subOffset = curSubAbs - start * SUB_PER_STEP;
-  const velIdx = VEL_LABELS.indexOf("mf");
+  const velIdx = midiVelToIdx(midiVel);
   if (recordingHeld.has(pitch)) {
+    const existing = recordingHeld.get(pitch);
+    if (curSubAbs <= existing.startSubAbs) {
+      // Duplicate note-on within the same sub-step (e.g. MIDI Thru echo
+      // or keyboard re-trigger). Keep the existing held note and monitor
+      // intact — finalizing it now would clamp it to a 1-sub-step ghost.
+      return;
+    }
     finalizeHeldNote(pitch, curSubAbs);
   }
   const note = {
@@ -4749,7 +4996,12 @@ function handleNoteOn(pitch, midiVel) {
   };
   part.notes.push(note);
   maybeAutoExpandRange(part, pitch);
-  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs });
+  let stopMonitor = null;
+  try {
+    ensureAudio();
+    stopMonitor = startSustainedPreviewTone(sheet, part, pitch, velIdx, { bypassPartGain: true });
+  } catch {}
+  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs, stopMonitor });
   renderAll();
 }
 
@@ -4766,6 +5018,7 @@ function finalizeHeldNote(pitch, endSubAbs) {
   const entry = recordingHeld.get(pitch);
   if (!entry) return;
   recordingHeld.delete(pitch);
+  if (entry.stopMonitor) { try { entry.stopMonitor(); } catch {} }
   updateHeldNoteLength(entry, endSubAbs);
 }
 
@@ -4836,6 +5089,14 @@ function finishRecording(reason) {
       }
     }
     recAutoAddedBars = 0;
+  }
+  // Restore sheet.bpm if a per-take BPM override swapped it. Done before the
+  // undo commit so both the snapshot (taken pre-swap) and the current state
+  // reflect the real sheet BPM — the override never enters persisted state.
+  if (recordingOriginalBpm > 0) {
+    const sheetForBpm = project.sheets.find(s => s.id === recordingSheetId);
+    if (sheetForBpm) sheetForBpm.bpm = recordingOriginalBpm;
+    recordingOriginalBpm = 0;
   }
   // Commit the whole recording as one undo entry.
   if (recordingUndoSnap) {
@@ -4912,6 +5173,7 @@ function exportSheetMidi(sheet) {
 }
 
 // ---------- Init ----------
+initMidiInput();
 renderAll();
 
 })();
