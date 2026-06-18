@@ -1,11 +1,12 @@
 import { memo, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import type { Note, Part, Scale } from "../../core/model/types";
+import type { Annotation, Note, Part, Scale } from "../../core/model/types";
 import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { inScaleSet, noteScaleClass } from "../../core/theory";
 import { noteFracLength, noteFracStart, noteWidthPx } from "../../core/timing";
 import { computeLabelPlacements } from "../../core/labels";
 import type { CellSelection } from "../../state/types";
+import { Annotations } from "../Annotations";
 import { PlayheadLine } from "./PlayheadLine";
 import styles from "./Grid.module.css";
 
@@ -24,11 +25,16 @@ export interface GridProps {
   playheadStep?: number | null;
   /** Live playhead polled via rAF (out-of-band; never re-renders notes). */
   getPlayheadStep?: () => number | null;
+  /** Annotations whose anchor note belongs to this part. */
+  annotations?: Annotation[];
+  annotationsVisible?: boolean;
   /** When true (the embed case), no interaction handlers are attached. */
   readOnly?: boolean;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: ReactMouseEvent) => void;
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
+  onAnnotationEdit?: (id: string) => void;
+  onAnnotationMove?: (id: string, dx: number, dy: number) => void;
 }
 
 const RESIZE_EDGE = 5;
@@ -52,10 +58,14 @@ function GridImpl({
   showLabels = true,
   playheadStep = null,
   getPlayheadStep,
+  annotations,
+  annotationsVisible = true,
   readOnly = false,
   onNotePointerDown,
   onNoteContextMenu,
   onGridPointerDown,
+  onAnnotationEdit,
+  onAnnotationMove,
 }: GridProps) {
   const numRows = part.hi - part.lo + 1;
   const rhythm = isRhythmPart(part);
@@ -158,6 +168,18 @@ function GridImpl({
       {playheadStep != null && <div className={styles.playhead} style={{ left: playheadStep * cellW }} />}
 
       {getPlayheadStep && <PlayheadLine getStep={getPlayheadStep} cellW={cellW} />}
+
+      {annotations && annotations.length > 0 && annotationsVisible && (
+        <Annotations
+          part={part}
+          annotations={annotations}
+          cellW={cellW}
+          cellH={cellH}
+          readOnly={readOnly}
+          onEdit={onAnnotationEdit}
+          onMove={onAnnotationMove}
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export interface SheetViewProps {
   /** Selection per part is derived from this; omit for a read-only render. */
   selection?: SheetSelection;
   showLabels?: boolean;
+  annotationsVisible?: boolean;
   playheadStep?: number | null;
   getPlayheadStep?: () => number | null;
   readOnly?: boolean;
@@ -20,6 +21,8 @@ export interface SheetViewProps {
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
   onGridPointerDown?: GridProps["onGridPointerDown"];
   onPartClick?: (partId: string) => void;
+  onAnnotationEdit?: (id: string) => void;
+  onAnnotationMove?: (id: string, dx: number, dy: number) => void;
 }
 
 /** Stack of part lanes for one sheet. Shared by the editor and the viewer. */
@@ -29,6 +32,7 @@ function SheetViewImpl({
   cellH,
   selection,
   showLabels,
+  annotationsVisible = true,
   playheadStep = null,
   getPlayheadStep,
   readOnly = false,
@@ -36,9 +40,23 @@ function SheetViewImpl({
   onNoteContextMenu,
   onGridPointerDown,
   onPartClick,
+  onAnnotationEdit,
+  onAnnotationMove,
 }: SheetViewProps) {
   const sheetSteps = sheet.barCount * STEPS_PER_BAR;
   const cell: CellSelection | null = selection?.cell ?? null;
+  // Annotations bind to one part (single-part invariant), so group them by the
+  // part their anchor note lives in.
+  const partIdOfNote = new Map<string, string>();
+  for (const p of sheet.parts) for (const n of p.notes) partIdOfNote.set(n.id, p.id);
+  const annotationsByPart = new Map<string, typeof sheet.annotations>();
+  for (const a of sheet.annotations) {
+    const partId = partIdOfNote.get(a.placement.anchorNoteId);
+    if (!partId) continue;
+    const list = annotationsByPart.get(partId) ?? [];
+    list.push(a);
+    annotationsByPart.set(partId, list);
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {sheet.parts.map((part) => (
@@ -54,11 +72,15 @@ function SheetViewImpl({
           showLabels={showLabels}
           playheadStep={playheadStep}
           getPlayheadStep={getPlayheadStep}
+          annotations={annotationsByPart.get(part.id)}
+          annotationsVisible={annotationsVisible}
           readOnly={readOnly}
           onNotePointerDown={onNotePointerDown}
           onNoteContextMenu={onNoteContextMenu}
           onGridPointerDown={onGridPointerDown}
           onPartClick={onPartClick}
+          onAnnotationEdit={onAnnotationEdit}
+          onAnnotationMove={onAnnotationMove}
         />
       ))}
     </div>

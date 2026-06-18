@@ -1,6 +1,7 @@
 import type { Project, Sheet } from "../core/model/types";
 import { VEL_LABELS, getInstrument } from "../core/model/constants";
 import { defaultPartMix, makePart, makeSheet } from "../core/model/factory";
+import { uid } from "../core/model/uid";
 import { quantizeNotes } from "../core/quantize";
 import { deserializeProject, serializeProject } from "../core/serialize";
 import { dropForeignPart, partOfSelection } from "../core/selection";
@@ -188,6 +189,40 @@ export function reducer(state: AppState, action: Action): AppState {
             if (action.noteIds.has(n.id)) n.vel = (n.vel + 1) % VEL_LABELS.length;
           }
         }
+      });
+
+    case "ADD_ANNOTATION":
+      if (action.noteIds.length === 0) return state;
+      return commit(state, action.sheetId, (s) => {
+        // Anchor on the earliest member; offset the card up-and-right of it.
+        const ids = new Set(action.noteIds);
+        const members = s.parts.flatMap((p) => p.notes.filter((n) => ids.has(n.id)));
+        if (members.length === 0) return;
+        const anchor = members.reduce((a, b) => (a.start <= b.start ? a : b));
+        s.annotations.push({
+          id: uid(),
+          text: "Note",
+          noteIds: [...action.noteIds],
+          shrunkWidth: 140,
+          placement: { anchorNoteId: anchor.id, dx: 8, dy: -22 },
+        });
+      });
+
+    case "UPDATE_ANNOTATION":
+      return commit(state, action.sheetId, (s) => {
+        const a = s.annotations.find((x) => x.id === action.id);
+        if (a) a.text = action.text;
+      });
+
+    case "DELETE_ANNOTATION":
+      return commit(state, action.sheetId, (s) => {
+        s.annotations = s.annotations.filter((a) => a.id !== action.id);
+      });
+
+    case "MOVE_ANNOTATION":
+      return update(state, action.sheetId, (s) => {
+        const a = s.annotations.find((x) => x.id === action.id);
+        if (a) a.placement = { ...a.placement, dx: action.dx, dy: action.dy };
       });
 
     case "SET_PART_MIX":

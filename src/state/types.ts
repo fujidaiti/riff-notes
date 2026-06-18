@@ -55,6 +55,11 @@ export type Action =
   | { type: "UPDATE_PART"; sheetId: string; partId: string; fields: { name?: string; lo?: number; hi?: number; instrument?: InstrumentId } }
   | { type: "QUANTIZE_SELECTION"; sheetId: string; noteIds: Set<string>; posSub: number; lenSub: number }
   | { type: "CYCLE_VELOCITY"; sheetId: string; noteIds: Set<string> }
+  // --- annotations ---
+  | { type: "ADD_ANNOTATION"; sheetId: string; noteIds: string[] }
+  | { type: "UPDATE_ANNOTATION"; sheetId: string; id: string; text: string }
+  | { type: "DELETE_ANNOTATION"; sheetId: string; id: string }
+  | { type: "MOVE_ANNOTATION"; sheetId: string; id: string; dx: number; dy: number } // no history (drag)
   // --- mixer (persisted but NOT recorded in undo history) ---
   | { type: "SET_PART_MIX"; sheetId: string; partId: string; patch: Partial<PartMix> }
   | { type: "SET_MASTER_MIX"; sheetId: string; patch: Partial<{ vol: number; mute: boolean }> }

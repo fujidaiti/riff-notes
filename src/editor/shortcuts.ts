@@ -20,7 +20,7 @@ export const SHORTCUTS: Shortcut[] = [
   { keys: "Backspace / Delete", description: "Delete selected notes" },
   { keys: `${mod}+Z / ${mod}+Shift+Z`, description: "Undo / redo" },
   { keys: `${mod}+C / ${mod}+X / ${mod}+V`, description: "Copy / cut / paste" },
-  { keys: `${mod}+A`, description: "Toggle pitch labels" },
+  { keys: `${mod}+A`, description: "Toggle annotations" },
   { keys: "Q", description: "Quantize selected notes" },
   { keys: "?", description: "Show this help" },
 ];
