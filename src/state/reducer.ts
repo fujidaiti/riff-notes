@@ -247,6 +247,12 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...next, ui: { ...next.ui, selection: { ...next.ui.selection, [action.sheetId]: sel } } };
     }
 
+    case "MUTATE_SHEET_LIVE":
+      return update(state, action.sheetId, action.mutate);
+
+    case "PUSH_HISTORY":
+      return { ...state, history: record(state.history, state.project) };
+
     default:
       return state;
   }
