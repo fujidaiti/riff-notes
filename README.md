@@ -2,9 +2,6 @@
 
 A browser-based step-sequencer / MIDI editor, built with TypeScript, React, and Vite.
 
-This is a getting-started guide for developers. For architecture and conventions, see
-[`CLAUDE.md`](./CLAUDE.md); for open work, see [`TODO.md`](./TODO.md).
-
 ## Prerequisites
 
 - **Node.js 22+** and **npm 10+** (`node --version`, `npm --version`).
