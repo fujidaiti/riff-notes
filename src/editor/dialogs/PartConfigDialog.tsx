@@ -1,5 +1,5 @@
 import type { InstrumentId, Part, Sheet } from "../../core/model/types";
-import { INSTRUMENT_OPTIONS, PIANO_MAX, PIANO_MIN } from "../../core/model/constants";
+import { getInstrument, INSTRUMENT_OPTIONS, PIANO_MAX, PIANO_MIN } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { pitchName } from "../../core/theory";
 import { useDispatch } from "../../state/context";
@@ -26,7 +26,19 @@ export function PartConfigDialog({ sheet, part, open, onClose }: { sheet: Sheet;
         <label>Instrument</label>
         <select
           value={part.instrument}
-          onChange={(e) => dispatch({ type: "UPDATE_PART", sheetId: sheet.id, partId: part.id, fields: { instrument: e.target.value as InstrumentId } })}
+          onChange={(e) => {
+            const newId = e.target.value as InstrumentId;
+            if (newId === part.instrument) return;
+            const prev = getInstrument(part.instrument);
+            const next = getInstrument(newId);
+            if (prev.pitchMode !== next.pitchMode) {
+              const msg = part.notes.length > 0
+                ? `Switching instrument will delete ${part.notes.length} note(s). Continue?`
+                : `Switching instrument will reset the pitch range. Continue?`;
+              if (!window.confirm(msg)) return;
+            }
+            dispatch({ type: "UPDATE_PART", sheetId: sheet.id, partId: part.id, fields: { instrument: newId } });
+          }}
         >
           {INSTRUMENT_OPTIONS.map(([value, label]) => (
             <option key={value} value={value}>
