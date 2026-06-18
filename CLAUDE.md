@@ -78,7 +78,7 @@ The React app has reached feature parity with `legacy/index.html` for: rendering
 note create/select/move/resize/delete, copy/cut/paste, undo/redo, the read-only embed, audio playback
 + transport + repeat, the playhead, mixer (mute/solo/volume), part management (add/delete/configure,
 drums), velocity cycling, quantize, rubber-band selection across bars, annotations (create/edit/
-delete/drag + connectors), JSON save/load, the help dialog, and Web-MIDI recording with a metronome
-count-in. `legacy/index.html` is retained as an archived behavioral reference; it can be deleted once
-a manual browser QA pass confirms parity. Remaining minor polish is tracked in `TODO.md` (the hover
-cell tooltip, and recording extras like per-take BPM override / auto-expand).
+delete/drag + connectors), JSON save/load, the help dialog, the hover cell tooltip, and Web-MIDI
+recording with a metronome count-in (including per-take BPM override, auto-expand range, auto-append
+bars, and punch-in over a backing track). `legacy/index.html` is retained as an archived behavioral
+reference; it can be deleted once a manual browser QA pass confirms parity.
