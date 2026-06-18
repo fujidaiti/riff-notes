@@ -4,44 +4,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Riff Notes is a single-file, zero-dependency, browser-based step-sequencer / "sheet grid MIDI editor". The entire application — HTML, CSS, and JavaScript — lives in `index.html`. There is no build system, no package manager, no tests, and no server.
+Riff Notes is a browser-based step-sequencer / "sheet grid MIDI editor". It is being migrated
+from a single-file vanilla-JS app into a TypeScript + React + Vite project. The original app is
+preserved at `legacy/index.html` as a behavioral reference until the React editor reaches full
+feature parity; the new app lives under `src/`.
 
 ## Running
 
-Open `index.html` directly in a browser (e.g. `open index.html` on macOS). State auto-persists to `localStorage` under `midi-editor:state`; "Save JSON" / "Load JSON" export and import the same serialized document.
+- `npm run dev` — start the Vite dev server (editor at `/`, read-only embed viewer at `/embed.html`).
+- `npm run build` — type-check (`tsc -b`) and build both entries to `dist/`.
+- `npm test` — run the Vitest suite (`npm run test:watch` to watch).
+- `npm run lint` / `npm run typecheck` — ESLint / TypeScript checks.
 
-There are no build, lint, or test commands.
+State auto-persists to `localStorage` under `riff-notes:project` (new clean-break schema, v1;
+the legacy `midi-editor:state` is intentionally not loaded).
 
 ## Architecture
 
-All logic is inside one IIFE at the bottom of `index.html` (starts around line 381). Sections are delimited by `// ---------- ... ----------` banner comments. The big-picture model:
+Two Vite entry points share one `src/` tree: `index.html` → `src/main.tsx` (editor) and
+`embed.html` → `src/embed.tsx` (read-only viewer / iframe target). Layering, from the inside out:
 
-- **Project → Sheets → Bars → Notes**, with **Parts** as horizontal lanes within a sheet.
-  - `project`: `{ name, sheets[] }`. Single top-level mutable singleton (line ~470).
-  - `sheet`: `{ id, title, notes, bpm, scale:{root,mode}, pitchDisplay, parts[], bars[], + runtime/view state }`.
-  - `part`: `{ id, name, lo, hi }` — a MIDI pitch range that defines a horizontal lane.
-  - `bar`: `{ id, notes[], partNotes }` — `STEPS_PER_BAR = 16` steps per bar.
-  - `note`: `{ id, partId, pitch, start, length, vel }` where `vel` indexes into `VEL_LABELS`/`VEL_MIDI`/`VEL_OPACITY`/`VEL_GAIN`.
+- **`src/core/`** — framework-agnostic, dependency-free, DOM-free. This is the test surface. Domain
+  types/constants/factories (`model/`), music theory (`theory.ts`), sub-step timing math
+  (`timing.ts`), quantization (`quantize.ts`), selection with the single-part invariant
+  (`selection.ts`), clipboard copy/paste (`clipboard.ts`), note removal + annotation reconciliation
+  (`notes.ts`), mixer gain math (`mixer.ts`), pitch-label collision geometry (`labels.ts`), drag math
+  (`drag.ts`), and the persistence boundary (`serialize.ts`). Each module has a co-located
+  `*.test.ts`.
+- **`src/state/`** — `useReducer` store over the project. `reducer.ts` clones via the serialize
+  boundary for history isolation and exposes a `MUTATE_SHEET` escape hatch the editor uses to commit
+  core-computed results. `history.ts` is snapshot undo/redo (cap 200); `persistence.ts` is a thin
+  debounced localStorage wrapper; `context.tsx` provides **split State/Dispatch contexts** to limit
+  re-renders.
+- **`src/ui/`** — presentational React shared by editor and viewer: the reusable `Grid` (absolute
+  notes over CSS-gradient grid lines; attaches no handlers when `readOnly`), `Band`, `SheetView`, and
+  `theme.css` (the `--cell-w`/`--cell-h` CSS variables are the single layout contract).
+- **`src/editor/`** — editor-only: `App.tsx`, interaction hooks (`useGridInteraction`,
+  `useKeyboardShortcuts`), and `platform.ts` (`isCreateModifier`/`IS_MAC`).
+- **`src/viewer/`** — viewer-only: `EmbedApp.tsx` + `hydrate.ts` (loads a project from
+  `window.__RIFF_PROJECT__` or a `?p=` base64url param).
 
-- **Runtime vs persisted state are intentionally decoupled** (see comment at line ~476). View/selection state (`selectedNoteIds`, `selectedCell`, `partsPanelOpen`, `activeSheetId`, `playingSheetId`, etc.) is never serialized. `serializeProject` / `deserializeProject` are the only persistence boundary. `SCHEMA_VERSION` gates restore; bump it and add a migration branch on breaking changes.
+### Hard rule (enforced by ESLint)
+`src/core`, `src/ui`, `src/audio`, `src/viewer` must NOT import from `src/editor`. This keeps
+editor-only code out of the embed bundle. `src/core` additionally may not import React or any other
+layer. If you add a module, place it in the layer matching its dependencies.
 
-- **Rendering**: imperative DOM construction via the `el(tag, attrs, ...children)` helper. `renderAll()` is the top-level re-render. Most user actions mutate the model then call `renderAll()` and `persist()` (debounced 300ms write to `localStorage`).
+## Domain model
 
-- **Interaction model**: pointer events, not click. A document-level `pointerdown` handler (around line 1864) drives **global rubber-band selection** across bars. It bails out for an allowlist of targets (`.toolbar`, `dialog`, `.tabstrip`, `INPUT`/`TEXTAREA`/`SELECT`/`OPTION`, `BUTTON`, anything inside a `<label>`, `.note`, `.grid-wrap`) and otherwise calls `preventDefault()`. **When adding any new interactive control to a sheet, verify it is covered by this allowlist — otherwise its native behavior (e.g. native `<select>` popup) will be suppressed.** Drag state lives in a single `drag` object whose `mode` field is one of `"move" | "resize-left" | "resize-right" | "empty-pending" | "rubber-band"` (see `handlePointerDown` and the `pointermove`/`pointerup` listeners around lines 1410–1520).
+`Project → Sheets → Parts → Notes`, with `Annotations` and a `Mix` per sheet. `STEPS_PER_BAR = 16`,
+`SUB_PER_STEP = 4`. A drum (`instrument: "drum"`) part is a fixed 3-row lane reusing the note schema
+(`pitch` is a row index; row = `part.hi - pitch`). Runtime/view state (selection, playhead) is never
+serialized — it lives in `src/state`, separate from the `Project` types. See `src/core/model/types.ts`.
 
-- **Audio**: WebAudio, lazily-constructed `AudioContext`. Playback is driven by a `requestAnimationFrame` loop (`playbackRaf`) plus pre-scheduled oscillators (`activeOscillators`); `playSheet`/`pausePlayback`/`resumePlayback`/`stopPlayback` manage the lifecycle. Velocity controls oscillator gain via `VEL_GAIN`.
+## Conventions
 
-- **Music theory**: `SCALES` (line ~397) maps mode name → pitch-class interval list; `SCALE_OPTIONS` is the UI ordering. `pitchDisplayName` switches between absolute note names (`PITCH_NAMES`) and scale-degree names (`DEGREE_NAMES`) per `sheet.pitchDisplay`.
+- Keep pure logic in `src/core` with tests; keep DOM/audio/interaction out of `src/core` and untested
+  (the testing strategy is deliberately bounded — high-value pure modules only).
+- Any change to the persisted shape must bump `SCHEMA_VERSION` in `serialize.ts` and update
+  `serializeProject`/`deserializeProject` together (add a migration branch).
+- Editor pixel layout multiplies by `cellW`/`cellH` read from the CSS vars via `useCellSize`; never
+  hard-code cell sizes.
 
-- **Cross-platform modifier**: `isCreateModifier(ev)` returns `metaKey` on Mac, `ctrlKey` elsewhere (`IS_MAC` is sniffed from `navigator.platform`). Use this rather than checking modifiers directly when adding shortcuts.
+## Migration status / known follow-ups
 
-## Conventions when editing `index.html`
-
-- Keep everything in the one file. Do not introduce a build step, external dependencies, or split into modules unless explicitly asked.
-- Treat the section banner comments as the file's table of contents; place new code in the matching section.
-- Any change that affects the shape of persisted data must bump `SCHEMA_VERSION` and update `serializeProject` / `deserializeProject` together.
-- Keyboard shortcuts must be added to both the `keydown` handler (around line 1816) and the help dialog table data so the `?` toolbar button stays in sync.
-
-## Known follow-ups
-
-`TODO.md` tracks open work (currently: better notation for chromatic degrees; key-color hinting in bar grids).
+The React editor covers: rendering, tabs/sheet meta, note create/select/move/resize/delete,
+copy/cut/paste, undo/redo, and the read-only embed. **Not yet ported from `legacy/index.html`**
+(tracked in `TODO.md`): audio playback + transport, Web-MIDI recording, global rubber-band
+selection, the annotations UI (cards/editing/drag), the dialogs (mixer, quantize, part config, help),
+velocity cycling, and the playhead. Until these land, `legacy/index.html` remains the reference.
