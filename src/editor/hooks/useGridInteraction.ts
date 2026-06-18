@@ -20,6 +20,9 @@ interface DragState {
   startY: number;
   moved: boolean;
   subGranular: boolean;
+  /** Create-modifier held at press — a non-moved click cycles velocity. */
+  createMod: boolean;
+  groupIds: Set<string>;
 }
 
 function applyPatches(sheet: Sheet, patches: Map<string, NotePatch>): Sheet {
@@ -80,10 +83,13 @@ export function useGridInteraction(
       const d = drag.current;
       drag.current = null;
       if (!d) return;
+      const { dispatch: dsp, sheet: sh } = cfg.current;
       if (d.moved) {
         const patches = computeFor(d, ev.clientX - d.startX, d.mode === "move" ? ev.clientY - d.startY : 0);
-        const { dispatch: dsp, sheet: sh } = cfg.current;
         dsp({ type: "MUTATE_SHEET", sheetId: sh.id, mutate: (s) => applyPatches(s, patches) });
+      } else if (d.createMod) {
+        // Modifier-click without a drag cycles the selected notes' velocity.
+        dsp({ type: "CYCLE_VELOCITY", sheetId: sh.id, noteIds: d.groupIds });
       }
       setPreview(null);
     };
@@ -125,7 +131,17 @@ export function useGridInteraction(
       }
     }
     const mode = region === "resize-l" ? "resize-l" : region === "resize-r" ? "resize-r" : "move";
-    drag.current = { mode, origins, part, startX: ev.clientX, startY: ev.clientY, moved: false, subGranular: isCreateModifier(ev) };
+    drag.current = {
+      mode,
+      origins,
+      part,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      moved: false,
+      subGranular: isCreateModifier(ev),
+      createMod: isCreateModifier(ev),
+      groupIds,
+    };
   }, []);
 
   const onGridPointerDown = useCallback((ev: React.PointerEvent) => {

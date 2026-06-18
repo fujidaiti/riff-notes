@@ -19,6 +19,7 @@ export interface SheetViewProps {
   onNotePointerDown?: (note: Note, ev: React.PointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
   onGridPointerDown?: GridProps["onGridPointerDown"];
+  onPartClick?: (partId: string) => void;
 }
 
 /** Stack of part lanes for one sheet. Shared by the editor and the viewer. */
@@ -34,6 +35,7 @@ function SheetViewImpl({
   onNotePointerDown,
   onNoteContextMenu,
   onGridPointerDown,
+  onPartClick,
 }: SheetViewProps) {
   const sheetSteps = sheet.barCount * STEPS_PER_BAR;
   const cell: CellSelection | null = selection?.cell ?? null;
@@ -56,6 +58,7 @@ function SheetViewImpl({
           onNotePointerDown={onNotePointerDown}
           onNoteContextMenu={onNoteContextMenu}
           onGridPointerDown={onGridPointerDown}
+          onPartClick={onPartClick}
         />
       ))}
     </div>
