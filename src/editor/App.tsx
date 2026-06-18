@@ -219,6 +219,16 @@ export function App() {
           />
         </label>
         <label className={styles.field}>
+          Notes
+          <input
+            type="text"
+            placeholder="Sheet notes"
+            style={{ width: 180 }}
+            value={sheet.notes ?? ""}
+            onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { notes: e.target.value } })}
+          />
+        </label>
+        <label className={styles.field}>
           Key
           <select
             value={sheet.scale.root}
