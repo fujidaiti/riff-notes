@@ -254,6 +254,7 @@ export function App() {
             const mix = sheet.mix.parts[partId];
             dispatch({ type: "SET_PART_MIX", sheetId: sheet.id, partId, patch: { solo: !mix?.solo } });
           }}
+          onPartDelete={(partId) => dispatch({ type: "DELETE_PART", sheetId: sheet.id, partId })}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
         />

@@ -26,6 +26,8 @@ export interface BandProps extends BandGridProps {
   onToggleMute?: (partId: string) => void;
   /** Editor-only: toggle solo for this part. */
   onToggleSolo?: (partId: string) => void;
+  /** Editor-only: delete this part. */
+  onPartDelete?: (partId: string) => void;
 }
 
 function partRange(part: Part): string {
@@ -33,7 +35,7 @@ function partRange(part: Part): string {
   return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, ...gridProps }: BandProps) {
   const mix = sheet.mix.parts[part.id];
   const muted = mix?.mute ?? false;
   const soloed = mix?.solo ?? false;
@@ -47,6 +49,15 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
       >
         <div className={styles.sideTop}>
           <span className={styles.name}>{part.name}</span>
+          {(onPartClick || onPartDelete) && (
+            <details className={styles.menu} onClick={(ev) => ev.stopPropagation()}>
+              <summary className={styles.menuBtn} title="Part menu">⋯</summary>
+              <div className={styles.menuPanel}>
+                {onPartClick && <button onClick={() => onPartClick(part.id)}>Edit</button>}
+                {onPartDelete && <button className={styles.menuDelete} onClick={() => onPartDelete(part.id)}>Delete</button>}
+              </div>
+            </details>
+          )}
           {onPartRecord && (
             <button
               className={`${styles.recBtn} ${isRecording ? styles.recActive : ""}`}
