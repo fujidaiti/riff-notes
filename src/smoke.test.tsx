@@ -15,7 +15,7 @@ describe("render smoke", () => {
         <App />
       </AppProvider>,
     );
-    expect(html).toContain("Riff Notes");
+    expect(html).toContain("Project name");
   });
 
   it("renders the read-only embed viewer without throwing", () => {

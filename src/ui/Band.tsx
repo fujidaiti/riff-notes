@@ -1,5 +1,8 @@
 import { memo } from "react";
 import type { Part, Sheet } from "../core/model/types";
+
+/** Width of the part label sidebar — must match the .side CSS width in Band.module.css. */
+export const BAND_SIDE_W = 110;
 import { pitchName } from "../core/theory";
 import { isRhythmPart } from "../core/model/factory";
 import { Grid, type GridProps } from "./grid/Grid";

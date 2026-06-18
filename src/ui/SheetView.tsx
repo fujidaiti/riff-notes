@@ -1,7 +1,8 @@
 import { memo } from "react";
 import type { Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
-import { Band } from "./Band";
+import { Band, BAND_SIDE_W } from "./Band";
+import { Ruler } from "./Ruler";
 import type { GridProps, NoteRegion } from "./grid/Grid";
 import type { Note } from "../core/model/types";
 import type { CellSelection, SheetSelection } from "../state/types";
@@ -17,6 +18,10 @@ export interface SheetViewProps {
   playheadStep?: number | null;
   getPlayheadStep?: () => number | null;
   readOnly?: boolean;
+  /** Cursor step shown on the ruler when stopped/paused. Editor-only. */
+  cursorStep?: number;
+  /** When provided, a ruler is rendered above the grid. Editor-only. */
+  onSeek?: (step: number) => void;
   onNotePointerDown?: (note: Note, ev: React.PointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
   onGridPointerDown?: GridProps["onGridPointerDown"];
@@ -36,6 +41,8 @@ function SheetViewImpl({
   playheadStep = null,
   getPlayheadStep,
   readOnly = false,
+  cursorStep,
+  onSeek,
   onNotePointerDown,
   onNoteContextMenu,
   onGridPointerDown,
@@ -59,6 +66,16 @@ function SheetViewImpl({
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {onSeek && (
+        <Ruler
+          barCount={sheet.barCount}
+          cellW={cellW}
+          sidebarWidth={BAND_SIDE_W}
+          cursorStep={cursorStep}
+          getPlayheadStep={getPlayheadStep}
+          onSeek={onSeek}
+        />
+      )}
       {sheet.parts.map((part) => (
         <Band
           key={part.id}

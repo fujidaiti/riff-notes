@@ -31,7 +31,7 @@ export function App() {
   if (!engineRef.current) engineRef.current = new AudioEngine();
   const engine = engineRef.current;
 
-  const { transport, repeat, setRepeat, play, pause, stop, getPlayheadStep } = useTransport(engine, sheet);
+  const { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep } = useTransport(engine, sheet);
   const recording = useMidiRecording(engine, sheet, dispatch);
   useKeyboardShortcuts(state, dispatch, {
     openQuantize: () => setQuantizeOpen(true),
@@ -238,6 +238,8 @@ export function App() {
           selection={selection}
           annotationsVisible={state.ui.annotationsVisible}
           getPlayheadStep={recording.recording ? recording.getRecordStep : transport === "stopped" ? undefined : getPlayheadStep}
+          cursorStep={transport !== "playing" ? displayCursor : undefined}
+          onSeek={seekTo}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}

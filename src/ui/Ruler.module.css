@@ -1,0 +1,56 @@
+.ruler {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  height: 22px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--sheet-border);
+  margin-bottom: 4px;
+}
+.spacer {
+  flex: 0 0 auto;
+  position: sticky;
+  left: 0;
+  background: var(--panel-bg);
+  z-index: 11;
+}
+.track {
+  position: relative;
+  flex: 0 0 auto;
+  height: 22px;
+  cursor: crosshair;
+  user-select: none;
+}
+.barLabel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  border-left: 1px solid var(--sheet-border);
+  box-sizing: border-box;
+}
+.cursor {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--playhead-line, rgba(217, 122, 58, 0.85));
+  z-index: 1;
+  pointer-events: none;
+}
+.playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--playhead, #d97a3a);
+  z-index: 2;
+  pointer-events: none;
+}
