@@ -1,0 +1,83 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.toolbar,
+.tabstrip,
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--sheet-border);
+}
+.toolbar {
+  background: var(--panel-bg);
+}
+.spacer {
+  flex: 1;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--sheet-border);
+  border-radius: 6px 6px 0 0;
+  background: var(--sheet-bg);
+  cursor: pointer;
+  font-size: 13px;
+}
+.tab.active {
+  background: var(--panel-hover);
+  font-weight: 600;
+}
+.tabClose {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+.sheet {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+.btn {
+  padding: 4px 10px;
+  border: 1px solid var(--sheet-border);
+  border-radius: 6px;
+  background: var(--sheet-bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.field input[type="text"] {
+  background: var(--input-bg);
+  color: var(--ink);
+  border: 1px solid var(--sheet-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
