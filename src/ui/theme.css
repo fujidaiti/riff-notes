@@ -1,0 +1,67 @@
+/* Theme variables shared by the editor and the read-only embed. cell-w/cell-h
+   are the single layout contract: JS reads these (or sets them) and all note,
+   label, and playhead positioning multiplies by them. */
+:root {
+  --cell-w: 22px;
+  --cell-h: 22px;
+  --bg: #fafaf7;
+  --ink: #222;
+  --ink-soft: #555;
+  --ink-muted: #888;
+  --ink-faint: #aaa;
+  --line: #d2d2cc;
+  --line-soft: #f0f0ec;
+  --line-strong: #555;
+  --note: #c97a4a;
+  --note-in-scale: #6ba84a;
+  --note-sel: #2b6cb0;
+  --note-hover: #0aa39b;
+  --sheet-bg: #ffffff;
+  --sheet-border: #e2e2dc;
+  --panel-bg: #f1f0ea;
+  --panel-hover: #ebebe2;
+  --input-bg: #ffffff;
+  --placeholder: #c8c8c0;
+  --grid-line: #cdcdc4;
+  --grid-line-soft: #ececea;
+  --playhead: #d97a3a;
+  --playhead-line: rgba(217, 122, 58, 0.85);
+  --note-inset: rgba(0, 0, 0, 0.15);
+  --note-sel-outline: #000000;
+}
+[data-theme="dark"] {
+  --bg: #16161a;
+  --ink: #e8e8e3;
+  --ink-soft: #b8b8b0;
+  --ink-muted: #8a8a84;
+  --ink-faint: #6a6a64;
+  --line: #3a3a40;
+  --line-soft: #232328;
+  --line-strong: #c8c8c0;
+  --note: #d98a55;
+  --note-in-scale: #7ec25a;
+  --note-sel: #6aa3e0;
+  --note-hover: #2bc4ba;
+  --sheet-bg: #1e1e22;
+  --sheet-border: #2e2e34;
+  --panel-bg: #25252b;
+  --panel-hover: #2e2e36;
+  --input-bg: #2a2a30;
+  --placeholder: #55555a;
+  --grid-line: #34343a;
+  --grid-line-soft: #25252b;
+  --playhead: #e89556;
+  --playhead-line: rgba(232, 149, 86, 0.85);
+  --note-inset: rgba(0, 0, 0, 0.35);
+  --note-sel-outline: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, sans-serif;
+}
