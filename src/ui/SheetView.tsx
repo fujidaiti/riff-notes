@@ -22,6 +22,8 @@ export interface SheetViewProps {
   cursorStep?: number;
   /** When provided, a ruler is rendered above the grid. Editor-only. */
   onSeek?: (step: number) => void;
+  onAddBar?: () => void;
+  onRemoveBar?: () => void;
   onNotePointerDown?: (note: Note, ev: React.PointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
   onGridPointerDown?: GridProps["onGridPointerDown"];
@@ -50,6 +52,8 @@ function SheetViewImpl({
   readOnly = false,
   cursorStep,
   onSeek,
+  onAddBar,
+  onRemoveBar,
   onNotePointerDown,
   onNoteContextMenu,
   onGridPointerDown,
@@ -86,6 +90,8 @@ function SheetViewImpl({
           cursorStep={cursorStep}
           getPlayheadStep={getPlayheadStep}
           onSeek={onSeek}
+          onAddBar={onAddBar}
+          onRemoveBar={onRemoveBar}
         />
       )}
       {sheet.parts.map((part) => (

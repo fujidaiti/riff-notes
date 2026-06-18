@@ -241,6 +241,8 @@ export function App() {
           getPlayheadStep={recording.recording ? recording.getRecordStep : transport === "stopped" ? undefined : getPlayheadStep}
           cursorStep={transport !== "playing" ? displayCursor : undefined}
           onSeek={seekTo}
+          onAddBar={() => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount: sheet.barCount + 1 } })}
+          onRemoveBar={() => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount: Math.max(1, sheet.barCount - 1) } })}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}
