@@ -242,5 +242,5 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
 
   useEffect(() => cleanup, [cleanup]);
 
-  return { phase, start, stop, getRecordStep, recording: phase !== "idle" };
+  return { phase, start, stop, getRecordStep, recording: phase !== "idle", recordingPartId: phase !== "idle" ? opts.current.partId : null };
 }
