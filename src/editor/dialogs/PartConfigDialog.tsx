@@ -62,6 +62,22 @@ export function PartConfigDialog({ sheet, part, open, onClose }: { sheet: Sheet;
                 </option>
               ))}
             </select>
+            <button
+              className={styles.toggle}
+              title="Fit range to existing notes in this part"
+              disabled={part.notes.length === 0}
+              onClick={() => {
+                let lo = Infinity, hi = -Infinity;
+                for (const n of part.notes) {
+                  if (n.pitch < lo) lo = n.pitch;
+                  if (n.pitch > hi) hi = n.pitch;
+                }
+                if (lo === part.lo && hi === part.hi) return;
+                dispatch({ type: "UPDATE_PART", sheetId: sheet.id, partId: part.id, fields: { lo, hi } });
+              }}
+            >
+              Fit
+            </button>
           </div>
         </>
       )}
