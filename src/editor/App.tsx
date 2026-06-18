@@ -92,7 +92,6 @@ export function App() {
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
-  const hasSelection = selection.noteIds.size > 0;
 
   const [savedAt, setSavedAt] = useState<number | null>(() => getSavedAt());
   useEffect(() => {
@@ -106,6 +105,18 @@ export function App() {
     const project = await pickProjectJson();
     if (project) dispatch({ type: "LOAD_PROJECT", project });
   };
+
+  const [overflowMenuAnchor, setOverflowMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const overflowItems: ContextMenuEntry[] = [
+    { label: "Save JSON", onClick: () => downloadProjectJson(state.project) },
+    { label: "Load JSON", onClick: () => void loadFromFile() },
+    { sep: true },
+    { label: "Export sheet as MIDI", onClick: () => downloadSheetMidi(sheet) },
+    { sep: true },
+    { label: `Theme: ${themeLabel}`, onClick: cycleTheme },
+    { sep: true },
+    { label: "Keyboard shortcuts", onClick: () => setHelpOpen(true) },
+  ];
 
   return (
     <div className={styles.app}>
@@ -134,10 +145,10 @@ export function App() {
           {recording.phase === "count-in" ? "● Count-in…" : recording.recording ? "● Recording" : "● Record"}
         </button>
         <span style={{ width: 12 }} />
-        <button className={styles.btn} disabled={!canUndo} onClick={() => dispatch({ type: "UNDO" })}>
+        <button className={styles.btn} disabled={!canUndo} onClick={() => dispatch({ type: "UNDO" })} title="Undo (Cmd+Z)">
           Undo
         </button>
-        <button className={styles.btn} disabled={!canRedo} onClick={() => dispatch({ type: "REDO" })}>
+        <button className={styles.btn} disabled={!canRedo} onClick={() => dispatch({ type: "REDO" })} title="Redo (Cmd+Shift+Z)">
           Redo
         </button>
         <span style={{ width: 12 }} />
@@ -150,36 +161,20 @@ export function App() {
         <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "drum" })}>
           + Drums
         </button>
-        <button className={styles.btn} disabled={!hasSelection} onClick={() => setQuantizeOpen(true)}>
-          Quantize
-        </button>
-        <button
-          className={styles.btn}
-          disabled={!hasSelection}
-          onClick={() => dispatch({ type: "ADD_ANNOTATION", sheetId: sheet.id, noteIds: [...selection.noteIds] })}
-        >
-          Annotate
-        </button>
-        <span style={{ width: 12 }} />
-        <button className={styles.btn} onClick={() => downloadProjectJson(state.project)}>
-          Save
-        </button>
-        <button className={styles.btn} onClick={loadFromFile}>
-          Load
-        </button>
-        <button className={styles.btn} onClick={() => downloadSheetMidi(sheet)} title="Export active sheet as MIDI">
-          Export MIDI
-        </button>
-        <button className={styles.btn} onClick={cycleTheme} title="Cycle theme">
-          {themeLabel}
-        </button>
-        <button className={styles.btn} onClick={() => setHelpOpen(true)} title="Keyboard shortcuts">
-          ?
-        </button>
         <span className={styles.spacer} />
         <span className={styles.savedAt}>
           {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Not saved yet"}
         </span>
+        <button
+          className={styles.btn}
+          title="More actions"
+          onClick={(ev) => {
+            const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+            setOverflowMenuAnchor({ x: rect.left, y: rect.bottom + 4 });
+          }}
+        >
+          ⋯
+        </button>
       </div>
 
       <div className={styles.tabstrip}>
@@ -334,6 +329,14 @@ export function App() {
           y={noteCtxMenu.y}
           items={noteCtxMenu.items}
           onClose={() => setNoteCtxMenu(null)}
+        />
+      )}
+      {overflowMenuAnchor && (
+        <ContextMenu
+          x={overflowMenuAnchor.x}
+          y={overflowMenuAnchor.y}
+          items={overflowItems}
+          onClose={() => setOverflowMenuAnchor(null)}
         />
       )}
     </div>
