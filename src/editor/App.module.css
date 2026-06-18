@@ -81,3 +81,23 @@ select {
   font-size: 12px;
   color: var(--ink-muted);
 }
+.projectName {
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--ink);
+  width: 160px;
+}
+.projectName:hover,
+.projectName:focus {
+  background: var(--input-bg);
+  border-color: var(--sheet-border);
+  outline: none;
+}
+.savedAt {
+  font-size: 12px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}

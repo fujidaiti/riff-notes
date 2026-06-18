@@ -67,6 +67,9 @@ export function reducer(state: AppState, action: Action): AppState {
       return { project, ui: freshUi(project), history: emptyHistory() };
     }
 
+    case "SET_PROJECT_NAME":
+      return { ...state, project: { ...state.project, name: action.name } };
+
     case "SET_ACTIVE_SHEET":
       if (!state.project.sheets.some((s) => s.id === action.sheetId)) return state;
       return { ...state, ui: { ...state.ui, activeSheetId: action.sheetId } };

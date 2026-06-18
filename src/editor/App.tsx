@@ -17,6 +17,7 @@ import { QuantizeDialog } from "./dialogs/QuantizeDialog";
 import { HelpDialog } from "./dialogs/HelpDialog";
 import { AnnotationDialog } from "./dialogs/AnnotationDialog";
 import { downloadProjectJson, pickProjectJson } from "./io";
+import { getSavedAt } from "../state/persistence";
 import styles from "./App.module.css";
 
 export function App() {
@@ -63,6 +64,12 @@ export function App() {
   const canRedo = state.history.future.length > 0;
   const hasSelection = selection.noteIds.size > 0;
 
+  const [savedAt, setSavedAt] = useState<number | null>(() => getSavedAt());
+  useEffect(() => {
+    const id = setTimeout(() => setSavedAt(Date.now()), 400);
+    return () => clearTimeout(id);
+  }, [state.project]);
+
   const loadFromFile = async () => {
     const project = await pickProjectJson();
     if (project) dispatch({ type: "LOAD_PROJECT", project });
@@ -71,7 +78,13 @@ export function App() {
   return (
     <div className={styles.app}>
       <div className={styles.toolbar}>
-        <strong>Riff Notes</strong>
+        <input
+          className={styles.projectName}
+          type="text"
+          placeholder="Project name"
+          value={state.project.name}
+          onChange={(e) => dispatch({ type: "SET_PROJECT_NAME", name: e.target.value })}
+        />
         <button className={styles.btn} onClick={transport === "playing" ? pause : play}>
           {transport === "playing" ? "⏸ Pause" : transport === "paused" ? "▶ Resume" : "▶ Play"}
         </button>
@@ -126,7 +139,9 @@ export function App() {
           ?
         </button>
         <span className={styles.spacer} />
-        <span className={styles.hint}>⌘/Ctrl-click empty cell to add · drag to move · edges to resize · Delete to remove · Space to play</span>
+        <span className={styles.savedAt}>
+          {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Not saved yet"}
+        </span>
       </div>
 
       <div className={styles.tabstrip}>
