@@ -36,6 +36,30 @@
   border-left: 1px solid var(--sheet-border);
   box-sizing: border-box;
 }
+.barActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  flex: 0 0 auto;
+}
+.barBtn {
+  border: 1px solid var(--sheet-border);
+  background: var(--sheet-bg);
+  color: var(--ink-soft);
+  border-radius: 4px;
+  width: 18px;
+  height: 16px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.barBtn:hover:not(:disabled) { color: var(--ink); }
+.barBtn:disabled { opacity: 0.4; cursor: default; }
 .cursor {
   position: absolute;
   top: 0;

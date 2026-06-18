@@ -36,9 +36,13 @@ export interface RulerProps {
   /** Live playhead during playback — polled via rAF, never causes re-render. */
   getPlayheadStep?: () => number | null;
   onSeek?: (step: number) => void;
+  /** Add one bar to the sheet. */
+  onAddBar?: () => void;
+  /** Remove the last bar from the sheet. */
+  onRemoveBar?: () => void;
 }
 
-export function Ruler({ barCount, cellW, sidebarWidth, cursorStep, getPlayheadStep, onSeek }: RulerProps) {
+export function Ruler({ barCount, cellW, sidebarWidth, cursorStep, getPlayheadStep, onSeek, onAddBar, onRemoveBar }: RulerProps) {
   const barW = cellW * STEPS_PER_BAR;
   const totalW = barCount * barW;
 
@@ -67,6 +71,29 @@ export function Ruler({ barCount, cellW, sidebarWidth, cursorStep, getPlayheadSt
         )}
         {getPlayheadStep && <RulerPlayhead getStep={getPlayheadStep} cellW={cellW} />}
       </div>
+      {(onAddBar || onRemoveBar) && (
+        <div className={styles.barActions}>
+          {onRemoveBar && (
+            <button
+              className={styles.barBtn}
+              title="Remove last bar"
+              onClick={(ev) => { ev.stopPropagation(); onRemoveBar(); }}
+              disabled={barCount <= 1}
+            >
+              −
+            </button>
+          )}
+          {onAddBar && (
+            <button
+              className={styles.barBtn}
+              title="Add bar"
+              onClick={(ev) => { ev.stopPropagation(); onAddBar(); }}
+            >
+              +
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
