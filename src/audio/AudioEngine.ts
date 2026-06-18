@@ -12,6 +12,10 @@ export interface PlayOptions {
   fromStep?: number;
   repeat?: boolean;
   onEnd?: () => void;
+  /** Tempo override in BPM (e.g. a slower practice tempo for a take). */
+  bpmOverride?: number;
+  /** Skip this part entirely — used to punch-in record over the rest. */
+  silentPartId?: string;
 }
 
 /**
@@ -247,13 +251,14 @@ export class AudioEngine {
     this.syncMix(sheet);
     this.playingSheetId = sheet.id;
 
-    const secPerStep = 60 / sheet.bpm / 4;
+    const secPerStep = 60 / (opts.bpmOverride && opts.bpmOverride > 0 ? opts.bpmOverride : sheet.bpm) / 4;
     const sheetSteps = totalSteps(sheet);
     const wanted = opts.fromStep ?? 0;
     const startStep = Math.max(0, Math.min(sheetSteps - 1, wanted));
     let lastEnd = t0;
 
     for (const part of sheet.parts) {
+      if (part.id === opts.silentPartId) continue;
       const dest = this.destFor(part);
       for (const n of part.notes) {
         const absStart = noteFracStart(n);

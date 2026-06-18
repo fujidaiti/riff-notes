@@ -28,6 +28,11 @@
   --playhead-line: rgba(217, 122, 58, 0.85);
   --note-inset: rgba(0, 0, 0, 0.15);
   --note-sel-outline: #000000;
+  --note-sel-tint: rgba(0, 0, 0, 0.08);
+  --tooltip-bg: #ffffff;
+  --tooltip-ink: #333;
+  --tooltip-muted: #888;
+  --shadow-soft: rgba(0, 0, 0, 0.12);
 }
 [data-theme="dark"] {
   --bg: #16161a;
@@ -54,6 +59,11 @@
   --playhead-line: rgba(232, 149, 86, 0.85);
   --note-inset: rgba(0, 0, 0, 0.35);
   --note-sel-outline: #ffffff;
+  --note-sel-tint: rgba(255, 255, 255, 0.08);
+  --tooltip-bg: #2a2a30;
+  --tooltip-ink: #e8e8e3;
+  --tooltip-muted: #9a9a94;
+  --shadow-soft: rgba(0, 0, 0, 0.45);
 }
 
 * {
