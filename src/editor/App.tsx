@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppState, useDispatch } from "../state/context";
 import { activeSheet } from "../state/reducer";
 import { PITCH_NAMES, SCALE_OPTIONS } from "../core/model/constants";
@@ -18,6 +18,7 @@ import { HelpDialog } from "./dialogs/HelpDialog";
 import { AnnotationDialog } from "./dialogs/AnnotationDialog";
 import { downloadProjectJson, downloadSheetMidi, pickProjectJson } from "./io";
 import { useTheme } from "./useTheme";
+import { ContextMenu, type ContextMenuEntry } from "./ContextMenu";
 import { getSavedAt } from "../state/persistence";
 import styles from "./App.module.css";
 
@@ -61,6 +62,33 @@ export function App() {
   const partConfig = partConfigId ? (sheet.parts.find((p) => p.id === partConfigId) ?? null) : null;
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
   const editAnn = editAnnId ? (sheet.annotations.find((a) => a.id === editAnnId) ?? null) : null;
+
+  const [noteCtxMenu, setNoteCtxMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null);
+
+  const onNoteContextMenu = useCallback((note: import("../core/model/types").Note, ev: React.MouseEvent) => {
+    const sh = sheet;
+    // If the right-clicked note isn't already selected, make it the sole selection.
+    if (!selection.noteIds.has(note.id)) {
+      dispatch({ type: "SET_SELECTION", sheetId: sh.id, noteIds: new Set([note.id]) });
+    }
+    const existing = sh.annotations.filter((a) => a.noteIds.includes(note.id));
+    const items: ContextMenuEntry[] = [];
+    for (const a of existing) {
+      const preview = a.text.replace(/\s+/g, " ").slice(0, 20);
+      items.push({ label: `Edit "${preview}${a.text.length > 20 ? "…" : ""}"`, onClick: () => setEditAnnId(a.id) });
+    }
+    if (existing.length > 0) items.push({ sep: true });
+    items.push({
+      label: "Annotate",
+      onClick: () => {
+        const sel = selection.noteIds.has(note.id) ? selection.noteIds : new Set([note.id]);
+        dispatch({ type: "ADD_ANNOTATION", sheetId: sh.id, noteIds: [...sel] });
+        // Open the new annotation for editing right away.
+      },
+    });
+    items.push({ label: "Quantize…", onClick: () => setQuantizeOpen(true) });
+    setNoteCtxMenu({ x: ev.clientX, y: ev.clientY, items });
+  }, [sheet, selection, dispatch]);
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
@@ -266,6 +294,7 @@ export function App() {
           onAddBar={() => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount: sheet.barCount + 1 } })}
           onRemoveBar={() => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount: Math.max(1, sheet.barCount - 1) } })}
           onNotePointerDown={onNotePointerDown}
+          onNoteContextMenu={onNoteContextMenu}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}
           onPartRecord={(partId) => { setRecConfigPartId(partId); setRecConfigOpen(true); }}
@@ -299,6 +328,14 @@ export function App() {
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
       <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start(o)} defaultPartId={recConfigPartId} />
+      {noteCtxMenu && (
+        <ContextMenu
+          x={noteCtxMenu.x}
+          y={noteCtxMenu.y}
+          items={noteCtxMenu.items}
+          onClose={() => setNoteCtxMenu(null)}
+        />
+      )}
     </div>
   );
 }

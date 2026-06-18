@@ -1,0 +1,32 @@
+.menu {
+  background: var(--menu-bg, var(--sheet-bg));
+  border: 1px solid var(--menu-border, var(--line));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px var(--shadow-med, rgba(0, 0, 0, 0.18));
+  padding: 4px 0;
+  font-size: 12px;
+  min-width: 160px;
+  z-index: 10000;
+}
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.item:hover {
+  background: var(--menu-hover, var(--panel-hover));
+}
+.danger {
+  color: #c00;
+}
+.sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
