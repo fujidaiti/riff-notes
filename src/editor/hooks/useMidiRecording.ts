@@ -13,6 +13,8 @@ export interface RecordOptions {
   partId: string;
   /** Position quantize grid in sub-steps (0 = off). */
   posQuantizeSub?: number;
+  /** Length quantize grid in sub-steps (0 = off). */
+  lenQuantizeSub?: number;
   /** Per-take tempo (BPM), non-destructive — the sheet's bpm is left unchanged. */
   bpmOverride?: number;
   /** Grow the part's pitch range to fit notes played outside it. */
@@ -60,6 +62,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
   const opts = useRef<Required<RecordOptions>>({
     partId: "",
     posQuantizeSub: SUB_PER_STEP,
+    lenQuantizeSub: 0,
     bpmOverride: 0,
     autoExpandRange: false,
     autoAppendBar: false,
@@ -126,8 +129,9 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       const entry = held.current.get(d1);
       if (!entry) return;
       held.current.delete(d1);
-      const endSub = Math.max(entry.startSub + 1, Math.round(curStep * SUB_PER_STEP));
-      const lenSub = endSub - entry.startSub;
+      let endSub = Math.max(entry.startSub + 1, Math.round(curStep * SUB_PER_STEP));
+      let lenSub = endSub - entry.startSub;
+      if (o.lenQuantizeSub > 0) lenSub = Math.max(o.lenQuantizeSub, Math.round(lenSub / o.lenQuantizeSub) * o.lenQuantizeSub);
       const length = Math.max(1, Math.floor(lenSub / SUB_PER_STEP));
       const subLength = lenSub - length * SUB_PER_STEP;
       dsp({
@@ -180,6 +184,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       opts.current = {
         partId: options.partId,
         posQuantizeSub: options.posQuantizeSub ?? SUB_PER_STEP,
+        lenQuantizeSub: options.lenQuantizeSub ?? 0,
         bpmOverride: options.bpmOverride ?? 0,
         autoExpandRange: options.autoExpandRange ?? false,
         autoAppendBar: options.autoAppendBar ?? false,
