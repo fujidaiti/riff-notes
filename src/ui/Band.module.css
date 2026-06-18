@@ -34,6 +34,47 @@
   flex: 1;
   min-width: 0;
 }
+.menu {
+  flex: 0 0 auto;
+  position: relative;
+}
+.menu summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  border-radius: 3px;
+  line-height: 1;
+  user-select: none;
+}
+.menu summary::-webkit-details-marker { display: none; }
+.menu summary:hover { color: var(--ink); }
+.menuPanel {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  background: var(--sheet-bg);
+  border: 1px solid var(--sheet-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px var(--shadow-soft);
+  min-width: 80px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.menuPanel button {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink);
+}
+.menuPanel button:hover { background: var(--panel-hover); }
+.menuDelete { color: #c00 !important; }
 .recBtn {
   flex: 0 0 auto;
   border: none;
