@@ -119,7 +119,7 @@ function SheetViewImpl({
     annotationsByPart.set(partId, list);
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: "max-content" }}>
       {onSeek && (
         <Ruler
           barCount={sheet.barCount}

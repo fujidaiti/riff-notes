@@ -2,9 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { Part, Sheet } from "../core/model/types";
 
 /** Width of the part label sidebar — must match the .side CSS width in Band.module.css. */
-export const BAND_SIDE_W = 110;
-import { pitchName } from "../core/theory";
-import { isRhythmPart } from "../core/model/factory";
+export const BAND_SIDE_W = 36;
 import { Grid, type GridProps } from "./grid/Grid";
 import styles from "./Band.module.css";
 
@@ -32,10 +30,6 @@ export interface BandProps extends BandGridProps {
   onPartNameChange?: (partId: string, name: string) => void;
 }
 
-function partRange(part: Part): string {
-  if (isRhythmPart(part)) return "Drums";
-  return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
-}
 
 function PartMenu({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -74,25 +68,8 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
   const soloed = mix?.solo ?? false;
   return (
     <div className={styles.band}>
-      <div
-        className={styles.side}
-        style={onPartClick ? { cursor: "pointer" } : undefined}
-        onClick={onPartClick ? () => onPartClick(part.id) : undefined}
-        title={onPartClick ? "Part settings" : undefined}
-      >
+      <div className={styles.side}>
         <div className={styles.sideTop}>
-          {onPartNameChange ? (
-            <input
-              className={styles.nameInput}
-              type="text"
-              value={part.name}
-              title="Part name"
-              onClick={(ev) => ev.stopPropagation()}
-              onChange={(ev) => onPartNameChange(part.id, ev.target.value)}
-            />
-          ) : (
-            <span className={styles.name}>{part.name}</span>
-          )}
           {(onPartClick || onPartDelete) && (
             <PartMenu
               onEdit={onPartClick ? () => onPartClick(part.id) : undefined}
@@ -112,31 +89,40 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
             </button>
           )}
         </div>
-        <div className={styles.sideMeta}>
-          <span className={styles.meta}>{partRange(part)}</span>
-          {(onToggleMute || onToggleSolo) && (
-            <div className={styles.mixBtns}>
-              {onToggleMute && (
-                <button
-                  className={`${styles.mixBtn} ${muted ? styles.mixActive : ""}`}
-                  title={muted ? "Unmute" : "Mute"}
-                  onClick={(ev) => { ev.stopPropagation(); onToggleMute(part.id); }}
-                >
-                  M
-                </button>
-              )}
-              {onToggleSolo && (
-                <button
-                  className={`${styles.mixBtn} ${soloed ? styles.mixActive : ""}`}
-                  title={soloed ? "Unsolo" : "Solo"}
-                  onClick={(ev) => { ev.stopPropagation(); onToggleSolo(part.id); }}
-                >
-                  S
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {(onToggleMute || onToggleSolo) && (
+          <div className={styles.mixBtns}>
+            {onToggleMute && (
+              <button
+                className={`${styles.mixBtn} ${muted ? styles.mixActive : ""}`}
+                title={muted ? "Unmute" : "Mute"}
+                onClick={(ev) => { ev.stopPropagation(); onToggleMute(part.id); }}
+              >
+                M
+              </button>
+            )}
+            {onToggleSolo && (
+              <button
+                className={`${styles.mixBtn} ${soloed ? styles.mixActive : ""}`}
+                title={soloed ? "Unsolo" : "Solo"}
+                onClick={(ev) => { ev.stopPropagation(); onToggleSolo(part.id); }}
+              >
+                S
+              </button>
+            )}
+          </div>
+        )}
+        {onPartNameChange ? (
+          <input
+            className={styles.nameInput}
+            type="text"
+            value={part.name}
+            title="Part name"
+            onClick={(ev) => ev.stopPropagation()}
+            onChange={(ev) => onPartNameChange(part.id, ev.target.value)}
+          />
+        ) : (
+          <span className={styles.name}>{part.name}</span>
+        )}
       </div>
       <div className={styles.scroll}>
         <Grid part={part} sheetSteps={sheetSteps} scale={sheet.scale} cellW={cellW} cellH={cellH} {...gridProps} />
