@@ -246,6 +246,14 @@ export function App() {
           onPartClick={setPartConfigId}
           onPartRecord={(partId) => { setRecConfigPartId(partId); setRecConfigOpen(true); }}
           recordingPartId={recording.recordingPartId}
+          onToggleMute={(partId) => {
+            const mix = sheet.mix.parts[partId];
+            dispatch({ type: "SET_PART_MIX", sheetId: sheet.id, partId, patch: { mute: !mix?.mute } });
+          }}
+          onToggleSolo={(partId) => {
+            const mix = sheet.mix.parts[partId];
+            dispatch({ type: "SET_PART_MIX", sheetId: sheet.id, partId, patch: { solo: !mix?.solo } });
+          }}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
         />

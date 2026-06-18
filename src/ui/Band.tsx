@@ -22,6 +22,10 @@ export interface BandProps extends BandGridProps {
   onPartRecord?: (partId: string) => void;
   /** True when this part is actively being recorded. */
   isRecording?: boolean;
+  /** Editor-only: toggle mute for this part. */
+  onToggleMute?: (partId: string) => void;
+  /** Editor-only: toggle solo for this part. */
+  onToggleSolo?: (partId: string) => void;
 }
 
 function partRange(part: Part): string {
@@ -29,7 +33,10 @@ function partRange(part: Part): string {
   return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, ...gridProps }: BandProps) {
+  const mix = sheet.mix.parts[part.id];
+  const muted = mix?.mute ?? false;
+  const soloed = mix?.solo ?? false;
   return (
     <div className={styles.band}>
       <div
@@ -53,7 +60,31 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
             </button>
           )}
         </div>
-        <span className={styles.meta}>{partRange(part)}</span>
+        <div className={styles.sideMeta}>
+          <span className={styles.meta}>{partRange(part)}</span>
+          {(onToggleMute || onToggleSolo) && (
+            <div className={styles.mixBtns}>
+              {onToggleMute && (
+                <button
+                  className={`${styles.mixBtn} ${muted ? styles.mixActive : ""}`}
+                  title={muted ? "Unmute" : "Mute"}
+                  onClick={(ev) => { ev.stopPropagation(); onToggleMute(part.id); }}
+                >
+                  M
+                </button>
+              )}
+              {onToggleSolo && (
+                <button
+                  className={`${styles.mixBtn} ${soloed ? styles.mixActive : ""}`}
+                  title={soloed ? "Unsolo" : "Solo"}
+                  onClick={(ev) => { ev.stopPropagation(); onToggleSolo(part.id); }}
+                >
+                  S
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div className={styles.scroll}>
         <Grid part={part} sheetSteps={sheetSteps} scale={sheet.scale} cellW={cellW} cellH={cellH} {...gridProps} />

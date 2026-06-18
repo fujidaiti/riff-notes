@@ -56,8 +56,42 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+.sideMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .meta {
   color: var(--ink-muted);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mixBtns {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.mixBtn {
+  border: 1px solid var(--sheet-border);
+  background: var(--sheet-bg);
+  color: var(--ink-muted);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 14px;
+  cursor: pointer;
+}
+.mixBtn:hover {
+  color: var(--ink);
+}
+.mixActive {
+  background: var(--panel-hover);
+  color: var(--ink);
+  border-color: var(--line-strong);
 }
 .scroll {
   overflow: visible;
