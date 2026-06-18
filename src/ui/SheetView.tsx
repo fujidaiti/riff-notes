@@ -65,6 +65,8 @@ export interface SheetViewProps {
   onToggleMute?: (partId: string) => void;
   onToggleSolo?: (partId: string) => void;
   onPartDelete?: (partId: string) => void;
+  /** Editor-only: rename a part inline. */
+  onPartNameChange?: (partId: string, name: string) => void;
   /** Editor-only: insert a new part before the given index. */
   onInsertPart?: (atIndex: number) => void;
   onAnnotationEdit?: (id: string) => void;
@@ -96,6 +98,7 @@ function SheetViewImpl({
   onToggleMute,
   onToggleSolo,
   onPartDelete,
+  onPartNameChange,
   onInsertPart,
   onAnnotationEdit,
   onAnnotationMove,
@@ -155,6 +158,7 @@ function SheetViewImpl({
             onToggleMute={onToggleMute}
             onToggleSolo={onToggleSolo}
             onPartDelete={onPartDelete}
+            onPartNameChange={onPartNameChange}
             onAnnotationEdit={onAnnotationEdit}
             onAnnotationMove={onAnnotationMove}
             onAnnotationDelete={onAnnotationDelete}

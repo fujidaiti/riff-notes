@@ -28,6 +28,8 @@ export interface BandProps extends BandGridProps {
   onToggleSolo?: (partId: string) => void;
   /** Editor-only: delete this part. */
   onPartDelete?: (partId: string) => void;
+  /** Editor-only: rename this part inline. */
+  onPartNameChange?: (partId: string, name: string) => void;
 }
 
 function partRange(part: Part): string {
@@ -66,7 +68,7 @@ function PartMenu({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => 
   );
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, onPartNameChange, ...gridProps }: BandProps) {
   const mix = sheet.mix.parts[part.id];
   const muted = mix?.mute ?? false;
   const soloed = mix?.solo ?? false;
@@ -79,7 +81,18 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
         title={onPartClick ? "Part settings" : undefined}
       >
         <div className={styles.sideTop}>
-          <span className={styles.name}>{part.name}</span>
+          {onPartNameChange ? (
+            <input
+              className={styles.nameInput}
+              type="text"
+              value={part.name}
+              title="Part name"
+              onClick={(ev) => ev.stopPropagation()}
+              onChange={(ev) => onPartNameChange(part.id, ev.target.value)}
+            />
+          ) : (
+            <span className={styles.name}>{part.name}</span>
+          )}
           {(onPartClick || onPartDelete) && (
             <PartMenu
               onEdit={onPartClick ? () => onPartClick(part.id) : undefined}
