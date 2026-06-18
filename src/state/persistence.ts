@@ -54,6 +54,16 @@ export function saveProject(project: Project): void {
   }, 300);
 }
 
+/** Return the timestamp (ms) of the last successful localStorage write, or null. */
+export function getSavedAt(): number | null {
+  try {
+    const v = localStorage.getItem(SAVED_AT_KEY);
+    return v ? Number(v) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Force any pending debounced save to flush now (e.g. on pagehide). */
 export function flushSave(): void {
   if (!timer) return;

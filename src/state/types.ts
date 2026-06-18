@@ -34,6 +34,7 @@ export type Action =
   // --- project lifecycle (no history) ---
   | { type: "LOAD_PROJECT"; project: Project }
   | { type: "NEW_PROJECT" }
+  | { type: "SET_PROJECT_NAME"; name: string }
   // --- navigation / view (no history) ---
   | { type: "SET_ACTIVE_SHEET"; sheetId: string }
   | { type: "TOGGLE_ANNOTATIONS" }
