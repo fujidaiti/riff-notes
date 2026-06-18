@@ -39,6 +39,55 @@ function cloneSheet(sheet: Sheet): Sheet {
   return { ...sheet, parts: sheet.parts.map((p) => ({ ...p, notes: p.notes.map((n) => ({ ...n })) })) };
 }
 
+interface RubberState {
+  startX: number;
+  startY: number;
+  additive: boolean;
+  base: Set<string>;
+  cell: { partId: string; step: number; pitch: number } | null;
+  moved: boolean;
+  overlay: HTMLDivElement | null;
+  /** First part the band touched — selection is constrained to it. */
+  lockedPartId: string | null;
+}
+
+/**
+ * Update the rubber-band overlay and recompute the selection by hit-testing the
+ * band rectangle against rendered note elements (`div[data-note-id]`). The
+ * selection locks to the first part touched, preserving the single-part
+ * invariant even though the band can span bars and parts visually.
+ */
+function updateRubberBand(rb: RubberState, x: number, y: number, dispatch: (a: Action) => void, sheetId: string): void {
+  const left = Math.min(rb.startX, x);
+  const top = Math.min(rb.startY, y);
+  const w = Math.abs(x - rb.startX);
+  const h = Math.abs(y - rb.startY);
+
+  if (!rb.overlay) {
+    const el = document.createElement("div");
+    el.style.cssText =
+      "position:fixed;border:1px solid var(--note-sel,#2b6cb0);background:rgba(43,108,176,0.12);pointer-events:none;z-index:9999;";
+    document.body.appendChild(el);
+    rb.overlay = el;
+  }
+  Object.assign(rb.overlay.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
+
+  const sel = new Set(rb.additive ? rb.base : []);
+  const rectRight = left + w;
+  const rectBottom = top + h;
+  for (const el of document.querySelectorAll<HTMLElement>("div[data-note-id]")) {
+    const r = el.getBoundingClientRect();
+    if (r.left >= rectRight || r.right <= left || r.top >= rectBottom || r.bottom <= top) continue;
+    const partId = el.closest<HTMLElement>("[data-part-id]")?.dataset.partId;
+    if (!partId) continue;
+    if (!rb.lockedPartId) rb.lockedPartId = partId;
+    if (partId !== rb.lockedPartId) continue;
+    const id = el.dataset.noteId;
+    if (id) sel.add(id);
+  }
+  dispatch({ type: "SET_SELECTION", sheetId, noteIds: sel });
+}
+
 /**
  * Interaction for one sheet's grids: note selection, drag-move, edge-resize,
  * and modifier-click note creation. Drag previews live in local state (so they
@@ -56,6 +105,7 @@ export function useGridInteraction(
 ) {
   const [preview, setPreview] = useState<Map<string, NotePatch> | null>(null);
   const drag = useRef<DragState | null>(null);
+  const rubber = useRef<RubberState | null>(null);
   const cfg = useRef({ sheet, selection, dispatch, cellW, cellH, engine });
   cfg.current = { sheet, selection, dispatch, cellW, cellH, engine };
 
@@ -70,6 +120,13 @@ export function useGridInteraction(
   // Stable window listeners installed once.
   useEffect(() => {
     const onMove = (ev: PointerEvent) => {
+      const rb = rubber.current;
+      if (rb) {
+        if (!rb.moved && Math.abs(ev.clientX - rb.startX) < CLICK_MAX_MOVE && Math.abs(ev.clientY - rb.startY) < CLICK_MAX_MOVE) return;
+        rb.moved = true;
+        updateRubberBand(rb, ev.clientX, ev.clientY, cfg.current.dispatch, cfg.current.sheet.id);
+        return;
+      }
       const d = drag.current;
       if (!d) return;
       const dx = ev.clientX - d.startX;
@@ -80,6 +137,17 @@ export function useGridInteraction(
       setPreview(computeFor(d, dx, d.mode === "move" ? dy : 0));
     };
     const onUp = (ev: PointerEvent) => {
+      const rb = rubber.current;
+      if (rb) {
+        rubber.current = null;
+        rb.overlay?.remove();
+        const { dispatch: dsp, sheet: sh } = cfg.current;
+        if (!rb.moved) {
+          if (rb.cell) dsp({ type: "SET_CELL", sheetId: sh.id, cell: rb.cell });
+          else dsp({ type: "CLEAR_SELECTION", sheetId: sh.id });
+        }
+        return;
+      }
       const d = drag.current;
       drag.current = null;
       if (!d) return;
@@ -98,6 +166,7 @@ export function useGridInteraction(
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      rubber.current?.overlay?.remove();
     };
   }, [computeFor]);
 
@@ -172,11 +241,20 @@ export function useGridInteraction(
       return;
     }
 
-    if (pitch >= part.lo && pitch <= part.hi) {
-      dsp({ type: "SET_CELL", sheetId: sh.id, cell: { partId: part.id, step, pitch } });
-    } else {
-      dsp({ type: "CLEAR_SELECTION", sheetId: sh.id });
-    }
+    // Begin a rubber-band: a plain press that doesn't move just sets the cell
+    // (or clears); dragging selects notes across bars/parts. Shift keeps the
+    // current selection as the additive base.
+    const inRange = pitch >= part.lo && pitch <= part.hi;
+    rubber.current = {
+      startX: ev.clientX,
+      startY: ev.clientY,
+      additive: ev.shiftKey,
+      base: ev.shiftKey ? new Set(cfg.current.selection.noteIds) : new Set(),
+      cell: inRange ? { partId: part.id, step, pitch } : null,
+      moved: false,
+      overlay: null,
+      lockedPartId: null,
+    };
   }, []);
 
   const displaySheet: Sheet = preview ? applyPatches(cloneSheet(sheet), preview) : sheet;
