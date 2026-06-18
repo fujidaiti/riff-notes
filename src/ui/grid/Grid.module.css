@@ -1,0 +1,106 @@
+/* The bar grid. Notes are absolutely positioned inside .wrap; the grid lines
+   are drawn by a CSS-gradient ::after so there is one element per note, not one
+   per cell. Identical in the editor and the read-only viewer. */
+.wrap {
+  position: relative;
+  background: var(--sheet-bg);
+  border: 1px solid var(--line);
+}
+.wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-line-soft) 1px, transparent 1px);
+  background-size:
+    calc(var(--cell-w) * 16) 100%,
+    calc(var(--cell-w) * 4) 100%,
+    var(--cell-w) 100%;
+}
+
+.row {
+  position: relative;
+  height: var(--cell-h);
+}
+
+.note {
+  position: absolute;
+  height: calc(var(--cell-h) - 2px);
+  top: 1px;
+  border-radius: 2px;
+  touch-action: none;
+  z-index: 1;
+}
+.interactive {
+  cursor: grab;
+}
+.note::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: var(--note);
+  box-shadow: inset 0 0 0 1px var(--note-inset);
+  opacity: var(--vel-opacity, 1);
+  z-index: -1;
+}
+.inScale::before {
+  background: var(--note-in-scale);
+}
+.drumHihat::before {
+  background: #e3c44a;
+}
+.drumSnare::before {
+  background: #d24a4a;
+}
+.drumKick::before {
+  background: #9056c8;
+}
+.selected {
+  outline: 2px solid var(--note-sel-outline);
+  outline-offset: -2px;
+  z-index: 3;
+}
+.interactive.note:hover:not(.selected) {
+  outline: 2px solid var(--note-sel-outline);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.label {
+  position: absolute;
+  pointer-events: none;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  text-align: center;
+  z-index: 2;
+}
+:global([data-theme="dark"]) .label {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.cellSelected {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--note-sel);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--playhead-line);
+  pointer-events: none;
+  z-index: 4;
+}
