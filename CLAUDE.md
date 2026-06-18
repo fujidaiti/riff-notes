@@ -39,8 +39,15 @@ Two Vite entry points share one `src/` tree: `index.html` → `src/main.tsx` (ed
 - **`src/ui/`** — presentational React shared by editor and viewer: the reusable `Grid` (absolute
   notes over CSS-gradient grid lines; attaches no handlers when `readOnly`), `Band`, `SheetView`, and
   `theme.css` (the `--cell-w`/`--cell-h` CSS variables are the single layout contract).
-- **`src/editor/`** — editor-only: `App.tsx`, interaction hooks (`useGridInteraction`,
-  `useKeyboardShortcuts`), and `platform.ts` (`isCreateModifier`/`IS_MAC`).
+- **`src/audio/`** — `AudioEngine.ts`: a class encapsulating WebAudio (lazy context, master +
+  per-part gain nodes reusing `core/mixer`, note/drum synthesis, looping, metronome click). The
+  playhead is reported out-of-band via `currentStep()`, polled by `PlayheadLine`'s own rAF so 60fps
+  motion never re-renders the note tree.
+- **`src/editor/`** — editor-only: `App.tsx`, interaction hooks (`useGridInteraction` for
+  select/drag/resize/create/velocity/rubber-band, `useKeyboardShortcuts`, `useTransport`,
+  `useMidiRecording`), the dialogs (`dialogs/` — mixer, part config, quantize, help, annotation),
+  `shortcuts.ts` (single source for the keyboard handler and the help table), `io.ts` (JSON
+  save/load), and `platform.ts` (`isCreateModifier`/`IS_MAC`).
 - **`src/viewer/`** — viewer-only: `EmbedApp.tsx` + `hydrate.ts` (loads a project from
   `window.__RIFF_PROJECT__` or a `?p=` base64url param).
 
@@ -65,10 +72,13 @@ serialized — it lives in `src/state`, separate from the `Project` types. See `
 - Editor pixel layout multiplies by `cellW`/`cellH` read from the CSS vars via `useCellSize`; never
   hard-code cell sizes.
 
-## Migration status / known follow-ups
+## Migration status
 
-The React editor covers: rendering, tabs/sheet meta, note create/select/move/resize/delete,
-copy/cut/paste, undo/redo, and the read-only embed. **Not yet ported from `legacy/index.html`**
-(tracked in `TODO.md`): audio playback + transport, Web-MIDI recording, global rubber-band
-selection, the annotations UI (cards/editing/drag), the dialogs (mixer, quantize, part config, help),
-velocity cycling, and the playhead. Until these land, `legacy/index.html` remains the reference.
+The React app has reached feature parity with `legacy/index.html` for: rendering, tabs/sheet meta,
+note create/select/move/resize/delete, copy/cut/paste, undo/redo, the read-only embed, audio playback
++ transport + repeat, the playhead, mixer (mute/solo/volume), part management (add/delete/configure,
+drums), velocity cycling, quantize, rubber-band selection across bars, annotations (create/edit/
+delete/drag + connectors), JSON save/load, the help dialog, and Web-MIDI recording with a metronome
+count-in. `legacy/index.html` is retained as an archived behavioral reference; it can be deleted once
+a manual browser QA pass confirms parity. Remaining minor polish is tracked in `TODO.md` (the hover
+cell tooltip, and recording extras like per-take BPM override / auto-expand).
