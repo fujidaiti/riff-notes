@@ -16,7 +16,7 @@ import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import { QuantizeDialog } from "./dialogs/QuantizeDialog";
 import { HelpDialog } from "./dialogs/HelpDialog";
 import { AnnotationDialog } from "./dialogs/AnnotationDialog";
-import { downloadProjectJson, pickProjectJson } from "./io";
+import { downloadProjectJson, downloadSheetMidi, pickProjectJson } from "./io";
 import { getSavedAt } from "../state/persistence";
 import styles from "./App.module.css";
 
@@ -135,6 +135,9 @@ export function App() {
         </button>
         <button className={styles.btn} onClick={loadFromFile}>
           Load
+        </button>
+        <button className={styles.btn} onClick={() => downloadSheetMidi(sheet)} title="Export active sheet as MIDI">
+          Export MIDI
         </button>
         <button className={styles.btn} onClick={() => setHelpOpen(true)} title="Keyboard shortcuts">
           ?

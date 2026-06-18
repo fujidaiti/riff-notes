@@ -1,5 +1,6 @@
-import type { Project } from "../core/model/types";
+import type { Project, Sheet } from "../core/model/types";
 import { deserializeProject, serializeProject } from "../core/serialize";
+import { buildSheetMidi } from "../core/midi";
 
 /** Download the project as a JSON file. */
 export function downloadProjectJson(project: Project): void {
@@ -8,6 +9,19 @@ export function downloadProjectJson(project: Project): void {
   const a = document.createElement("a");
   a.href = url;
   a.download = `${project.name || "riff-notes"}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Download the active sheet as a Standard MIDI File (.mid). */
+export function downloadSheetMidi(sheet: Sheet): void {
+  const bytes = buildSheetMidi(sheet);
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "audio/midi" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const safe = (sheet.title || "sheet").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 40) || "sheet";
+  a.download = `${safe}.mid`;
   a.click();
   URL.revokeObjectURL(url);
 }
