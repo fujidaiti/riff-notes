@@ -69,6 +69,7 @@ export interface SheetViewProps {
   onInsertPart?: (atIndex: number) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
+  onAnnotationDelete?: (id: string) => void;
 }
 
 /** Stack of part lanes for one sheet. Shared by the editor and the viewer. */
@@ -98,6 +99,7 @@ function SheetViewImpl({
   onInsertPart,
   onAnnotationEdit,
   onAnnotationMove,
+  onAnnotationDelete,
 }: SheetViewProps) {
   const sheetSteps = sheet.barCount * STEPS_PER_BAR;
   const cell: CellSelection | null = selection?.cell ?? null;
@@ -155,6 +157,7 @@ function SheetViewImpl({
             onPartDelete={onPartDelete}
             onAnnotationEdit={onAnnotationEdit}
             onAnnotationMove={onAnnotationMove}
+            onAnnotationDelete={onAnnotationDelete}
           />
         );
         if (!onInsertPart) return [band];
