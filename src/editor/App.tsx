@@ -269,6 +269,7 @@ export function App() {
             dispatch({ type: "SET_PART_MIX", sheetId: sheet.id, partId, patch: { solo: !mix?.solo } });
           }}
           onPartDelete={(partId) => dispatch({ type: "DELETE_PART", sheetId: sheet.id, partId })}
+          onInsertPart={(atIndex) => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano", insertAt: atIndex })}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
         />

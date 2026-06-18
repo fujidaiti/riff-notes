@@ -140,7 +140,11 @@ export function reducer(state: AppState, action: Action): AppState {
     case "ADD_PART":
       return commit(state, action.sheetId, (s) => {
         const part = makePart(undefined, action.instrument);
-        s.parts.push(part);
+        if (action.insertAt != null && action.insertAt >= 0 && action.insertAt <= s.parts.length) {
+          s.parts.splice(action.insertAt, 0, part);
+        } else {
+          s.parts.push(part);
+        }
         s.mix.parts[part.id] = defaultPartMix();
       });
 
