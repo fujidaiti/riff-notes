@@ -18,6 +18,10 @@ export interface BandProps extends BandGridProps {
   cellH: number;
   /** Editor-only: open this part's settings. Omitted in the read-only viewer. */
   onPartClick?: (partId: string) => void;
+  /** Editor-only: start/stop recording for this part. */
+  onPartRecord?: (partId: string) => void;
+  /** True when this part is actively being recorded. */
+  isRecording?: boolean;
 }
 
 function partRange(part: Part): string {
@@ -25,7 +29,7 @@ function partRange(part: Part): string {
   return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, ...gridProps }: BandProps) {
   return (
     <div className={styles.band}>
       <div
@@ -34,7 +38,21 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, ...gridP
         onClick={onPartClick ? () => onPartClick(part.id) : undefined}
         title={onPartClick ? "Part settings" : undefined}
       >
-        <span className={styles.name}>{part.name}</span>
+        <div className={styles.sideTop}>
+          <span className={styles.name}>{part.name}</span>
+          {onPartRecord && (
+            <button
+              className={`${styles.recBtn} ${isRecording ? styles.recActive : ""}`}
+              title={isRecording ? "Recording…" : "Record into this part"}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onPartRecord(part.id);
+              }}
+            >
+              ●
+            </button>
+          )}
+        </div>
         <span className={styles.meta}>{partRange(part)}</span>
       </div>
       <div className={styles.scroll}>

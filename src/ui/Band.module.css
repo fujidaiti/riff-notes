@@ -19,12 +19,42 @@
   left: 0;
   z-index: 5;
 }
+.sideTop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .name {
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.recBtn {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.recBtn:hover {
+  color: #c00;
+}
+.recActive {
+  color: #c00;
+  animation: recPulse 1s ease-in-out infinite;
+}
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 .meta {
   color: var(--ink-muted);

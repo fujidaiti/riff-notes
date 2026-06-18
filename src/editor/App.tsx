@@ -46,6 +46,7 @@ export function App() {
   useCellHover(sheetRef, cellW, cellH, transport === "stopped" && !recording.recording);
 
   const [recConfigOpen, setRecConfigOpen] = useState(false);
+  const [recConfigPartId, setRecConfigPartId] = useState<string | null>(null);
 
   // Push live mixer changes to the audio graph while playing.
   useEffect(() => {
@@ -243,6 +244,8 @@ export function App() {
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}
+          onPartRecord={(partId) => { setRecConfigPartId(partId); setRecConfigOpen(true); }}
+          recordingPartId={recording.recordingPartId}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
         />
@@ -259,7 +262,7 @@ export function App() {
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
-      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => setRecConfigOpen(false)} onStart={(o) => void recording.start(o)} />
+      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start(o)} defaultPartId={recConfigPartId} />
     </div>
   );
 }

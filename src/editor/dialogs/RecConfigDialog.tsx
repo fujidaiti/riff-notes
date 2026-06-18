@@ -10,11 +10,13 @@ export function RecConfigDialog({
   open,
   onClose,
   onStart,
+  defaultPartId,
 }: {
   sheet: Sheet;
   open: boolean;
   onClose: () => void;
   onStart: (options: RecordOptions) => void;
+  defaultPartId?: string | null;
 }) {
   const eligible = sheet.parts;
   const [partId, setPartId] = useState(eligible[0]?.id ?? "");
@@ -24,10 +26,15 @@ export function RecConfigDialog({
   const [autoAppendBar, setAutoAppendBar] = useState(false);
   const [playBacking, setPlayBacking] = useState(true);
 
-  // Default to the current selection's part when the dialog opens.
+  // When opened with a specific part (via per-part record button), pre-select it.
   useEffect(() => {
-    if (open && !eligible.some((p) => p.id === partId)) setPartId(eligible[0]?.id ?? "");
-  }, [open, eligible, partId]);
+    if (!open) return;
+    if (defaultPartId && eligible.some((p) => p.id === defaultPartId)) {
+      setPartId(defaultPartId);
+    } else if (!eligible.some((p) => p.id === partId)) {
+      setPartId(eligible[0]?.id ?? "");
+    }
+  }, [open, defaultPartId, eligible, partId]);
 
   return (
     <Dialog open={open} onClose={onClose} title="Record">

@@ -26,6 +26,10 @@ export interface SheetViewProps {
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
   onGridPointerDown?: GridProps["onGridPointerDown"];
   onPartClick?: (partId: string) => void;
+  /** Editor-only: start recording for the given part. */
+  onPartRecord?: (partId: string) => void;
+  /** The part currently being recorded, for visual indication. */
+  recordingPartId?: string | null;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
 }
@@ -47,6 +51,8 @@ function SheetViewImpl({
   onNoteContextMenu,
   onGridPointerDown,
   onPartClick,
+  onPartRecord,
+  recordingPartId,
   onAnnotationEdit,
   onAnnotationMove,
 }: SheetViewProps) {
@@ -96,6 +102,8 @@ function SheetViewImpl({
           onNoteContextMenu={onNoteContextMenu}
           onGridPointerDown={onGridPointerDown}
           onPartClick={onPartClick}
+          onPartRecord={onPartRecord}
+          isRecording={recordingPartId === part.id}
           onAnnotationEdit={onAnnotationEdit}
           onAnnotationMove={onAnnotationMove}
         />
