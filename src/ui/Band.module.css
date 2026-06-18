@@ -38,8 +38,9 @@
   flex: 0 0 auto;
   position: relative;
 }
-.menu summary {
-  list-style: none;
+.menuBtn {
+  background: transparent;
+  border: none;
   cursor: pointer;
   padding: 0 2px;
   font-size: 13px;
@@ -48,8 +49,7 @@
   line-height: 1;
   user-select: none;
 }
-.menu summary::-webkit-details-marker { display: none; }
-.menu summary:hover { color: var(--ink); }
+.menuBtn:hover { color: var(--ink); }
 .menuPanel {
   position: absolute;
   left: 0;

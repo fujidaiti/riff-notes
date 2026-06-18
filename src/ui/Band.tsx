@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { Part, Sheet } from "../core/model/types";
 
 /** Width of the part label sidebar — must match the .side CSS width in Band.module.css. */
@@ -35,6 +35,37 @@ function partRange(part: Part): string {
   return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
 }
 
+function PartMenu({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [open]);
+
+  return (
+    <div className={styles.menu} onPointerDown={(ev) => ev.stopPropagation()}>
+      <button
+        ref={btnRef}
+        className={styles.menuBtn}
+        title="Part menu"
+        onClick={() => setOpen((o) => !o)}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className={styles.menuPanel}>
+          {onEdit && <button onClick={() => { onEdit(); setOpen(false); }}>Edit</button>}
+          {onDelete && <button className={styles.menuDelete} onClick={() => { onDelete(); setOpen(false); }}>Delete</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, ...gridProps }: BandProps) {
   const mix = sheet.mix.parts[part.id];
   const muted = mix?.mute ?? false;
@@ -50,13 +81,10 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
         <div className={styles.sideTop}>
           <span className={styles.name}>{part.name}</span>
           {(onPartClick || onPartDelete) && (
-            <details className={styles.menu} onClick={(ev) => ev.stopPropagation()}>
-              <summary className={styles.menuBtn} title="Part menu">⋯</summary>
-              <div className={styles.menuPanel}>
-                {onPartClick && <button onClick={() => onPartClick(part.id)}>Edit</button>}
-                {onPartDelete && <button className={styles.menuDelete} onClick={() => onPartDelete(part.id)}>Delete</button>}
-              </div>
-            </details>
+            <PartMenu
+              onEdit={onPartClick ? () => onPartClick(part.id) : undefined}
+              onDelete={onPartDelete ? () => onPartDelete(part.id) : undefined}
+            />
           )}
           {onPartRecord && (
             <button
