@@ -69,6 +69,51 @@ describe("reducer mutations + history", () => {
     expect(s.history.past).toHaveLength(1);
   });
 
+  it("mixer changes update the project WITHOUT recording history", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    const partId = activeSheet(s).parts[0].id;
+    s = reducer(s, { type: "SET_PART_MIX", sheetId: id, partId, patch: { mute: true } });
+    expect(activeSheet(s).mix.parts[partId].mute).toBe(true);
+    expect(s.history.past).toHaveLength(0);
+  });
+
+  it("SET_PART_MIX makes mute and solo mutually exclusive", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    const partId = activeSheet(s).parts[0].id;
+    s = reducer(s, { type: "SET_PART_MIX", sheetId: id, partId, patch: { solo: true } });
+    s = reducer(s, { type: "SET_PART_MIX", sheetId: id, partId, patch: { mute: true } });
+    expect(activeSheet(s).mix.parts[partId]).toMatchObject({ mute: true, solo: false });
+  });
+
+  it("ADD_PART / DELETE_PART adjust parts and mix, and record history", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    s = reducer(s, { type: "ADD_PART", sheetId: id, instrument: "drum" });
+    expect(activeSheet(s).parts).toHaveLength(2);
+    const drumId = activeSheet(s).parts[1].id;
+    expect(activeSheet(s).parts[1].instrument).toBe("drum");
+    expect(activeSheet(s).mix.parts[drumId]).toBeDefined();
+    s = reducer(s, { type: "DELETE_PART", sheetId: id, partId: drumId });
+    expect(activeSheet(s).parts).toHaveLength(1);
+  });
+
+  it("CYCLE_VELOCITY advances velocity and wraps around", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    s = reducer(s, {
+      type: "MUTATE_SHEET",
+      sheetId: id,
+      mutate: (sheet) => {
+        const p = sheet.parts[0];
+        p.notes.push({ id: "v", partId: p.id, pitch: 60, start: 0, length: 1, vel: 4, subOffset: 0, subLength: 0 });
+      },
+    });
+    s = reducer(s, { type: "CYCLE_VELOCITY", sheetId: id, noteIds: new Set(["v"]) });
+    expect(activeSheet(s).parts[0].notes[0].vel).toBe(0); // 4 -> wraps to 0
+  });
+
   it("TOGGLE_NOTE enforces the single-part invariant", () => {
     let s = setup();
     const id = s.ui.activeSheetId;

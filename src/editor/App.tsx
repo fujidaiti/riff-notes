@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppState, useDispatch } from "../state/context";
 import { activeSheet } from "../state/reducer";
 import { PITCH_NAMES, SCALE_OPTIONS } from "../core/model/constants";
@@ -8,6 +8,8 @@ import { useCellSize } from "../ui/useCellSize";
 import { useGridInteraction } from "./hooks/useGridInteraction";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTransport } from "./hooks/useTransport";
+import { MixerDialog } from "./dialogs/MixerDialog";
+import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import styles from "./App.module.css";
 
 export function App() {
@@ -29,6 +31,10 @@ export function App() {
   useEffect(() => {
     engine.syncMix(sheet);
   }, [engine, sheet]);
+
+  const [mixerOpen, setMixerOpen] = useState(false);
+  const [partConfigId, setPartConfigId] = useState<string | null>(null);
+  const partConfig = partConfigId ? (sheet.parts.find((p) => p.id === partConfigId) ?? null) : null;
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
@@ -52,6 +58,16 @@ export function App() {
         </button>
         <button className={styles.btn} disabled={!canRedo} onClick={() => dispatch({ type: "REDO" })}>
           Redo
+        </button>
+        <span style={{ width: 12 }} />
+        <button className={styles.btn} onClick={() => setMixerOpen(true)}>
+          Mixer
+        </button>
+        <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano" })}>
+          + Part
+        </button>
+        <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "drum" })}>
+          + Drums
         </button>
         <span className={styles.spacer} />
         <span className={styles.hint}>⌘/Ctrl-click empty cell to add · drag to move · edges to resize · Delete to remove · Space to play</span>
@@ -153,8 +169,12 @@ export function App() {
           getPlayheadStep={transport === "stopped" ? undefined : getPlayheadStep}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
+          onPartClick={setPartConfigId}
         />
       </div>
+
+      <MixerDialog sheet={sheet} open={mixerOpen} onClose={() => setMixerOpen(false)} />
+      <PartConfigDialog sheet={sheet} part={partConfig} open={partConfig !== null} onClose={() => setPartConfigId(null)} />
     </div>
   );
 }

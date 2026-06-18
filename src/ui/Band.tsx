@@ -13,6 +13,8 @@ export interface BandProps extends BandGridProps {
   sheetSteps: number;
   cellW: number;
   cellH: number;
+  /** Editor-only: open this part's settings. Omitted in the read-only viewer. */
+  onPartClick?: (partId: string) => void;
 }
 
 function partRange(part: Part): string {
@@ -20,10 +22,15 @@ function partRange(part: Part): string {
   return `${pitchName(part.lo)}–${pitchName(part.hi)}`;
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, ...gridProps }: BandProps) {
   return (
     <div className={styles.band}>
-      <div className={styles.side}>
+      <div
+        className={styles.side}
+        style={onPartClick ? { cursor: "pointer" } : undefined}
+        onClick={onPartClick ? () => onPartClick(part.id) : undefined}
+        title={onPartClick ? "Part settings" : undefined}
+      >
         <span className={styles.name}>{part.name}</span>
         <span className={styles.meta}>{partRange(part)}</span>
       </div>

@@ -1,4 +1,4 @@
-import type { Note, Project, Scale, Sheet } from "../core/model/types";
+import type { InstrumentId, Note, PartMix, Project, Scale, Sheet } from "../core/model/types";
 import type { History } from "./history";
 
 /** Empty-cell selection target (for placement / paste). */
@@ -50,6 +50,14 @@ export type Action =
   | { type: "SET_SCALE"; sheetId: string; scale: Scale }
   | { type: "ADD_SHEET" }
   | { type: "DELETE_SHEET"; sheetId: string }
+  | { type: "ADD_PART"; sheetId: string; instrument: InstrumentId }
+  | { type: "DELETE_PART"; sheetId: string; partId: string }
+  | { type: "UPDATE_PART"; sheetId: string; partId: string; fields: { name?: string; lo?: number; hi?: number; instrument?: InstrumentId } }
+  | { type: "QUANTIZE_SELECTION"; sheetId: string; noteIds: Set<string>; posSub: number; lenSub: number }
+  | { type: "CYCLE_VELOCITY"; sheetId: string; noteIds: Set<string> }
+  // --- mixer (persisted but NOT recorded in undo history) ---
+  | { type: "SET_PART_MIX"; sheetId: string; partId: string; patch: Partial<PartMix> }
+  | { type: "SET_MASTER_MIX"; sheetId: string; patch: Partial<{ vol: number; mute: boolean }> }
   // Escape hatch: apply an arbitrary sheet mutation, recorded in history. The
   // editor's interaction hooks use this to commit drag/resize/create/etc.
   // results that were computed against the pure core.

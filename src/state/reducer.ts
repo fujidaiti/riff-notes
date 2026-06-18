@@ -1,5 +1,7 @@
 import type { Project, Sheet } from "../core/model/types";
-import { makeSheet } from "../core/model/factory";
+import { VEL_LABELS, getInstrument } from "../core/model/constants";
+import { defaultPartMix, makePart, makeSheet } from "../core/model/factory";
+import { quantizeNotes } from "../core/quantize";
 import { deserializeProject, serializeProject } from "../core/serialize";
 import { dropForeignPart, partOfSelection } from "../core/selection";
 import { emptyHistory, record, redo, undo } from "./history";
@@ -42,6 +44,11 @@ function commit(state: AppState, sheetId: string, mutate: SheetMutator): AppStat
   const history = record(state.history, state.project);
   const project = withSheet(state.project, sheetId, mutate);
   return { ...state, project, history };
+}
+
+/** Apply a sheet mutation WITHOUT recording history (e.g. mixer changes). */
+function update(state: AppState, sheetId: string, mutate: SheetMutator): AppState {
+  return { ...state, project: withSheet(state.project, sheetId, mutate) };
 }
 
 function applySnapshot(state: AppState, snapshot: ReturnType<typeof serializeProject>, history: AppState["history"]): AppState {
@@ -125,6 +132,78 @@ export function reducer(state: AppState, action: Action): AppState {
       const ui = freshUi(project, state.ui);
       return { project, ui, history };
     }
+
+    case "ADD_PART":
+      return commit(state, action.sheetId, (s) => {
+        const part = makePart(undefined, action.instrument);
+        s.parts.push(part);
+        s.mix.parts[part.id] = defaultPartMix();
+      });
+
+    case "DELETE_PART":
+      return commit(state, action.sheetId, (s) => {
+        if (s.parts.length <= 1) return;
+        s.parts = s.parts.filter((p) => p.id !== action.partId);
+        delete s.mix.parts[action.partId];
+        s.annotations = s.annotations.filter((a) => a.noteIds.length > 0);
+      });
+
+    case "UPDATE_PART":
+      return commit(state, action.sheetId, (s) => {
+        const part = s.parts.find((p) => p.id === action.partId);
+        if (!part) return;
+        const { name, lo, hi, instrument } = action.fields;
+        if (name !== undefined) part.name = name;
+        if (instrument !== undefined && instrument !== part.instrument) {
+          // Crossing the pitched/fixed boundary changes the row layout, so
+          // reset the range to the instrument defaults and drop the notes.
+          const inst = getInstrument(instrument);
+          const prev = getInstrument(part.instrument);
+          part.instrument = instrument;
+          if (inst.pitchMode !== prev.pitchMode) {
+            part.lo = inst.defaultLo;
+            part.hi = inst.defaultHi;
+            part.notes = [];
+            s.annotations = s.annotations.filter((a) => a.noteIds.length > 0);
+          }
+        }
+        const inst = getInstrument(part.instrument);
+        if (inst.pitchMode === "pitched") {
+          if (lo !== undefined) part.lo = lo;
+          if (hi !== undefined) part.hi = hi;
+          if (part.lo > part.hi) [part.lo, part.hi] = [part.hi, part.lo];
+        }
+      });
+
+    case "QUANTIZE_SELECTION":
+      return commit(state, action.sheetId, (s) => {
+        const notes = s.parts.flatMap((p) => p.notes.filter((n) => action.noteIds.has(n.id)));
+        quantizeNotes(s, notes, action.posSub, action.lenSub);
+      });
+
+    case "CYCLE_VELOCITY":
+      return commit(state, action.sheetId, (s) => {
+        for (const p of s.parts) {
+          for (const n of p.notes) {
+            if (action.noteIds.has(n.id)) n.vel = (n.vel + 1) % VEL_LABELS.length;
+          }
+        }
+      });
+
+    case "SET_PART_MIX":
+      return update(state, action.sheetId, (s) => {
+        const pm = s.mix.parts[action.partId] ?? defaultPartMix();
+        const next = { ...pm, ...action.patch };
+        // mute and solo are mutually exclusive, matching the legacy UI.
+        if (action.patch.mute) next.solo = false;
+        if (action.patch.solo) next.mute = false;
+        s.mix.parts[action.partId] = next;
+      });
+
+    case "SET_MASTER_MIX":
+      return update(state, action.sheetId, (s) => {
+        s.mix.master = { ...s.mix.master, ...action.patch };
+      });
 
     case "MUTATE_SHEET": {
       const next = commit(state, action.sheetId, action.mutate);
