@@ -9,6 +9,8 @@ import { useGridInteraction } from "./hooks/useGridInteraction";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTransport } from "./hooks/useTransport";
 import { useMidiRecording } from "./hooks/useMidiRecording";
+import { useCellHover } from "./hooks/useCellHover";
+import { RecConfigDialog } from "./dialogs/RecConfigDialog";
 import { MixerDialog } from "./dialogs/MixerDialog";
 import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import { QuantizeDialog } from "./dialogs/QuantizeDialog";
@@ -33,11 +35,10 @@ export function App() {
   const recording = useMidiRecording(engine, sheet, dispatch);
   const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
 
-  // Arm the part of the current cell selection, else the first part.
-  const armPart = () => {
-    const pid = selection.cell?.partId ?? sheet.parts[0]?.id;
-    if (pid) void recording.start(pid);
-  };
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useCellHover(sheetRef, cellW, cellH, transport === "stopped" && !recording.recording);
+
+  const [recConfigOpen, setRecConfigOpen] = useState(false);
 
   // Push live mixer changes to the audio graph while playing.
   useEffect(() => {
@@ -76,7 +77,7 @@ export function App() {
         </button>
         <button
           className={`${styles.btn} ${recording.recording ? styles.active : ""}`}
-          onClick={recording.recording ? recording.stop : armPart}
+          onClick={recording.recording ? recording.stop : () => setRecConfigOpen(true)}
           title="Record from a MIDI device"
         >
           {recording.phase === "count-in" ? "● Count-in…" : recording.recording ? "● Recording" : "● Record"}
@@ -208,7 +209,7 @@ export function App() {
         </label>
       </div>
 
-      <div className={styles.sheet}>
+      <div className={styles.sheet} ref={sheetRef}>
         <SheetView
           sheet={displaySheet}
           cellW={cellW}
@@ -235,6 +236,7 @@ export function App() {
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
+      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => setRecConfigOpen(false)} onStart={(o) => void recording.start(o)} />
     </div>
   );
 }
