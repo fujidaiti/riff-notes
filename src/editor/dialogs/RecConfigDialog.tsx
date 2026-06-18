@@ -21,6 +21,7 @@ export function RecConfigDialog({
   const eligible = sheet.parts;
   const [partId, setPartId] = useState(eligible[0]?.id ?? "");
   const [posSub, setPosSub] = useState(0);
+  const [lenSub, setLenSub] = useState(0);
   const [bpm, setBpm] = useState<string>("");
   const [autoExpandRange, setAutoExpandRange] = useState(false);
   const [autoAppendBar, setAutoAppendBar] = useState(false);
@@ -51,6 +52,16 @@ export function RecConfigDialog({
       <div className={styles.row}>
         <label>Quantize start</label>
         <select value={posSub} onChange={(e) => setPosSub(Number(e.target.value))}>
+          {QUANTIZE_GRIDS.map((g) => (
+            <option key={g.label} value={g.sub}>
+              {g.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className={styles.row}>
+        <label>Quantize length</label>
+        <select value={lenSub} onChange={(e) => setLenSub(Number(e.target.value))}>
           {QUANTIZE_GRIDS.map((g) => (
             <option key={g.label} value={g.sub}>
               {g.label}
@@ -91,7 +102,7 @@ export function RecConfigDialog({
           onClick={() => {
             const parsed = parseInt(bpm, 10);
             const bpmOverride = Number.isFinite(parsed) && parsed >= 20 && parsed <= 300 ? parsed : 0;
-            onStart({ partId, posQuantizeSub: posSub, bpmOverride, autoExpandRange, autoAppendBar, playBacking });
+            onStart({ partId, posQuantizeSub: posSub, lenQuantizeSub: lenSub, bpmOverride, autoExpandRange, autoAppendBar, playBacking });
             onClose();
           }}
         >
