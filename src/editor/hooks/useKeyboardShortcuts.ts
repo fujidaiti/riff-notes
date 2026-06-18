@@ -80,6 +80,20 @@ export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => v
           },
           selectNoteIds: new Set(res.notes.map((n) => n.id)),
         });
+        if (res.outOfRange.count > 0) {
+          const msg = `${res.outOfRange.count} pasted note(s) fall outside the part's pitch range. Extend the range to include them?`;
+          if (window.confirm(msg)) {
+            dsp({
+              type: "UPDATE_PART",
+              sheetId: sheet.id,
+              partId: anchor.part.id,
+              fields: {
+                lo: Math.min(anchor.part.lo, res.outOfRange.min),
+                hi: Math.max(anchor.part.hi, res.outOfRange.max),
+              },
+            });
+          }
+        }
         return;
       }
       if (mod && ev.key.toLowerCase() === "a") {
