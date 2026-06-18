@@ -197,6 +197,7 @@ export function useGridInteraction(
 
   const onNotePointerDown = useCallback((note: Note, ev: React.PointerEvent, region: NoteRegion) => {
     ev.preventDefault();
+    ev.stopPropagation(); // prevent bubbling to grid, which would start a rubber-band simultaneously
     const { sheet: sh, selection: sel, dispatch: dsp, engine: eng } = cfg.current;
     const part = sh.parts.find((p) => p.id === note.partId);
     if (!part) return;
