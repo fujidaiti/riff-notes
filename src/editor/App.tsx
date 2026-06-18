@@ -155,6 +155,9 @@ export function App() {
             className={`${styles.tab} ${s.id === state.ui.activeSheetId ? styles.active : ""}`}
             onClick={() => dispatch({ type: "SET_ACTIVE_SHEET", sheetId: s.id })}
           >
+            {s.id === state.ui.activeSheetId && transport !== "stopped" && (
+              <span className={styles.tabPlaying}>{transport === "playing" ? "▶" : "⏸"}</span>
+            )}
             {s.title}
             {state.project.sheets.length > 1 && (
               <button

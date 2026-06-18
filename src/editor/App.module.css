@@ -33,6 +33,11 @@
   background: var(--panel-hover);
   font-weight: 600;
 }
+.tabPlaying {
+  font-size: 10px;
+  color: var(--playhead);
+  margin-right: 2px;
+}
 .tabClose {
   border: none;
   background: transparent;
