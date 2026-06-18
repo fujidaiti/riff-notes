@@ -10,6 +10,9 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTransport } from "./hooks/useTransport";
 import { MixerDialog } from "./dialogs/MixerDialog";
 import { PartConfigDialog } from "./dialogs/PartConfigDialog";
+import { QuantizeDialog } from "./dialogs/QuantizeDialog";
+import { HelpDialog } from "./dialogs/HelpDialog";
+import { downloadProjectJson, pickProjectJson } from "./io";
 import styles from "./App.module.css";
 
 export function App() {
@@ -23,7 +26,7 @@ export function App() {
   if (!engineRef.current) engineRef.current = new AudioEngine();
   const engine = engineRef.current;
 
-  useKeyboardShortcuts(state, dispatch);
+  useKeyboardShortcuts(state, dispatch, { openQuantize: () => setQuantizeOpen(true), openHelp: () => setHelpOpen(true) });
   const { transport, repeat, setRepeat, play, pause, stop, getPlayheadStep } = useTransport(engine, sheet);
   const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
 
@@ -33,11 +36,19 @@ export function App() {
   }, [engine, sheet]);
 
   const [mixerOpen, setMixerOpen] = useState(false);
+  const [quantizeOpen, setQuantizeOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [partConfigId, setPartConfigId] = useState<string | null>(null);
   const partConfig = partConfigId ? (sheet.parts.find((p) => p.id === partConfigId) ?? null) : null;
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
+  const hasSelection = selection.noteIds.size > 0;
+
+  const loadFromFile = async () => {
+    const project = await pickProjectJson();
+    if (project) dispatch({ type: "LOAD_PROJECT", project });
+  };
 
   return (
     <div className={styles.app}>
@@ -68,6 +79,19 @@ export function App() {
         </button>
         <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "drum" })}>
           + Drums
+        </button>
+        <button className={styles.btn} disabled={!hasSelection} onClick={() => setQuantizeOpen(true)}>
+          Quantize
+        </button>
+        <span style={{ width: 12 }} />
+        <button className={styles.btn} onClick={() => downloadProjectJson(state.project)}>
+          Save
+        </button>
+        <button className={styles.btn} onClick={loadFromFile}>
+          Load
+        </button>
+        <button className={styles.btn} onClick={() => setHelpOpen(true)} title="Keyboard shortcuts">
+          ?
         </button>
         <span className={styles.spacer} />
         <span className={styles.hint}>⌘/Ctrl-click empty cell to add · drag to move · edges to resize · Delete to remove · Space to play</span>
@@ -175,6 +199,14 @@ export function App() {
 
       <MixerDialog sheet={sheet} open={mixerOpen} onClose={() => setMixerOpen(false)} />
       <PartConfigDialog sheet={sheet} part={partConfig} open={partConfig !== null} onClose={() => setPartConfigId(null)} />
+      <QuantizeDialog
+        open={quantizeOpen}
+        onClose={() => setQuantizeOpen(false)}
+        onApply={(posSub, lenSub) =>
+          dispatch({ type: "QUANTIZE_SELECTION", sheetId: sheet.id, noteIds: selection.noteIds, posSub, lenSub })
+        }
+      />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
