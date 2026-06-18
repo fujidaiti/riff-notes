@@ -17,15 +17,20 @@ function isEditable(target: EventTarget | null): boolean {
  * Global editor keyboard shortcuts: undo/redo, delete, copy/cut/paste, toggle
  * annotations. Reads live state via a ref so the listener is installed once.
  */
-export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => void) {
-  const ref = useRef({ state, dispatch });
-  ref.current = { state, dispatch };
+export interface ShortcutHandlers {
+  openQuantize: () => void;
+  openHelp: () => void;
+}
+
+export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => void, handlers: ShortcutHandlers) {
+  const ref = useRef({ state, dispatch, handlers });
+  ref.current = { state, dispatch, handlers };
   const clipboard = useRef<Clipboard | null>(null);
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (isEditable(ev.target)) return;
-      const { state: st, dispatch: dsp } = ref.current;
+      const { state: st, dispatch: dsp, handlers: h } = ref.current;
       const sheet = activeSheet(st);
       const sel = st.ui.selection[sheet.id] ?? { noteIds: new Set<string>(), cell: null };
       const mod = isCreateModifier(ev);
@@ -76,6 +81,14 @@ export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => v
       if ((ev.key === "Backspace" || ev.key === "Delete") && sel.noteIds.size > 0) {
         ev.preventDefault();
         dsp({ type: "MUTATE_SHEET", sheetId: sheet.id, mutate: (s) => void removeNotesByIds(s, sel.noteIds), selectNoteIds: new Set() });
+        return;
+      }
+      if (!mod && ev.key.toLowerCase() === "q" && sel.noteIds.size > 0) {
+        h.openQuantize();
+        return;
+      }
+      if (ev.key === "?") {
+        h.openHelp();
       }
     };
     window.addEventListener("keydown", onKey);
