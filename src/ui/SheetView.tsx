@@ -30,6 +30,8 @@ export interface SheetViewProps {
   onPartRecord?: (partId: string) => void;
   /** The part currently being recorded, for visual indication. */
   recordingPartId?: string | null;
+  onToggleMute?: (partId: string) => void;
+  onToggleSolo?: (partId: string) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
 }
@@ -53,6 +55,8 @@ function SheetViewImpl({
   onPartClick,
   onPartRecord,
   recordingPartId,
+  onToggleMute,
+  onToggleSolo,
   onAnnotationEdit,
   onAnnotationMove,
 }: SheetViewProps) {
@@ -104,6 +108,8 @@ function SheetViewImpl({
           onPartClick={onPartClick}
           onPartRecord={onPartRecord}
           isRecording={recordingPartId === part.id}
+          onToggleMute={onToggleMute}
+          onToggleSolo={onToggleSolo}
           onAnnotationEdit={onAnnotationEdit}
           onAnnotationMove={onAnnotationMove}
         />
