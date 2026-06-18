@@ -66,4 +66,9 @@ export type Action =
   // Escape hatch: apply an arbitrary sheet mutation, recorded in history. The
   // editor's interaction hooks use this to commit drag/resize/create/etc.
   // results that were computed against the pure core.
-  | { type: "MUTATE_SHEET"; sheetId: string; mutate: SheetMutator; selectNoteIds?: Set<string> };
+  | { type: "MUTATE_SHEET"; sheetId: string; mutate: SheetMutator; selectNoteIds?: Set<string> }
+  // Like MUTATE_SHEET but WITHOUT recording history — for high-frequency live
+  // updates (e.g. each note during a MIDI take). Pair with PUSH_HISTORY once at
+  // the start so the whole take is a single undo step.
+  | { type: "MUTATE_SHEET_LIVE"; sheetId: string; mutate: SheetMutator }
+  | { type: "PUSH_HISTORY" };

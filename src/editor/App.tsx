@@ -8,6 +8,7 @@ import { useCellSize } from "../ui/useCellSize";
 import { useGridInteraction } from "./hooks/useGridInteraction";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTransport } from "./hooks/useTransport";
+import { useMidiRecording } from "./hooks/useMidiRecording";
 import { MixerDialog } from "./dialogs/MixerDialog";
 import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import { QuantizeDialog } from "./dialogs/QuantizeDialog";
@@ -29,7 +30,14 @@ export function App() {
 
   useKeyboardShortcuts(state, dispatch, { openQuantize: () => setQuantizeOpen(true), openHelp: () => setHelpOpen(true) });
   const { transport, repeat, setRepeat, play, pause, stop, getPlayheadStep } = useTransport(engine, sheet);
+  const recording = useMidiRecording(engine, sheet, dispatch);
   const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
+
+  // Arm the part of the current cell selection, else the first part.
+  const armPart = () => {
+    const pid = selection.cell?.partId ?? sheet.parts[0]?.id;
+    if (pid) void recording.start(pid);
+  };
 
   // Push live mixer changes to the audio graph while playing.
   useEffect(() => {
@@ -65,6 +73,13 @@ export function App() {
         </button>
         <button className={`${styles.btn} ${repeat ? styles.active : ""}`} onClick={() => setRepeat((r) => !r)} title="Loop">
           ↻ Repeat
+        </button>
+        <button
+          className={`${styles.btn} ${recording.recording ? styles.active : ""}`}
+          onClick={recording.recording ? recording.stop : armPart}
+          title="Record from a MIDI device"
+        >
+          {recording.phase === "count-in" ? "● Count-in…" : recording.recording ? "● Recording" : "● Record"}
         </button>
         <span style={{ width: 12 }} />
         <button className={styles.btn} disabled={!canUndo} onClick={() => dispatch({ type: "UNDO" })}>
@@ -200,7 +215,7 @@ export function App() {
           cellH={cellH}
           selection={selection}
           annotationsVisible={state.ui.annotationsVisible}
-          getPlayheadStep={transport === "stopped" ? undefined : getPlayheadStep}
+          getPlayheadStep={recording.recording ? recording.getRecordStep : transport === "stopped" ? undefined : getPlayheadStep}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}

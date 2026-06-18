@@ -200,6 +200,23 @@ export class AudioEngine {
     }
   }
 
+  /** A short metronome click; accented on the downbeat. */
+  click(accent: boolean): void {
+    this.ensureContext(1);
+    const ctx = this.ctx!;
+    const when = ctx.currentTime + 0.001;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = accent ? 1600 : 1100;
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.exponentialRampToValueAtTime(accent ? 0.25 : 0.15, when + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    osc.connect(gain).connect(this.master ?? ctx.destination);
+    osc.start(when);
+    osc.stop(when + 0.06);
+  }
+
   /** Audition a single note immediately (e.g. on click). */
   auditionNote(sheet: Sheet, note: Note): void {
     this.ensureContext(effectiveMasterValue(sheet.mix));
