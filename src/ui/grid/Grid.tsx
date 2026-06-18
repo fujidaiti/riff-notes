@@ -6,6 +6,7 @@ import { inScaleSet, noteScaleClass } from "../../core/theory";
 import { noteFracLength, noteFracStart, noteWidthPx } from "../../core/timing";
 import { computeLabelPlacements } from "../../core/labels";
 import type { CellSelection } from "../../state/types";
+import { PlayheadLine } from "./PlayheadLine";
 import styles from "./Grid.module.css";
 
 export type NoteRegion = "body" | "resize-l" | "resize-r";
@@ -21,6 +22,8 @@ export interface GridProps {
   selectedCell?: CellSelection | null;
   showLabels?: boolean;
   playheadStep?: number | null;
+  /** Live playhead polled via rAF (out-of-band; never re-renders notes). */
+  getPlayheadStep?: () => number | null;
   /** When true (the embed case), no interaction handlers are attached. */
   readOnly?: boolean;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
@@ -48,6 +51,7 @@ function GridImpl({
   selectedCell,
   showLabels = true,
   playheadStep = null,
+  getPlayheadStep,
   readOnly = false,
   onNotePointerDown,
   onNoteContextMenu,
@@ -151,9 +155,9 @@ function GridImpl({
           />
         )}
 
-      {playheadStep != null && (
-        <div className={styles.playhead} style={{ left: playheadStep * cellW }} />
-      )}
+      {playheadStep != null && <div className={styles.playhead} style={{ left: playheadStep * cellW }} />}
+
+      {getPlayheadStep && <PlayheadLine getStep={getPlayheadStep} cellW={cellW} />}
     </div>
   );
 }

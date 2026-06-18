@@ -1,11 +1,13 @@
+import { useEffect, useRef } from "react";
 import { useAppState, useDispatch } from "../state/context";
 import { activeSheet } from "../state/reducer";
-import { SCALE_OPTIONS } from "../core/model/constants";
-import { PITCH_NAMES } from "../core/model/constants";
+import { PITCH_NAMES, SCALE_OPTIONS } from "../core/model/constants";
+import { AudioEngine } from "../audio/AudioEngine";
 import { SheetView } from "../ui/SheetView";
 import { useCellSize } from "../ui/useCellSize";
 import { useGridInteraction } from "./hooks/useGridInteraction";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useTransport } from "./hooks/useTransport";
 import styles from "./App.module.css";
 
 export function App() {
@@ -15,8 +17,18 @@ export function App() {
   const sheet = activeSheet(state);
   const selection = state.ui.selection[sheet.id] ?? { noteIds: new Set<string>(), cell: null };
 
+  const engineRef = useRef<AudioEngine | null>(null);
+  if (!engineRef.current) engineRef.current = new AudioEngine();
+  const engine = engineRef.current;
+
   useKeyboardShortcuts(state, dispatch);
-  const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH);
+  const { transport, repeat, setRepeat, play, pause, stop, getPlayheadStep } = useTransport(engine, sheet);
+  const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
+
+  // Push live mixer changes to the audio graph while playing.
+  useEffect(() => {
+    engine.syncMix(sheet);
+  }, [engine, sheet]);
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
@@ -25,6 +37,16 @@ export function App() {
     <div className={styles.app}>
       <div className={styles.toolbar}>
         <strong>Riff Notes</strong>
+        <button className={styles.btn} onClick={transport === "playing" ? pause : play}>
+          {transport === "playing" ? "⏸ Pause" : transport === "paused" ? "▶ Resume" : "▶ Play"}
+        </button>
+        <button className={styles.btn} disabled={transport === "stopped"} onClick={stop}>
+          ⏹ Stop
+        </button>
+        <button className={`${styles.btn} ${repeat ? styles.active : ""}`} onClick={() => setRepeat((r) => !r)} title="Loop">
+          ↻ Repeat
+        </button>
+        <span style={{ width: 12 }} />
         <button className={styles.btn} disabled={!canUndo} onClick={() => dispatch({ type: "UNDO" })}>
           Undo
         </button>
@@ -32,7 +54,7 @@ export function App() {
           Redo
         </button>
         <span className={styles.spacer} />
-        <span className={styles.hint}>⌘/Ctrl-click empty cell to add · drag to move · edges to resize · Delete to remove</span>
+        <span className={styles.hint}>⌘/Ctrl-click empty cell to add · drag to move · edges to resize · Delete to remove · Space to play</span>
       </div>
 
       <div className={styles.tabstrip}>
@@ -128,6 +150,7 @@ export function App() {
           cellH={cellH}
           selection={selection}
           showLabels={state.ui.annotationsVisible}
+          getPlayheadStep={transport === "stopped" ? undefined : getPlayheadStep}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
         />
