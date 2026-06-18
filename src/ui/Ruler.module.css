@@ -23,6 +23,20 @@
   height: 22px;
   cursor: crosshair;
   user-select: none;
+  background-color: var(--sheet-bg);
+  background-image:
+    linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
+    linear-gradient(to right, var(--ruler-tick, var(--line)) 1px, transparent 1px),
+    linear-gradient(to right, var(--ruler-tick-soft, var(--line-soft)) 1px, transparent 1px);
+  background-size:
+    calc(var(--cell-w) * 16) 100%,
+    calc(var(--cell-w) * 4) 100%,
+    var(--cell-w) 100%;
+  background-position: 0 0, 0 0, 0 0;
+  background-repeat: repeat-x;
+}
+.track:hover {
+  background-color: var(--ruler-bg-hover, var(--panel-hover));
 }
 .barLabel {
   position: absolute;
