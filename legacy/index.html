@@ -1,0 +1,5182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sheet Grid MIDI Editor</title>
+<style>
+  :root {
+    --cell-w: 22px;
+    --cell-h: 22px;
+    --bg: #fafaf7;
+    --ink: #222;
+    --ink-soft: #555;
+    --ink-muted: #888;
+    --ink-faint: #aaa;
+    --line: #d2d2cc;
+    --line-soft: #f0f0ec;
+    --line-strong: #555;
+    --note: #c97a4a;
+    --note-in-scale: #6ba84a;
+    --note-sel: #2b6cb0;
+    --note-hover: #0aa39b;
+    --sheet-bg: #ffffff;
+    --sheet-border: #e2e2dc;
+    --panel-bg: #f1f0ea;
+    --panel-hover: #ebebe2;
+    --input-bg: #ffffff;
+    --placeholder: #c8c8c0;
+    --grid-line: #cdcdc4;
+    --grid-line-soft: #ececea;
+    --ruler-bg: #f5f5ef;
+    --ruler-bg-hover: #ecece6;
+    --ruler-tick: #b8b8af;
+    --ruler-tick-soft: #d6d6cd;
+    --playhead: #d97a3a;
+    --playhead-line: rgba(217, 122, 58, 0.85);
+    --tooltip-bg: #ffffff;
+    --tooltip-ink: #333;
+    --tooltip-muted: #888;
+    --menu-bg: #ffffff;
+    --menu-border: #aaa;
+    --menu-hover: #eef2ff;
+    --annot-bg: #ffffff;
+    --annot-border: #aaa;
+    --annot-ink: #222;
+    --annot-line: #555;
+    --backdrop: rgba(0,0,0,0.25);
+    --shadow-soft: rgba(0,0,0,0.12);
+    --shadow-med: rgba(0,0,0,0.18);
+    --note-inset: rgba(0,0,0,0.15);
+    --note-sel-outline: #000000;
+    --note-sel-tint: rgba(0, 0, 0, 0.08);
+    --play-tint: #ffe6c2;
+    --kbd-ink: #333;
+  }
+  [data-theme="dark"] {
+    --bg: #16161a;
+    --ink: #e8e8e3;
+    --ink-soft: #b8b8b0;
+    --ink-muted: #8a8a84;
+    --ink-faint: #6a6a64;
+    --line: #3a3a40;
+    --line-soft: #232328;
+    --line-strong: #c8c8c0;
+    --note: #d98a55;
+    --note-in-scale: #7ec25a;
+    --note-sel: #6aa3e0;
+    --note-hover: #2bc4ba;
+    --sheet-bg: #1e1e22;
+    --sheet-border: #2e2e34;
+    --panel-bg: #25252b;
+    --panel-hover: #2e2e36;
+    --input-bg: #2a2a30;
+    --placeholder: #55555a;
+    --grid-line: #34343a;
+    --grid-line-soft: #25252b;
+    --ruler-bg: #232328;
+    --ruler-bg-hover: #2c2c32;
+    --ruler-tick: #5a5a52;
+    --ruler-tick-soft: #3a3a36;
+    --playhead: #e89556;
+    --playhead-line: rgba(232, 149, 86, 0.85);
+    --tooltip-bg: #2a2a30;
+    --tooltip-ink: #e8e8e3;
+    --tooltip-muted: #9a9a94;
+    --menu-bg: #25252b;
+    --menu-border: #44444a;
+    --menu-hover: #34344a;
+    --annot-bg: #25252b;
+    --annot-border: #44444a;
+    --annot-ink: #e8e8e3;
+    --annot-line: #b8b8b0;
+    --backdrop: rgba(0,0,0,0.55);
+    --shadow-soft: rgba(0,0,0,0.45);
+    --shadow-med: rgba(0,0,0,0.6);
+    --note-inset: rgba(0,0,0,0.35);
+    --note-sel-outline: #ffffff;
+    --note-sel-tint: rgba(255, 255, 255, 0.08);
+    --play-tint: #5a3a1c;
+    --kbd-ink: #e0e0d8;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  html[data-theme="dark"] { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; overscroll-behavior-x: none; }
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Global toolbar */
+  .toolbar {
+    position: sticky; top: 0; z-index: 20;
+    flex-shrink: 0;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .titlebar {
+    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--line);
+  }
+  .titlebar button, .titlebar input, .titlebar select { font-size: 13px; padding: 4px 8px; }
+  .titlebar button { cursor: pointer; }
+  .toolbar-sheet {
+    display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+    flex: 1 1 auto; min-width: 0;
+  }
+  .toolbar-sheet:empty { display: none; }
+  .toolbar-sep { color: var(--ink-muted); padding: 0 2px; }
+  .toolbar button, .toolbar input, .toolbar select { font-size: 13px; padding: 4px 8px; }
+  .toolbar button { cursor: pointer; }
+  .project-name {
+    font-size: 15px; font-weight: 600;
+    border: 1px solid transparent; background: transparent;
+    border-radius: 4px; padding: 4px 6px;
+    field-sizing: content;
+    min-width: 80px; max-width: 280px;
+  }
+  .project-name:hover, .project-name:focus { border-color: var(--line); background: var(--input-bg); outline: none; }
+  .mix-btn { font-size: 12px; }
+  #mixer-dialog { min-width: 360px; max-width: 560px; }
+  #mixer-dialog h3 { margin: 0 0 10px; font-size: 14px; }
+  .mixer-strips { display: flex; flex-direction: column; gap: 6px; }
+  .mixer-strip { display: grid; grid-template-columns: 110px 1fr 44px 28px 28px; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--input-bg); }
+  .mixer-strip.master { background: var(--kbd-bg, var(--input-bg)); }
+  .mixer-strip .name { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mixer-strip input[type=range] { width: 100%; padding: 0; }
+  .mixer-strip .vol-value { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-soft); text-align: right; }
+  .mixer-strip button.toggle { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+  .mixer-strip button.toggle.on.mute { background: #c0392b; color: #fff; border-color: #a93226; }
+  .mixer-strip button.toggle.on.solo { background: #e0a800; color: #1a1a1a; border-color: #c69200; }
+  .spacer { flex: 1; }
+  .hint { font-size: 11px; color: var(--ink-soft); padding: 6px 12px; }
+
+  /* Tab strip */
+  .tabstrip {
+    display: flex; align-items: flex-end; gap: 2px;
+    padding: 6px 12px 0;
+    background: var(--bg);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-muted);
+    opacity: 0.65;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+    margin-bottom: -1px;
+  }
+  .tab:hover { opacity: 1; color: var(--ink-soft); background: var(--panel-hover); }
+  .tab.active {
+    background: var(--panel-bg);
+    color: var(--ink);
+    border-color: var(--line);
+    border-bottom: 1px solid var(--panel-bg);
+    font-weight: 600;
+    opacity: 1;
+  }
+  .tab .tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tab .tab-playing { color: var(--playhead); font-size: 11px; }
+  .tab .tab-close {
+    background: transparent; border: none; padding: 0;
+    width: 16px; height: 16px; line-height: 16px; border-radius: 3px;
+    font-size: 13px; color: var(--ink-soft); cursor: pointer;
+  }
+  .tab .tab-close:hover:not(:disabled) { background: var(--panel-hover); color: var(--ink); }
+  .tab .tab-close:disabled { opacity: 0.3; cursor: not-allowed; }
+  .tab-add {
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px dashed var(--line);
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: -1px;
+  }
+  .tab-add:hover { background: var(--panel-bg); color: var(--ink); }
+
+  /* Sheet */
+  .sheets { padding: 0; display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; overflow-y: auto; }
+  .sheet {
+    background: var(--sheet-bg);
+    display: flex; flex-direction: column; min-height: 100%;
+  }
+  .sheet-meta-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+  .sheet-meta-label input, .sheet-meta-label select {
+    border: 1px solid transparent; background: transparent;
+    border-radius: 4px;
+  }
+  .sheet-meta-label input:hover, .sheet-meta-label input:focus,
+  .sheet-meta-label select:hover, .sheet-meta-label select:focus {
+    border-color: var(--line); background: var(--input-bg); outline: none;
+  }
+  .toolbar input[type=number] { width: 60px; }
+  .sheet-title { font-size: 15px; font-weight: 600; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; flex: 1 1 auto; min-width: 0; background: transparent; }
+  .sheet-title:focus, .sheet-title:hover { border-color: var(--line); background: var(--input-bg); }
+  .sheet-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sheet-actions button { font-size: 12px; padding: 3px 10px; line-height: 1; cursor: pointer; }
+  .sheet-actions button.play { width: 90px; }
+  .sheet-actions button.play.playing { background: var(--play-tint); }
+  .sheet-actions button.repeat.active { background: var(--play-tint); }
+
+  /* Persistent footer (tabs + sheet-wise actions) */
+  .footer {
+    flex-shrink: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .footer-actions {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 8px 12px; background: var(--panel-bg);
+  }
+  .footer-actions button { font-size: 12px; padding: 3px 10px; line-height: 1; cursor: pointer; }
+  .footer-actions button.play { width: 90px; }
+  .footer-actions button.play.playing { background: var(--play-tint); }
+  .footer-actions button.repeat.active { background: var(--play-tint); }
+  .footer-actions > .sheet-actions { flex: 1 1 auto; }
+  .footer-actions .overflow-menu-btn { margin-left: auto; padding: 3px 8px; font-size: 14px; line-height: 1; }
+
+  /* Parts panel (per-sheet) */
+  .part-config-body { display: flex; flex-direction: column; gap: 8px; min-width: 280px; }
+  .part-config-row { display: flex; gap: 6px; align-items: center; }
+  .part-config-row > label { font-size: 11px; color: var(--ink-soft); flex: 0 0 70px; }
+  .part-config-row input[type=text] { flex: 1 1 auto; }
+  .range-controls { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .range-controls select { font-size: 12px; padding: 1px 2px; }
+  .range-controls .range-sep { color: var(--ink-muted); padding: 0 4px; }
+
+  /* Bands of bars */
+  .bands { display: flex; flex-direction: column; align-items: flex-start; gap: 100px; padding-right: 16px; padding-bottom: 16px; position: relative; overflow-x: auto; overflow-y: auto; overscroll-behavior-x: contain; flex: 1; min-height: 0; }
+  .band {
+    display: grid;
+    grid-template-columns: 36px auto auto;
+    row-gap: 4px;
+    column-gap: 8px;
+    align-items: stretch;
+  }
+  .band-left-rail {
+    grid-column: 1;
+    position: sticky;
+    left: 0;
+    background: var(--panel-bg);
+    border-right: 1px solid var(--line);
+    z-index: 6;
+  }
+  .band-header {
+    grid-column: 1 / -1;
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-columns: 36px auto auto;
+    column-gap: 8px;
+    row-gap: 4px;
+    align-items: stretch;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--sheet-bg);
+    padding-top: 16px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .band-bar-numbers {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    font-size: 10px;
+    color: var(--ink-muted);
+  }
+  .band-bar-numbers > span { padding: 1px 4px; }
+  .band-row {
+    grid-column: 1 / span 3;
+    display: grid;
+    grid-template-columns: 36px auto auto;
+    row-gap: 4px;
+    column-gap: 8px;
+    align-items: center;
+  }
+  .ruler-bar-actions {
+    grid-column: 3;
+    grid-row: 2;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+  .part-bar-btn {
+    width: 28px;
+    height: 18px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-bar-btn:hover:not(:disabled) { border-color: var(--ink-soft); color: var(--ink); }
+  .part-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .band-row + .band-row { margin-top: 4px; }
+  .bar-grid { display: flex; flex-direction: row; align-items: stretch; }
+  .part-side {
+    grid-column: 1;
+    align-self: stretch;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    justify-items: center;
+    row-gap: 6px;
+    font-size: 10px;
+    color: var(--ink-soft);
+    padding: 4px 0;
+    line-height: 1.1;
+    user-select: none;
+    position: sticky;
+    left: 0;
+    background: transparent;
+    z-index: 7;
+  }
+  .part-side .part-side-top {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .part-side .part-ms-row {
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .part-side .part-name {
+    grid-row: 3;
+    align-self: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font: inherit;
+    color: inherit;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 4px;
+    padding: 4px 2px;
+    text-align: center;
+    field-sizing: content;
+    min-width: 0;
+    min-height: 1.5em;
+  }
+  .part-side .part-name:hover, .part-side .part-name:focus {
+    border-color: var(--line);
+    background: var(--input-bg);
+    outline: none;
+  }
+  .part-rec-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: #d23;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-menu-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-ms-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-ms-btn.on.mute { background: #c0392b; color: #fff; border-color: #a93226; }
+  .part-ms-btn.on.solo { background: #e0a800; color: #1a1a1a; border-color: #c69200; }
+  .part-menu-btn:hover { border-color: var(--line); background: var(--input-bg); }
+  .part-add-gap {
+    grid-column: 1;
+    position: sticky;
+    left: 0;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+  }
+  .part-add-btn {
+    width: 28px;
+    height: 16px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: var(--input-bg);
+    color: var(--ink-soft);
+    font-size: 10px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .part-add-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .part-rec-btn:hover:not(:disabled) { border-color: #d23; }
+  .part-rec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .part-rec-btn.recording { background: #d23; color: #fff; border-color: #d23; animation: rec-pulse 1s ease-in-out infinite; }
+  .part-rec-btn.count-in { background: #f5a623; color: #fff; border-color: #f5a623; animation: rec-pulse 0.6s ease-in-out infinite; }
+  @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .grid-wrap {
+    position: relative;
+    background: var(--sheet-bg);
+    border: 1px solid var(--line);
+  }
+  .grid-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to right, var(--grid-line-soft) 1px, transparent 1px);
+    background-size:
+      calc(var(--cell-w) * 16) 100%,
+      calc(var(--cell-w) * 4) 100%,
+      var(--cell-w) 100%;
+    background-position: 0 0, 0 0, 0 0;
+  }
+  .grid-row {
+    position: relative;
+    height: var(--cell-h);
+  }
+  .band-ruler {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+  }
+  .ruler-track {
+    position: relative;
+    height: 10px;
+    background-color: var(--sheet-bg);
+    background-image:
+      linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
+      linear-gradient(to right, var(--ruler-tick) 1px, transparent 1px),
+      linear-gradient(to right, var(--ruler-tick-soft) 1px, transparent 1px);
+    background-size:
+      calc(var(--cell-w) * 16) 100%,
+      calc(var(--cell-w) * 4) 100%,
+      var(--cell-w) 100%;
+    background-position: 0 0, 0 0, 0 0;
+    background-repeat: repeat-x;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .ruler-track:hover { background-color: var(--ruler-bg-hover); }
+  .playhead-marker {
+    position: absolute;
+    top: -2px; bottom: -2px;
+    width: 0; height: 0;
+    pointer-events: none;
+  }
+  .playhead-marker::before {
+    content: "";
+    position: absolute;
+    left: -4px; top: -3px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--playhead);
+  }
+  .playhead-marker::after {
+    content: "";
+    position: absolute;
+    left: -1px; top: 0;
+    width: 2px; height: 14px;
+    background: var(--playhead);
+  }
+  .playhead-marker.dim { opacity: 0.35; }
+  .playhead-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--playhead-line);
+    pointer-events: none;
+    z-index: 4;
+    display: none;
+  }
+  .playhead-line.active { display: block; }
+  .step-highlight-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #1e90ff;
+    opacity: 1.0;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+  }
+  .step-highlight-line.bar {
+    width: 4px;
+    margin-left: -2px;
+  }
+  .step-highlight-line.active { display: block; }
+  .note {
+    position: absolute;
+    height: calc(var(--cell-h) - 2px);
+    top: 1px;
+    border-radius: 2px;
+    cursor: grab;
+    touch-action: none;
+    z-index: 1;
+  }
+  .note::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background: var(--note);
+    box-shadow: inset 0 0 0 1px var(--note-inset);
+    opacity: var(--vel-opacity, 1);
+    z-index: -1;
+  }
+  .note.in-scale::before { background: var(--note-in-scale); }
+  .note.drum-hihat::before { background: #e3c44a; }
+  .note.drum-snare::before { background: #d24a4a; }
+  .note.drum-kick::before  { background: #9056c8; }
+  .note.selected { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 3; }
+  .note:hover:not(.selected) { outline: 2px solid var(--note-sel-outline); outline-offset: -2px; z-index: 2; }
+  .row-preview {
+    position: absolute;
+    left: 0;
+    height: calc(var(--cell-h) - 2px);
+    border-radius: 2px;
+    background: #4a8bd6;
+    opacity: var(--vel-opacity, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .note-label {
+    position: absolute;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.55);
+    white-space: nowrap;
+    text-align: center;
+    z-index: 2;
+  }
+  [data-theme="dark"] .note-label { color: rgba(255, 255, 255, 0.45); }
+  .cell-hover {
+    position: fixed;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid var(--note-sel-outline);
+    border-radius: 2px;
+    z-index: 1;
+    display: none;
+  }
+  .rubber-band {
+    position: fixed;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 1px solid var(--note-sel-outline);
+    background: var(--note-sel-tint);
+    z-index: 9998;
+  }
+  .cell-selected {
+    position: absolute;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid var(--note-sel-outline);
+    border-radius: 2px;
+    background: var(--note-sel-tint);
+    z-index: 1;
+  }
+
+  .cell-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--tooltip-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 2px 6px var(--shadow-soft);
+    padding: 3px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--tooltip-ink);
+    z-index: 9999;
+    white-space: nowrap;
+    display: none;
+  }
+  .cell-tooltip .pitch { font-weight: 600; }
+  .cell-tooltip .vel { color: var(--tooltip-muted); margin-left: 6px; }
+  .cell-tooltip .len { color: var(--tooltip-muted); margin-left: 6px; }
+  /* Annotations */
+  .annot-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  body.dragging-notes .annot-overlay { display: none; }
+  .annot-overlay svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 4;
+  }
+  .annot-line {
+    stroke: var(--annot-line); stroke-width: 2; fill: none;
+    opacity: 0.28; transition: opacity 80ms;
+  }
+  .annot-line.active { opacity: 0.9; }
+  .annot-card {
+    position: absolute;
+    background: var(--annot-bg);
+    border: 1px solid var(--annot-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--annot-ink);
+    opacity: 0.6;
+    pointer-events: auto;
+    cursor: default;
+    white-space: nowrap;
+    user-select: none;
+    transition: opacity 80ms;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+    z-index: 4;
+  }
+  .annot-card.active { opacity: 1; box-shadow: 0 2px 8px var(--shadow-med); }
+  .annot-card.expanded {
+    white-space: pre-wrap;
+    word-break: break-word;
+    z-index: 30;
+    width: auto;
+    min-width: max(140px, var(--annot-shrunk-width, 140px));
+    overflow: visible;
+    cursor: grab;
+    padding: 5px 8px;
+  }
+  .annot-card.dragging {
+    white-space: nowrap;
+    min-width: 0;
+    z-index: 6;
+    cursor: grabbing;
+    opacity: 1;
+    box-shadow: 0 2px 8px var(--shadow-med);
+    padding: 2px 6px;
+  }
+  .annot-card.dragging .annot-full,
+  .annot-card.dragging .annot-actions { display: none !important; }
+  .annot-card.dragging .annot-preview { display: inline !important; }
+  .annot-card.resizing {
+    white-space: nowrap;
+    z-index: 6;
+    cursor: ew-resize;
+    opacity: 1;
+    box-shadow: 0 2px 8px var(--shadow-med);
+    padding: 2px 6px;
+  }
+  .annot-card.resizing .annot-full,
+  .annot-card.resizing .annot-actions { display: none !important; }
+  .annot-card.resizing .annot-preview { display: inline !important; }
+  .annot-card .annot-actions {
+    display: none;
+    gap: 2px; margin-top: 6px; align-items: center; justify-content: flex-end;
+  }
+  .annot-card.expanded .annot-actions { display: flex; }
+  .annot-card .annot-actions button {
+    font-size: 11px; padding: 2px 6px; cursor: pointer;
+  }
+  .annot-card .annot-btn-edit {
+    background: none; border: none; padding: 1px 3px;
+    color: var(--annot-ink); text-decoration: underline;
+    font-size: 11px; cursor: pointer; opacity: 0.8;
+  }
+  .annot-card .annot-btn-edit:hover { opacity: 1; }
+  .note.annot-active {
+    outline: 2px solid var(--annot-line); outline-offset: -2px; z-index: 2;
+  }
+  .ctx-menu {
+    position: fixed;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px var(--shadow-med);
+    padding: 4px 0;
+    font-size: 12px;
+    min-width: 160px;
+    z-index: 10000;
+    display: none;
+  }
+  .ctx-menu .ctx-item {
+    padding: 4px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .ctx-menu .ctx-item:hover { background: var(--menu-hover); }
+  .ctx-menu .ctx-sep { height: 1px; background: var(--line); margin: 4px 0; }
+  #annotation-dialog { max-width: 420px; }
+  #annotation-dialog textarea {
+    width: 100%; min-height: 120px; box-sizing: border-box;
+    font: inherit; padding: 6px; resize: vertical;
+  }
+  #annotation-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  #annotation-dialog .actions .del { margin-right: auto; }
+  #quantize-dialog { max-width: 320px; }
+  #quantize-dialog .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }
+  #quantize-dialog .row label { font-size: 12px; color: var(--ink-soft); }
+  #quantize-dialog .row select { font: inherit; padding: 2px 4px; }
+  #quantize-dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+  #rec-config-dialog { max-width: 280px; }
+  #rec-config-dialog .rec-config-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }
+  #rec-config-dialog .rec-config-row label { font-size: 12px; color: var(--ink-soft); }
+  #rec-config-dialog .rec-config-row select { font: inherit; padding: 2px 4px; flex: 1 1 auto; }
+
+  dialog { border: 1px solid var(--line); border-radius: 6px; padding: 14px; max-width: 360px; background: var(--sheet-bg); color: var(--ink); }
+  dialog::backdrop { background: var(--backdrop); }
+  .hidden { display: none; }
+  #help-dialog { max-width: 520px; }
+  #help-dialog h3 { margin: 0 0 10px; font-size: 14px; }
+  #help-dialog table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  #help-dialog td { padding: 4px 8px; vertical-align: top; }
+  #help-dialog td.key { white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--kbd-ink); }
+  #help-dialog tr + tr td { border-top: 1px dashed var(--line); }
+  #help-dialog .actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .btn-icon { padding: 4px 8px; cursor: pointer; }
+
+</style>
+<script>
+  // Resolve theme before first paint to avoid a light-mode flash.
+  (function () {
+    try {
+      var pref = localStorage.getItem("midi-editor:theme") || "auto";
+      var dark = pref === "dark" || (pref === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+    } catch (e) {
+      document.documentElement.dataset.theme = "light";
+    }
+  })();
+</script>
+</head>
+<body>
+<div class="toolbar">
+  <div class="footer-actions" id="footer-actions"></div>
+</div>
+<div class="sheets" id="sheets"></div>
+<div class="footer" id="footer">
+  <div class="tabstrip" id="tabstrip"></div>
+  <div class="titlebar">
+    <input id="project-name" class="project-name" type="text" placeholder="Untitled project" autocomplete="off">
+    <input type="file" id="file-load" accept="application/json,.json" class="hidden">
+    <span class="toolbar-sep">—</span>
+    <div class="toolbar-sheet" id="toolbar-sheet"></div>
+  </div>
+</div>
+<dialog id="help-dialog">
+  <h3>Keyboard & mouse shortcuts</h3>
+  <table id="help-table"></table>
+  <div class="actions">
+    <button id="help-close">Close</button>
+  </div>
+</dialog>
+<dialog id="annotation-dialog">
+  <h3 id="annotation-title" style="margin:0 0 8px; font-size:14px;">Annotation</h3>
+  <textarea id="annotation-text" placeholder="Enter annotation text…" autocomplete="off"></textarea>
+  <div class="actions">
+    <button id="annotation-delete" class="del" type="button">Delete</button>
+    <button id="annotation-cancel" type="button">Cancel</button>
+    <button id="annotation-save" type="button">Save</button>
+  </div>
+</dialog>
+<dialog id="quantize-dialog">
+  <h3 style="margin:0 0 8px; font-size:14px;">Quantize selection</h3>
+  <div class="row">
+    <label for="quantize-pos">Position</label>
+    <select id="quantize-pos"></select>
+  </div>
+  <div class="row">
+    <label for="quantize-len">Length</label>
+    <select id="quantize-len"></select>
+  </div>
+  <div class="actions">
+    <button id="quantize-cancel" type="button">Cancel</button>
+    <button id="quantize-confirm" type="button">Apply</button>
+  </div>
+</dialog>
+<div id="ctx-menu" class="ctx-menu"></div>
+<dialog id="confirm-dialog">
+  <p id="confirm-message"></p>
+  <div style="display:flex; gap:8px; justify-content:flex-end;">
+    <button id="confirm-no">Cancel</button>
+    <button id="confirm-yes">OK</button>
+  </div>
+</dialog>
+<dialog id="alert-dialog">
+  <p id="alert-message"></p>
+  <div style="display:flex; gap:8px; justify-content:flex-end;">
+    <button id="alert-ok">OK</button>
+  </div>
+</dialog>
+<dialog id="mixer-dialog">
+  <h3 id="mixer-title">Mixer</h3>
+  <div id="mixer-body" class="mixer-strips"></div>
+  <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+    <button id="mixer-close" type="button">Close</button>
+  </div>
+</dialog>
+<dialog id="part-config-dialog">
+  <h3 id="part-config-title" style="margin:0 0 8px; font-size:14px;">Part</h3>
+  <div id="part-config-body" class="part-config-body"></div>
+  <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+    <button id="part-config-close" type="button">Close</button>
+  </div>
+</dialog>
+
+<dialog id="rec-config-dialog">
+  <h3 style="margin:0 0 8px; font-size:14px;">Record MIDI</h3>
+  <div class="rec-config-row">
+    <label for="rec-part-sel">Part</label>
+    <select id="rec-part-sel"></select>
+  </div>
+  <div class="rec-config-row" style="margin-top:8px;">
+    <label for="rec-auto-expand">Auto-expand range</label>
+    <input type="checkbox" id="rec-auto-expand">
+  </div>
+  <div class="rec-config-row">
+    <label for="rec-auto-append">Auto-append bars</label>
+    <input type="checkbox" id="rec-auto-append">
+  </div>
+  <div class="rec-config-row">
+    <label for="rec-bpm-override">BPM</label>
+    <input type="number" id="rec-bpm-override" min="20" max="300" step="1" style="font: inherit; padding: 2px 4px; width: 70px;">
+  </div>
+  <p style="margin:10px 0 4px; font-size:11px; font-weight:600; color:var(--ink-soft);">Quantize</p>
+  <div class="rec-config-row">
+    <label for="rec-quantize-pos">Position</label>
+    <select id="rec-quantize-pos"></select>
+  </div>
+  <div class="rec-config-row">
+    <label for="rec-quantize-len">Length</label>
+    <select id="rec-quantize-len"></select>
+  </div>
+  <p id="rec-config-hint" style="display:none; font-size:11px; color:var(--ink-soft); margin:4px 0 0;">No recordable parts in this sheet.</p>
+  <div class="actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+    <button id="rec-config-cancel" type="button">Cancel</button>
+    <button id="rec-config-start" type="button">Start</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+"use strict";
+
+// ---------- Constants ----------
+const STEPS_PER_BAR = 16;
+const SUB_PER_STEP = 4;
+const TICKS_PER_QUARTER = 480;
+const TICKS_PER_STEP = TICKS_PER_QUARTER / 4;
+const VEL_LABELS = ["pp", "p", "mf", "f", "ff"];
+const VEL_MIDI   = [25, 50, 75, 100, 120];
+const VEL_OPACITY = [0.25, 0.45, 0.65, 0.85, 1.0];
+const VEL_GAIN   = [0.08, 0.16, 0.30, 0.50, 0.75];
+const DEFAULT_VEL = 2;
+const PITCH_NAMES = ["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const PIANO_MIN = 21;  // A0
+const PIANO_MAX = 108; // C8
+const SCALES = {
+  major: [0,2,4,5,7,9,11],
+  minor: [0,2,3,5,7,8,10],
+  harmonicMinor: [0,2,3,5,7,8,11],
+  melodicMinor: [0,2,3,5,7,9,11],
+  dorian: [0,2,3,5,7,9,10],
+  phrygian: [0,1,3,5,7,8,10],
+  lydian: [0,2,4,6,7,9,11],
+  mixolydian: [0,2,4,5,7,9,10],
+  locrian: [0,1,3,5,6,8,10],
+  pentMajor: [0,2,4,7,9],
+  pentMinor: [0,3,5,7,10],
+  blues: [0,3,5,6,7,10],
+  chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+};
+// Drum part: a fixed-pitch lane with three rows. The drum part reuses the
+// standard note schema (pitch is reinterpreted as a row index via part.lo=0,
+// part.hi=2). Row index = part.hi - note.pitch.
+const RHYTHM_NAMES = ["Hi-hat", "Snare", "Kick"];
+const RHYTHM_KEYS = ["hihat", "snare", "kick"];
+
+// Instrument registry. pitchMode "pitched" means the part exposes the full
+// MIDI range and notes have user-chosen pitches; "fixed" means the part has
+// an instrument-defined row layout (e.g. drums) and switching across the
+// pitched/fixed boundary drops all notes in the part.
+const INSTRUMENTS = {
+  epiano: { id: "epiano", label: "E-piano", pitchMode: "pitched", defaultLo: 60, defaultHi: 72, defaultName: "Part" },
+  drum:   { id: "drum",   label: "Drums",   pitchMode: "fixed",   defaultLo: 0,  defaultHi: 2,  defaultName: "Drums" },
+};
+const INSTRUMENT_OPTIONS = [["epiano", "E-piano"], ["drum", "Drums"]];
+const DEFAULT_INSTRUMENT = "epiano";
+function getInstrument(id) { return INSTRUMENTS[id] || INSTRUMENTS[DEFAULT_INSTRUMENT]; }
+
+const SCALE_OPTIONS = [
+  ["major", "Major"], ["minor", "Natural Minor"], ["harmonicMinor", "Harmonic Minor"],
+  ["melodicMinor", "Melodic Minor"], ["dorian", "Dorian"], ["phrygian", "Phrygian"],
+  ["lydian", "Lydian"], ["mixolydian", "Mixolydian"], ["locrian", "Locrian"],
+  ["pentMajor", "Pent Major"], ["pentMinor", "Pent Minor"], ["blues", "Blues"],
+  ["chromatic", "Chromatic"],
+];
+
+// ---------- State ----------
+let uidCounter = 1;
+const uid = () => (uidCounter++).toString(36) + "-" + Date.now().toString(36).slice(-4);
+
+function makePart(name, instrument = DEFAULT_INSTRUMENT) {
+  const inst = getInstrument(instrument);
+  return { id: uid(), name: name || inst.defaultName, lo: inst.defaultLo, hi: inst.defaultHi, instrument: inst.id, notes: [] };
+}
+function isRhythmPart(part) { return !!part && getInstrument(part.instrument).pitchMode === "fixed"; }
+function totalSteps(sheet) { return sheet.barCount * STEPS_PER_BAR; }
+function findNote(sheet, noteId) {
+  for (const p of sheet.parts) for (const n of p.notes) if (n.id === noteId) return n;
+  return null;
+}
+function makeSheet(title = "Sheet") {
+  const parts = [makePart("Part 1")];
+  return {
+    id: uid(), title, notes: "", bpm: 120,
+    scale: { root: 0, mode: "major" },
+    parts,
+    barCount: 1,
+    annotations: [],
+    mix: makeDefaultMix(parts),
+    selectedNoteIds: new Set(),
+    selectedCell: null,
+    playStart: 0,
+  };
+}
+function makeDefaultMix(parts) {
+  const partsMix = {};
+  for (const p of parts) partsMix[p.id] = { vol: 1, mute: false, solo: false };
+  return { master: { vol: 1, mute: false }, parts: partsMix };
+}
+function defaultPartMix() { return { vol: 1, mute: false, solo: false }; }
+function ensurePartMix(sheet, partId) {
+  if (!sheet.mix) sheet.mix = makeDefaultMix(sheet.parts);
+  if (!sheet.mix.parts[partId]) sheet.mix.parts[partId] = defaultPartMix();
+  return sheet.mix.parts[partId];
+}
+function anyPartSoloed(sheet) {
+  if (!sheet.mix) return false;
+  for (const k of Object.keys(sheet.mix.parts)) if (sheet.mix.parts[k] && sheet.mix.parts[k].solo) return true;
+  return false;
+}
+function effectivePartGain(sheet, part) {
+  // Armed part is silent during a take so its existing notes don't bleed into the live input.
+  if (recordingState !== "idle" && recordingSheetId === sheet.id && recordingPartId === part.id) return 0;
+  if (!sheet.mix) return 1;
+  if (sheet.mix.master.mute) return 0;
+  const pm = ensurePartMix(sheet, part.id);
+  if (pm.mute) return 0;
+  if (anyPartSoloed(sheet) && !pm.solo) return 0;
+  return pm.vol;
+}
+function effectiveMasterValue(sheet) {
+  if (!sheet || !sheet.mix) return 1;
+  return sheet.mix.master.mute ? 0 : sheet.mix.master.vol;
+}
+function isNoteSelected(sheet, noteId) { return sheet.selectedNoteIds.has(noteId); }
+function setSingleSelection(sheet, noteId) { sheet.selectedNoteIds = new Set([noteId]); sheet.selectedCell = null; }
+function clearSelection(sheet) { sheet.selectedNoteIds = new Set(); }
+function setCellSelection(sheet, sel) { sheet.selectedCell = sel; sheet.selectedNoteIds = new Set(); }
+function clearCellSelection(sheet) { sheet.selectedCell = null; }
+function partOfSelection(sheet) {
+  if (sheet.selectedNoteIds.size === 0) return null;
+  for (const p of sheet.parts) {
+    for (const n of p.notes) if (sheet.selectedNoteIds.has(n.id)) return n.partId;
+  }
+  return null;
+}
+function dropForeignPartFromSelection(sheet, keepPartId) {
+  if (!keepPartId || sheet.selectedNoteIds.size === 0) return;
+  const drop = [];
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (sheet.selectedNoteIds.has(n.id) && n.partId !== keepPartId) drop.push(n.id);
+    }
+  }
+  for (const id of drop) sheet.selectedNoteIds.delete(id);
+}
+function toggleNoteSelection(sheet, note) {
+  if (sheet.selectedNoteIds.has(note.id)) { sheet.selectedNoteIds.delete(note.id); return; }
+  dropForeignPartFromSelection(sheet, note.partId);
+  sheet.selectedNoteIds.add(note.id);
+  sheet.selectedCell = null;
+}
+// After a note-drag commit, if an annotation's anchor was in the moved set
+// but at least one member was not, re-anchor to the earliest non-moved member
+// and preserve the card's bands-relative visual position. Group moves (every
+// member moved) leave (dx, dy) unchanged so the card follows the move.
+function reconcilePlacementAfterMove(sheet, movedIdSet) {
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  if (!bandsEl) return;
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const centerOf = (noteId) => {
+    const elN = bandsEl.querySelector(`.note[data-note-id="${noteId}"]`);
+    if (!elN) return null;
+    const r = elN.getBoundingClientRect();
+    return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
+  };
+  for (const a of sheet.annotations) {
+    const p = a.placement;
+    if (!movedIdSet.has(p.anchorNoteId)) continue;
+    if (a.noteIds.every(id => movedIdSet.has(id))) continue;
+    const nonMoved = a.noteIds.filter(id => !movedIdSet.has(id));
+    const candidates = nonMoved.map(id => ({ id, c: centerOf(id) })).filter(s => s.c);
+    if (candidates.length === 0) continue;
+    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
+    const newAnchor = candidates[0];
+    const cardEl = bandsEl.querySelector(`.annot-card[data-annotation-id="${a.id}"]`);
+    if (!cardEl) continue;
+    const oldCardX = parseFloat(cardEl.style.left);
+    const oldCardY = parseFloat(cardEl.style.top);
+    if (!Number.isFinite(oldCardX) || !Number.isFinite(oldCardY)) continue;
+    a.placement = {
+      anchorNoteId: newAnchor.id,
+      dx: oldCardX - newAnchor.c.x,
+      dy: oldCardY - newAnchor.c.y,
+    };
+  }
+}
+
+// For each annotation whose anchor is about to be deleted: pick the earliest
+// surviving member as the new anchor and recompute (dx, dy) so the card's
+// bands-relative visual position stays put.
+function reconcilePlacementBeforeDelete(sheet, idSet) {
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  if (!bandsEl) return;
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const centerOf = (noteId) => {
+    const elN = bandsEl.querySelector(`.note[data-note-id="${noteId}"]`);
+    if (!elN) return null;
+    const r = elN.getBoundingClientRect();
+    return { x: (r.left + r.right) / 2 - bandsRect.left, y: (r.top + r.bottom) / 2 - bandsRect.top };
+  };
+  for (const a of sheet.annotations) {
+    const p = a.placement;
+    if (!idSet.has(p.anchorNoteId)) continue;
+    const survivingIds = a.noteIds.filter(id => !idSet.has(id));
+    if (survivingIds.length === 0) continue;
+    const candidates = survivingIds
+      .map(id => ({ id, c: centerOf(id) }))
+      .filter(s => s.c);
+    if (candidates.length === 0) {
+      // No DOM rect for any surviving note (transient render state) — keep
+      // the offset and just point the anchor at any surviving note.
+      a.placement = { anchorNoteId: survivingIds[0], dx: p.dx, dy: p.dy };
+      continue;
+    }
+    candidates.sort((p, q) => (p.c.x - q.c.x) || (p.c.y - q.c.y));
+    const newAnchor = candidates[0];
+    const oldAnchorC = centerOf(p.anchorNoteId);
+    if (!oldAnchorC) {
+      a.placement = { anchorNoteId: newAnchor.id, dx: p.dx, dy: p.dy };
+      continue;
+    }
+    const oldCardX = oldAnchorC.x + p.dx;
+    const oldCardY = oldAnchorC.y + p.dy;
+    a.placement = {
+      anchorNoteId: newAnchor.id,
+      dx: oldCardX - newAnchor.c.x,
+      dy: oldCardY - newAnchor.c.y,
+    };
+  }
+}
+
+// Remove notes whose ids are in `idSet` from every part of `sheet`, then prune
+// any annotations whose noteIds become empty after the removal. Returns the
+// number of notes actually removed.
+function removeNotesByIds(sheet, idSet) {
+  if (!idSet || idSet.size === 0) return 0;
+  let removed = 0;
+  for (const p of sheet.parts) {
+    p.notes = p.notes.filter(n => {
+      if (idSet.has(n.id)) { removed++; return false; }
+      return true;
+    });
+  }
+  if (sheet.annotations && sheet.annotations.length > 0) {
+    reconcilePlacementBeforeDelete(sheet, idSet);
+    sheet.annotations = sheet.annotations
+      .map(a => {
+        const noteIds = a.noteIds.filter(id => !idSet.has(id));
+        let placement = a.placement;
+        if (placement && !noteIds.includes(placement.anchorNoteId) && noteIds.length > 0) {
+          placement = { anchorNoteId: noteIds[0], dx: placement.dx, dy: placement.dy };
+        }
+        return { ...a, noteIds, placement };
+      })
+      .filter(a => a.noteIds.length > 0);
+  }
+  return removed;
+}
+
+const IS_MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+function isCreateModifier(ev) { return IS_MAC ? ev.metaKey : ev.ctrlKey; }
+
+const project = { name: "", sheets: [makeSheet("Sheet 1")] };
+let activeSheetId = project.sheets[0].id;
+let lastFocusedSheetId = project.sheets[0].id;
+let annotationsVisible = true;
+
+// ---------- Undo / redo history ----------
+// In-memory only; covers note-mutating operations (create, move, resize,
+// velocity cycle, cut, paste, delete, and the cascading note removals when a
+// part or bar is deleted). Snapshots are full serialized projects so the
+// restore path matches the "Load JSON" flow. Not persisted across reloads.
+const HISTORY_CAP = 200;
+const undoStack = [];
+const redoStack = [];
+
+function snapshotProject() {
+  return serializeProject(project);
+}
+function commitUndoSnapshot(snap) {
+  if (!snap) return;
+  undoStack.push(snap);
+  if (undoStack.length > HISTORY_CAP) undoStack.shift();
+  redoStack.length = 0;
+}
+function pushUndo() {
+  commitUndoSnapshot(snapshotProject());
+}
+function restoreSnapshot(snap) {
+  const obj = deserializeProject(snap);
+  if (!obj) return;
+  project.name = obj.name || "";
+  project.sheets = obj.sheets;
+  if (!project.sheets.some(s => s.id === activeSheetId)) {
+    activeSheetId = project.sheets[0].id;
+  }
+  lastFocusedSheetId = project.sheets.some(s => s.id === lastFocusedSheetId)
+    ? lastFocusedSheetId
+    : activeSheetId;
+  renderAll();
+}
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(snapshotProject());
+  restoreSnapshot(undoStack.pop());
+}
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(snapshotProject());
+  restoreSnapshot(redoStack.pop());
+}
+
+// ---------- Persistence schema ----------
+// The persisted document is intentionally decoupled from the runtime project
+// model. View/runtime state (selectedNoteIds, activeSheetId,
+// playingSheetId, etc.) is never written. Bump SCHEMA_VERSION on breaking
+// changes and add a migration branch in deserializeProject.
+const SCHEMA_VERSION = 14;
+const STORAGE_KEY = "midi-editor:state";
+
+// Annotation card sizing — must be declared before serialize/deserialize
+// since `restoreFromStorage` runs at top-level and would hit a TDZ otherwise.
+const ANNOT_RESIZE_EDGE = 14;
+const ANNOT_MIN_WIDTH = 24;
+const ANNOT_MAX_WIDTH = 320;
+const ANNOT_DEFAULT_SHRUNK_WIDTH = 140;
+const ANNOT_GAP = 6;
+const ANNOT_SHRUNK_HEIGHT = 22;
+
+function serializeMix(s) {
+  const mix = s.mix || makeDefaultMix(s.parts);
+  const partsOut = {};
+  for (const pt of s.parts) {
+    const pm = mix.parts[pt.id] || defaultPartMix();
+    partsOut[pt.id] = {
+      vol: clamp01(Number.isFinite(pm.vol) ? pm.vol : 1),
+      mute: !!pm.mute,
+      solo: !!pm.solo,
+    };
+  }
+  return {
+    master: {
+      vol: clamp01(Number.isFinite(mix.master?.vol) ? mix.master.vol : 1),
+      mute: !!mix.master?.mute,
+    },
+    parts: partsOut,
+  };
+}
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function deserializeMix(raw, parts) {
+  const out = makeDefaultMix(parts);
+  if (!raw || typeof raw !== "object") return out;
+  if (raw.master && typeof raw.master === "object") {
+    if (Number.isFinite(raw.master.vol)) out.master.vol = clamp01(raw.master.vol);
+    out.master.mute = !!raw.master.mute;
+  }
+  if (raw.parts && typeof raw.parts === "object") {
+    for (const pt of parts) {
+      const pm = raw.parts[pt.id];
+      if (pm && typeof pm === "object") {
+        out.parts[pt.id] = {
+          vol: clamp01(Number.isFinite(pm.vol) ? pm.vol : 1),
+          mute: !!pm.mute,
+          solo: !!pm.solo,
+        };
+      }
+    }
+  }
+  return out;
+}
+
+function serializeProject(p) {
+  return {
+    version: SCHEMA_VERSION,
+    name: p.name || "",
+    sheets: p.sheets.map(s => ({
+      id: s.id,
+      title: s.title,
+      notes: s.notes,
+      bpm: s.bpm,
+      scale: { root: s.scale.root, mode: s.scale.mode },
+      barCount: Math.max(1, s.barCount | 0),
+      parts: s.parts.map(pt => ({
+        id: pt.id, name: pt.name, lo: pt.lo, hi: pt.hi,
+        instrument: INSTRUMENTS[pt.instrument] ? pt.instrument : DEFAULT_INSTRUMENT,
+        notes: pt.notes.map(n => ({
+          id: n.id, partId: n.partId, pitch: n.pitch,
+          start: n.start, length: n.length, vel: n.vel,
+          subOffset: n.subOffset || 0,
+          subLength: n.subLength || 0,
+        })),
+      })),
+      mix: serializeMix(s),
+      annotations: (s.annotations || []).map(a => ({
+        id: a.id, text: a.text, noteIds: [...a.noteIds],
+        shrunkWidth: Number.isFinite(a.shrunkWidth) ? a.shrunkWidth : ANNOT_DEFAULT_SHRUNK_WIDTH,
+        placement: {
+          anchorNoteId: a.placement.anchorNoteId,
+          dx: a.placement.dx,
+          dy: a.placement.dy,
+        },
+      })),
+    })),
+  };
+}
+
+function deserializeProject(doc) {
+  if (!doc || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
+  if (doc.version !== SCHEMA_VERSION) return null;
+  const sheets = doc.sheets.map(s => {
+    const barCount = Math.max(1, Number.isFinite(s.barCount) ? (s.barCount | 0) : 1);
+    return {
+      id: s.id || uid(),
+      title: typeof s.title === "string" ? s.title : "Sheet",
+      notes: typeof s.notes === "string" ? s.notes : "",
+      bpm: Number.isFinite(s.bpm) ? s.bpm : 120,
+      scale: {
+        root: Number.isFinite(s.scale?.root) ? s.scale.root : 0,
+        mode: typeof s.scale?.mode === "string" ? s.scale.mode : "major",
+      },
+      barCount,
+      parts: (Array.isArray(s.parts) && s.parts.length ? s.parts : [makePart("Part 1")])
+        .map(pt => {
+          const instId = INSTRUMENTS[pt.instrument] ? pt.instrument : DEFAULT_INSTRUMENT;
+          const inst = INSTRUMENTS[instId];
+          const fixed = inst.pitchMode === "fixed";
+          const base = fixed
+            ? { id: pt.id || uid(), name: pt.name || inst.defaultName, lo: inst.defaultLo, hi: inst.defaultHi, instrument: instId }
+            : { id: pt.id || uid(), name: pt.name || inst.defaultName, lo: pt.lo ?? inst.defaultLo, hi: pt.hi ?? inst.defaultHi, instrument: instId };
+          base.notes = Array.isArray(pt.notes) ? pt.notes.map(n => {
+            let so = Number.isInteger(n.subOffset) ? n.subOffset : 0;
+            if (so < -(SUB_PER_STEP - 1)) so = -(SUB_PER_STEP - 1);
+            if (so >  (SUB_PER_STEP - 1)) so =  (SUB_PER_STEP - 1);
+            let sl = Number.isInteger(n.subLength) ? n.subLength : 0;
+            if (sl < 0) sl = 0;
+            if (sl > SUB_PER_STEP - 1) sl = SUB_PER_STEP - 1;
+            const out = { ...n, subOffset: so, subLength: sl };
+            if (fixed) out.length = 1;
+            return out;
+          }) : [];
+          return base;
+        }),
+      annotations: Array.isArray(s.annotations)
+        ? s.annotations
+            .filter(a => a && typeof a.text === "string" && Array.isArray(a.noteIds))
+            .map(a => {
+              const noteIds = a.noteIds.filter(x => typeof x === "string");
+              const p = a.placement;
+              if (!p || typeof p.anchorNoteId !== "string"
+                  || !Number.isFinite(p.dx) || !Number.isFinite(p.dy)
+                  || !noteIds.includes(p.anchorNoteId)) {
+                return null;
+              }
+              const sw = Number.isFinite(a.shrunkWidth)
+                ? Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, a.shrunkWidth))
+                : ANNOT_DEFAULT_SHRUNK_WIDTH;
+              return {
+                id: a.id || uid(),
+                text: a.text,
+                noteIds,
+                shrunkWidth: sw,
+                placement: { anchorNoteId: p.anchorNoteId, dx: p.dx, dy: p.dy },
+              };
+            })
+            .filter(Boolean)
+        : [],
+      // runtime/view state — never persisted, always defaulted
+      selectedNoteIds: new Set(),
+      selectedCell: null,
+      playStart: 0,
+    };
+  });
+  for (let i = 0; i < sheets.length; i++) {
+    sheets[i].mix = deserializeMix(doc.sheets[i].mix, sheets[i].parts);
+  }
+  return { name: typeof doc.name === "string" ? doc.name : "", sheets };
+}
+
+let persistTimer = null;
+const SAVED_AT_KEY = "midi-editor:saved-at";
+function formatSavedAt(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `Saved ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function updateSavedIndicator(ts) {
+  const el = document.getElementById("saved-indicator");
+  if (el) el.textContent = ts ? formatSavedAt(ts) : "Not saved yet";
+}
+function updateDocumentTitle() {
+  document.title = project.name ? project.name : "Untitled project";
+}
+function syncProjectNameInput() {
+  const inp = document.getElementById("project-name");
+  if (inp) inp.value = project.name || "";
+  updateDocumentTitle();
+}
+function writePersist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeProject(project)));
+    const now = Date.now();
+    localStorage.setItem(SAVED_AT_KEY, String(now));
+    updateSavedIndicator(now);
+  } catch {}
+}
+function persist() {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    writePersist();
+  }, 300);
+}
+function flushPersist() {
+  if (!persistTimer) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  writePersist();
+}
+window.addEventListener("pagehide", flushPersist);
+window.addEventListener("beforeunload", flushPersist);
+
+let restoreError = null;
+(function restoreFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.version !== SCHEMA_VERSION) {
+      restoreError = `Locally saved data has an incompatible schema version (${parsed.version}, expected ${SCHEMA_VERSION}). It has been discarded.`;
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const restored = deserializeProject(parsed);
+    if (!restored) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    project.name = restored.name || "";
+    project.sheets = restored.sheets;
+    activeSheetId = project.sheets[0].id;
+    lastFocusedSheetId = activeSheetId;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+})();
+if (restoreError) setTimeout(() => alert(restoreError), 0);
+setTimeout(() => {
+  const ts = parseInt(localStorage.getItem(SAVED_AT_KEY) || "", 10);
+  updateSavedIndicator(Number.isFinite(ts) ? ts : null);
+}, 0);
+let playingSheetId = null;   // sheet actively producing sound
+let pausedSheetId = null;    // sheet frozen mid-playback
+let pausedStep = 0;            // step at which paused playback is frozen
+let audioCtx = null;
+let activeOscillators = [];
+let playStopTimer = null;
+let playbackRaf = null;
+let playbackT0 = 0;
+let playbackStartStep = 0;
+let playbackSecPerStep = 0;
+let playbackTotalSteps = 0;
+let repeatEnabled = false;
+
+// ---------- MIDI recording state (runtime only) ----------
+let recordingSheetId = null;
+let recordingPartId = null;
+let recordingState = "idle"; // "idle" | "count-in" | "recording"
+let recordingQuantizePosSub = 0;
+let recordingQuantizeLenSub = 0;
+let recordingT0 = 0;
+let recordingStartStep = 0;
+let recordingSecPerStep = 0;
+let recordingTotalSteps = 0;
+let recordingHeld = new Map(); // midiPitch -> { startStep, velIdx }
+let recordingUndoSnap = null;
+let recordingRaf = null;
+let recordingCountInTimer = null;
+let recordingOriginalBpm = 0;
+let metronomeNextBeat = 0; // next absolute step index to schedule a click for
+let midiAccess = null;
+let midiInputDisposers = [];
+let midiPreviewSubscribed = false;
+
+// ---------- MIDI input preview (runtime only) ----------
+// Per-sheet: sheet._previewNotes is a Map<midiPitch, { partId, step, velIdx }>.
+// Lazily created; never persisted (serializeProject ignores _-prefixed fields).
+function focusedPartId(sheet) {
+  if (!sheet) return null;
+  if (sheet.selectedCell) return sheet.selectedCell.partId;
+  if (sheet.selectedNoteIds && sheet.selectedNoteIds.size > 0) {
+    const fromSel = partOfSelection(sheet);
+    if (fromSel) return fromSel;
+  }
+  const fallback = sheet.parts.find(p => !isRhythmPart(p));
+  return fallback ? fallback.id : null;
+}
+function previewMap(sheet) {
+  if (!sheet._previewNotes) sheet._previewNotes = new Map();
+  return sheet._previewNotes;
+}
+function stopAllPreviewAudio(sheet) {
+  if (!sheet) return;
+  if (sheet._previewNotes) {
+    for (const e of sheet._previewNotes.values()) {
+      if (e && e.stop) { try { e.stop(); } catch {} }
+    }
+  }
+  if (sheet._previewAudioOnly) {
+    for (const stop of sheet._previewAudioOnly.values()) {
+      if (stop) { try { stop(); } catch {} }
+    }
+    sheet._previewAudioOnly.clear();
+  }
+}
+function clearPreviewNotes(sheet) {
+  stopAllPreviewAudio(sheet);
+  if (sheet && sheet._previewNotes && sheet._previewNotes.size > 0) {
+    sheet._previewNotes.clear();
+  }
+}
+function midiVelToIdx(midiVel) {
+  // Same bucket boundaries as VEL_MIDI thresholds — pick the closest index.
+  let idx = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < VEL_MIDI.length; i++) {
+    const d = Math.abs(midiVel - VEL_MIDI[i]);
+    if (d < bestDiff) { bestDiff = d; idx = i; }
+  }
+  return idx;
+}
+function onMidiPreviewMessage(ev) {
+  if (recordingState !== "idle") return;
+  const data = ev.data;
+  if (!data || data.length < 2) return;
+  const status = data[0] & 0xf0;
+  const pitch = data[1];
+  const vel = data.length > 2 ? data[2] : 0;
+  const sheet = project.sheets.find(s => s.id === activeSheetId);
+  if (!sheet) return;
+  if (status === 0x90 && vel > 0) {
+    const partId = focusedPartId(sheet);
+    if (!partId) return;
+    const part = sheet.parts.find(p => p.id === partId);
+    if (!part) return;
+    const velIdx = midiVelToIdx(vel);
+    const inRange = pitch >= part.lo && pitch <= part.hi;
+    let stopFn = null;
+    try {
+      ensureAudio();
+      stopFn = startSustainedPreviewTone(sheet, part, pitch, velIdx);
+    } catch {}
+    if (inRange) {
+      const prev = previewMap(sheet).get(pitch);
+      if (prev && prev.stop) { try { prev.stop(); } catch {} }
+      previewMap(sheet).set(pitch, { partId, velIdx, stop: stopFn });
+      renderAll();
+    } else if (stopFn) {
+      // Out-of-range: still need to stop audio on note-off. Track without visual.
+      if (!sheet._previewAudioOnly) sheet._previewAudioOnly = new Map();
+      const prev = sheet._previewAudioOnly.get(pitch);
+      if (prev) { try { prev(); } catch {} }
+      sheet._previewAudioOnly.set(pitch, stopFn);
+    }
+  } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+    let changed = false;
+    if (sheet._previewNotes && sheet._previewNotes.has(pitch)) {
+      const entry = sheet._previewNotes.get(pitch);
+      if (entry && entry.stop) { try { entry.stop(); } catch {} }
+      sheet._previewNotes.delete(pitch);
+      changed = true;
+    }
+    if (sheet._previewAudioOnly && sheet._previewAudioOnly.has(pitch)) {
+      const stop = sheet._previewAudioOnly.get(pitch);
+      if (stop) { try { stop(); } catch {} }
+      sheet._previewAudioOnly.delete(pitch);
+    }
+    if (changed) renderAll();
+  }
+}
+function subscribePreviewToInput(input) {
+  input.addEventListener("midimessage", onMidiPreviewMessage);
+}
+function unsubscribePreviewFromInput(input) {
+  input.removeEventListener("midimessage", onMidiPreviewMessage);
+}
+function startSustainedPreviewTone(sheet, part, pitch, velIdx, opts) {
+  if (!audioCtx) return null;
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
+  if (isRhythmPart(part)) {
+    // Drums are inherently percussive — fire and forget.
+    auditionNote(sheet, { id: "_preview", partId: part.id, pitch, start: 0, length: 1, vel: velIdx }, { bypassPartGain });
+    return null;
+  }
+  ensurePartGainNodes(sheet);
+  const dest = bypassPartGain
+    ? (masterGain || audioCtx.destination)
+    : (partDestFor(sheet, part) || masterGain || audioCtx.destination);
+  const peak = VEL_GAIN[velIdx];
+  const freq = 440 * Math.pow(2, (pitch - 69) / 12);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const t0 = audioCtx.currentTime;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(peak, t0 + 0.01);
+  osc.connect(gain).connect(dest);
+  osc.start(t0);
+  return () => {
+    const tOff = audioCtx.currentTime;
+    try {
+      gain.gain.cancelScheduledValues(tOff);
+      gain.gain.setValueAtTime(gain.gain.value, tOff);
+      gain.gain.linearRampToValueAtTime(0.0001, tOff + 0.05);
+      osc.stop(tOff + 0.08);
+      setTimeout(() => { try { osc.disconnect(); gain.disconnect(); } catch {} }, 200);
+    } catch {}
+  };
+}
+
+function initMidiInput() {
+  if (!navigator.requestMIDIAccess) return;
+  navigator.requestMIDIAccess({ sysex: false }).then(access => {
+    midiAccess = access;
+    midiPreviewSubscribed = true;
+    access.inputs.forEach(subscribePreviewToInput);
+    access.addEventListener("statechange", (e) => {
+      const port = e.port;
+      if (!port || port.type !== "input") return;
+      if (port.state === "connected") subscribePreviewToInput(port);
+      else if (port.state === "disconnected") unsubscribePreviewFromInput(port);
+    });
+  }).catch(() => {});
+}
+
+// ---------- Pitch helpers ----------
+function pitchName(midi) {
+  const n = ((midi % 12) + 12) % 12;
+  return PITCH_NAMES[n] + (Math.floor(midi / 12) - 1);
+}
+function pitchDisplayName(midi, sheet, withOctave) {
+  const octave = Math.floor(midi / 12) - 1;
+  const pc = ((midi % 12) + 12) % 12;
+  return PITCH_NAMES[pc] + (withOctave ? octave : "");
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function inScaleSet(sheet) {
+  const intervals = SCALES[sheet.scale.mode] || SCALES.major;
+  return new Set(intervals.map(i => (i + sheet.scale.root) % 12));
+}
+
+function noteScaleClass(scaleSet, part, pitch) {
+  if (isRhythmPart(part)) return "";
+  const pc = ((pitch % 12) + 12) % 12;
+  if (scaleSet.has(pc)) return " in-scale";
+  return "";
+}
+
+// ---------- DOM helpers ----------
+function el(tag, attrs = {}, ...children) {
+  const e = document.createElement(tag);
+  for (const k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k === "style") e.style.cssText = attrs[k];
+    else if (k.startsWith("on") && typeof attrs[k] === "function") e.addEventListener(k.slice(2), attrs[k]);
+    else if (k in e) { try { e[k] = attrs[k]; } catch { e.setAttribute(k, attrs[k]); } }
+    else e.setAttribute(k, attrs[k]);
+  }
+  for (const c of children) {
+    if (c == null || c === false) continue;
+    e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+// ---------- Confirm ----------
+const confirmDialog = document.getElementById("confirm-dialog");
+const confirmMessage = document.getElementById("confirm-message");
+const confirmYes = document.getElementById("confirm-yes");
+const confirmNo = document.getElementById("confirm-no");
+function confirmAsync(msg) {
+  return new Promise(resolve => {
+    confirmMessage.textContent = msg;
+    const onYes = () => { cleanup(); resolve(true); };
+    const onNo  = () => { cleanup(); resolve(false); };
+    const cleanup = () => {
+      confirmYes.removeEventListener("click", onYes);
+      confirmNo.removeEventListener("click", onNo);
+      confirmDialog.close();
+    };
+    confirmYes.addEventListener("click", onYes);
+    confirmNo.addEventListener("click", onNo);
+    confirmDialog.showModal();
+  });
+}
+
+// ---------- Alert ----------
+const alertDialog = document.getElementById("alert-dialog");
+const alertMessage = document.getElementById("alert-message");
+const alertOk = document.getElementById("alert-ok");
+function alertAsync(msg) {
+  return new Promise(resolve => {
+    alertMessage.textContent = msg;
+    const onOk = () => { alertOk.removeEventListener("click", onOk); alertDialog.close(); resolve(); };
+    alertOk.addEventListener("click", onOk);
+    alertDialog.showModal();
+  });
+}
+
+// ---------- Custom context menu ----------
+const ctxMenuEl = document.getElementById("ctx-menu");
+document.addEventListener("contextmenu", (ev) => { ev.preventDefault(); });
+
+function openContextMenu(x, y, items) {
+  ctxMenuEl.innerHTML = "";
+  items.forEach(it => {
+    if (it.sep) { ctxMenuEl.appendChild(el("div", { class: "ctx-sep" })); return; }
+    const node = el("div", { class: "ctx-item" }, it.label);
+    node.addEventListener("click", () => {
+      closeContextMenu();
+      try { it.onClick(); } catch (e) { console.error(e); }
+    });
+    ctxMenuEl.appendChild(node);
+  });
+  ctxMenuEl.style.display = "block";
+  // Clamp inside viewport
+  const w = ctxMenuEl.offsetWidth, h = ctxMenuEl.offsetHeight;
+  let nx = x, ny = y;
+  if (nx + w > window.innerWidth - 4) nx = Math.max(4, window.innerWidth - w - 4);
+  if (ny + h > window.innerHeight - 4) ny = Math.max(4, window.innerHeight - h - 4);
+  ctxMenuEl.style.left = nx + "px";
+  ctxMenuEl.style.top = ny + "px";
+}
+function closeContextMenu() {
+  ctxMenuEl.style.display = "none";
+  ctxMenuEl.innerHTML = "";
+}
+document.addEventListener("pointerdown", (ev) => {
+  if (ctxMenuEl.style.display === "block" && !ctxMenuEl.contains(ev.target)) closeContextMenu();
+}, true);
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && ctxMenuEl.style.display === "block") closeContextMenu();
+});
+window.addEventListener("scroll", closeContextMenu, true);
+window.addEventListener("blur", closeContextMenu);
+
+// ---------- Annotation dialog ----------
+const annotationDialog = document.getElementById("annotation-dialog");
+const annotationTextEl = document.getElementById("annotation-text");
+const annotationTitleEl = document.getElementById("annotation-title");
+const annotationSaveBtn = document.getElementById("annotation-save");
+const annotationCancelBtn = document.getElementById("annotation-cancel");
+const annotationDeleteBtn = document.getElementById("annotation-delete");
+
+function editAnnotation({ initialText = "", isEdit = false } = {}) {
+  return new Promise(resolve => {
+    annotationTitleEl.textContent = isEdit ? "Edit annotation" : "New annotation";
+    annotationTextEl.value = initialText;
+    annotationDeleteBtn.style.display = isEdit ? "inline-block" : "none";
+    const onSave = () => {
+      const text = annotationTextEl.value;
+      if (!text.trim()) return; // require non-empty
+      cleanup(); resolve({ action: "save", text });
+    };
+    const onCancel = () => { cleanup(); resolve({ action: "cancel" }); };
+    const onDelete = () => { cleanup(); resolve({ action: "delete" }); };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    const cleanup = () => {
+      annotationSaveBtn.removeEventListener("click", onSave);
+      annotationCancelBtn.removeEventListener("click", onCancel);
+      annotationDeleteBtn.removeEventListener("click", onDelete);
+      annotationDialog.removeEventListener("keydown", onKey);
+      annotationDialog.close();
+    };
+    annotationSaveBtn.addEventListener("click", onSave);
+    annotationCancelBtn.addEventListener("click", onCancel);
+    annotationDeleteBtn.addEventListener("click", onDelete);
+    annotationDialog.addEventListener("keydown", onKey);
+    annotationDialog.showModal();
+    setTimeout(() => annotationTextEl.focus(), 0);
+  });
+}
+
+// ---------- Rec config dialog ----------
+const recConfigDialog  = document.getElementById("rec-config-dialog");
+const recPartSel       = document.getElementById("rec-part-sel");
+const recQuantizePosSel = document.getElementById("rec-quantize-pos");
+const recQuantizeLenSel = document.getElementById("rec-quantize-len");
+const recConfigCancel  = document.getElementById("rec-config-cancel");
+const recConfigStart   = document.getElementById("rec-config-start");
+const recConfigHint    = document.getElementById("rec-config-hint");
+let recQuantizeLastPosSub = 0;
+let recQuantizeLastLenSub = 0;
+const recAutoExpandChk = document.getElementById("rec-auto-expand");
+let recAutoExpandRange = false;
+const recAutoAppendBarChk = document.getElementById("rec-auto-append");
+let recAutoAppendBar = false;
+let recAutoAddedBars = 0;
+const recBpmOverrideInput = document.getElementById("rec-bpm-override");
+// Per-sheet recording BPM override (was previously a single global)., persisted in localStorage only (NOT in the
+// JSON document). Map of sheetId -> bpm (1..300). Missing/0 means "use sheet.bpm".
+const REC_BPM_KEY = "midi-editor:rec-bpm";
+function loadRecBpmMap() {
+  try {
+    const raw = localStorage.getItem(REC_BPM_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return (obj && typeof obj === "object") ? obj : {};
+  } catch { return {}; }
+}
+function getRecBpmForSheet(sheetId) {
+  const v = loadRecBpmMap()[sheetId];
+  return (typeof v === "number" && v >= 20 && v <= 300) ? v : 0;
+}
+function setRecBpmForSheet(sheetId, bpm) {
+  const map = loadRecBpmMap();
+  if (bpm > 0) map[sheetId] = bpm;
+  else delete map[sheetId];
+  try { localStorage.setItem(REC_BPM_KEY, JSON.stringify(map)); } catch {}
+}
+
+function hasNotesInLastBar(sheet) {
+  const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+  return sheet.parts.some(p => p.notes.some(n => n.start >= lastBarStart));
+}
+
+function maybeAutoExpandRange(part, pitch) {
+  if (!recAutoExpandRange) return;
+  if (pitch < part.lo) part.lo = pitch;
+  if (pitch > part.hi) part.hi = pitch;
+}
+
+function openRecConfigDialog(sheet) {
+  return new Promise(resolve => {
+    recPartSel.innerHTML = "";
+    const eligible = sheet.parts.filter(p => !isRhythmPart(p));
+    eligible.forEach(p => {
+      recPartSel.appendChild(el("option", { value: p.id }, p.name || "Part"));
+    });
+    const hasEligible = eligible.length > 0;
+    recPartSel.disabled = !hasEligible;
+    recConfigStart.disabled = !hasEligible;
+    recConfigHint.style.display = hasEligible ? "none" : "";
+    recQuantizePosSel.value = String(recQuantizeLastPosSub);
+    recQuantizeLenSel.value = String(recQuantizeLastLenSub);
+    recAutoExpandChk.checked = recAutoExpandRange;
+    recAutoAppendBarChk.checked = recAutoAppendBar;
+    recBpmOverrideInput.placeholder = String(sheet.bpm);
+    const sheetRecBpm = getRecBpmForSheet(sheet.id);
+    recBpmOverrideInput.value = sheetRecBpm > 0 ? String(sheetRecBpm) : "";
+
+    const onStart = () => {
+      const part = eligible.find(p => p.id === recPartSel.value);
+      const posSub = parseInt(recQuantizePosSel.value, 10) || 0;
+      const lenSub = parseInt(recQuantizeLenSel.value, 10) || 0;
+      recQuantizeLastPosSub = posSub;
+      recQuantizeLastLenSub = lenSub;
+      recAutoExpandRange = recAutoExpandChk.checked;
+      recAutoAppendBar = recAutoAppendBarChk.checked;
+      const bpmRaw = parseInt(recBpmOverrideInput.value, 10);
+      const bpmOverride = (Number.isFinite(bpmRaw) && bpmRaw >= 20 && bpmRaw <= 300) ? bpmRaw : 0;
+      setRecBpmForSheet(sheet.id, bpmOverride);
+      cleanup();
+      resolve(part ? { part, posSub, lenSub, bpmOverride } : null);
+    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    const cleanup = () => {
+      recConfigStart.removeEventListener("click", onStart);
+      recConfigCancel.removeEventListener("click", onCancel);
+      recConfigDialog.removeEventListener("keydown", onKey);
+      recConfigDialog.close();
+    };
+    recConfigStart.addEventListener("click", onStart);
+    recConfigCancel.addEventListener("click", onCancel);
+    recConfigDialog.addEventListener("keydown", onKey);
+    recConfigDialog.showModal();
+    setTimeout(() => (hasEligible ? recConfigStart : recConfigCancel).focus(), 0);
+  });
+}
+
+// ---------- Quantize dialog ----------
+const quantizeDialog = document.getElementById("quantize-dialog");
+const quantizePosSel = document.getElementById("quantize-pos");
+const quantizeLenSel = document.getElementById("quantize-len");
+const quantizeConfirmBtn = document.getElementById("quantize-confirm");
+const quantizeCancelBtn = document.getElementById("quantize-cancel");
+
+// Grid sizes in sub-steps. 0 means "Don't change".
+const QUANTIZE_GRIDS = [
+  { label: "Don't change", sub: 0 },
+  { label: "1/64 note",    sub: 1 },
+  { label: "1/32 note",    sub: 2 },
+  { label: "1/16 note",    sub: 4 },
+  { label: "1/8 note",     sub: 8 },
+  { label: "1/4 note",     sub: 16 },
+  { label: "1/2 bar",      sub: 32 },
+  { label: "1 bar",        sub: 64 },
+];
+let quantizeLastPosSub = 4;
+let quantizeLastLenSub = 4;
+
+for (const sel of [quantizePosSel, quantizeLenSel, recQuantizePosSel, recQuantizeLenSel]) {
+  for (const g of QUANTIZE_GRIDS) {
+    sel.appendChild(el("option", { value: String(g.sub) }, g.label));
+  }
+}
+
+function openQuantizeDialog() {
+  return new Promise(resolve => {
+    quantizePosSel.value = String(quantizeLastPosSub);
+    quantizeLenSel.value = String(quantizeLastLenSub);
+    const onConfirm = () => {
+      const posSub = parseInt(quantizePosSel.value, 10) || 0;
+      const lenSub = parseInt(quantizeLenSel.value, 10) || 0;
+      quantizeLastPosSub = posSub;
+      quantizeLastLenSub = lenSub;
+      cleanup(); resolve({ posSub, lenSub });
+    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onCancel(); } };
+    const cleanup = () => {
+      quantizeConfirmBtn.removeEventListener("click", onConfirm);
+      quantizeCancelBtn.removeEventListener("click", onCancel);
+      quantizeDialog.removeEventListener("keydown", onKey);
+      quantizeDialog.close();
+    };
+    quantizeConfirmBtn.addEventListener("click", onConfirm);
+    quantizeCancelBtn.addEventListener("click", onCancel);
+    quantizeDialog.addEventListener("keydown", onKey);
+    quantizeDialog.showModal();
+    setTimeout(() => quantizeConfirmBtn.focus(), 0);
+  });
+}
+
+// ---------- Part config dialog ----------
+const partConfigDialog = document.getElementById("part-config-dialog");
+const partConfigTitleEl = document.getElementById("part-config-title");
+const partConfigBodyEl = document.getElementById("part-config-body");
+document.getElementById("part-config-close").addEventListener("click", () => partConfigDialog.close());
+
+function openPartConfig(sheet, part) {
+  populatePartConfig(sheet, part);
+  if (!partConfigDialog.open) partConfigDialog.showModal();
+}
+
+// ---------- Mixer dialog ----------
+const mixerDialog = document.getElementById("mixer-dialog");
+const mixerTitleEl = document.getElementById("mixer-title");
+const mixerBodyEl = document.getElementById("mixer-body");
+document.getElementById("mixer-close").addEventListener("click", () => mixerDialog.close());
+mixerDialog.addEventListener("click", (ev) => {
+  if (ev.target === mixerDialog) mixerDialog.close();
+});
+let mixerSheetId = null;
+
+function openMixerDialog(sheet) {
+  if (!sheet) return;
+  if (!sheet.mix) sheet.mix = makeDefaultMix(sheet.parts);
+  mixerSheetId = sheet.id;
+  populateMixer(sheet);
+  if (!mixerDialog.open) mixerDialog.showModal();
+}
+
+function populateMixer(sheet) {
+  mixerTitleEl.textContent = `Mixer — ${sheet.title || "Sheet"}`;
+  mixerBodyEl.innerHTML = "";
+  mixerBodyEl.appendChild(buildMasterStrip(sheet));
+  for (const part of sheet.parts) {
+    mixerBodyEl.appendChild(buildPartStrip(sheet, part));
+  }
+}
+
+function buildMasterStrip(sheet) {
+  const m = sheet.mix.master;
+  const pct = Math.round(m.vol * 100);
+  const valueEl = el("span", { class: "vol-value" }, pct + "%");
+  const slider = el("input", {
+    type: "range", min: 0, max: 100, value: String(pct),
+    oninput: (e) => {
+      const p = parseInt(e.target.value, 10);
+      m.vol = clamp01(p / 100);
+      valueEl.textContent = p + "%";
+      applyActiveMasterGain(sheet);
+      persist();
+    },
+  });
+  return el("div", { class: "mixer-strip master" },
+    el("div", { class: "name" }, "Master"),
+    slider,
+    valueEl,
+    el("span", {}),
+    el("span", {}),
+  );
+}
+
+function buildPartStrip(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  const pct = Math.round(pm.vol * 100);
+  const valueEl = el("span", { class: "vol-value" }, pct + "%");
+  const slider = el("input", {
+    type: "range", min: 0, max: 100, value: String(pct),
+    oninput: (e) => {
+      const p = parseInt(e.target.value, 10);
+      pm.vol = clamp01(p / 100);
+      valueEl.textContent = p + "%";
+      applyPartGainsLive(sheet);
+      persist();
+    },
+  });
+  const muteBtn = el("button", {
+    type: "button",
+    class: "toggle mute" + (pm.mute ? " on" : ""),
+    title: "Mute",
+    onclick: () => togglePartMute(sheet, part),
+  }, "M");
+  const soloBtn = el("button", {
+    type: "button",
+    class: "toggle solo" + (pm.solo ? " on" : ""),
+    title: "Solo",
+    onclick: () => togglePartSolo(sheet, part),
+  }, "S");
+  return el("div", { class: "mixer-strip" },
+    el("div", { class: "name", title: part.name }, part.name || "Part"),
+    slider,
+    valueEl,
+    muteBtn,
+    soloBtn,
+  );
+}
+
+function populatePartConfig(sheet, part) {
+  partConfigTitleEl.textContent = part.name || "Part";
+  partConfigBodyEl.innerHTML = "";
+
+  const nameInput = el("input", {
+    type: "text",
+    value: part.name,
+    oninput: (e) => {
+      part.name = e.target.value;
+      partConfigTitleEl.textContent = part.name || "Part";
+      updatePartSideLabels(sheet.id, part.id, part.name);
+    },
+  });
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Name"),
+      nameInput,
+    )
+  );
+
+  const instSelect = el("select", { title: "Instrument" });
+  INSTRUMENT_OPTIONS.forEach(([id, label]) => {
+    instSelect.appendChild(el("option", { value: id, selected: id === part.instrument }, label));
+  });
+  instSelect.addEventListener("change", async (e) => {
+    await changePartInstrument(sheet, part, e.target.value);
+    populatePartConfig(sheet, part);
+  });
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Instrument"),
+      instSelect,
+    )
+  );
+
+  const rangeOrBadge = isRhythmPart(part)
+    ? el("div", { class: "range-controls", style: "opacity:0.7" }, el("span", {}, "Hi-hat / Snare / Kick"))
+    : el("div", { class: "range-controls" },
+        el("button", { title: "Lower the lowest visible pitch",  onclick: () => { stepRange(part, "lo", -1); populatePartConfig(sheet, part); } }, "−"),
+        makePitchSelect(PIANO_MIN, part.hi - 1, part.lo, (v) => { if (v === part.lo) return; pushUndo(); part.lo = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        el("button", { title: "Raise the lowest visible pitch",  onclick: () => { stepRange(part, "lo", +1); populatePartConfig(sheet, part); } }, "+"),
+        el("span", { class: "range-sep" }, "–"),
+        el("button", { title: "Lower the highest visible pitch", onclick: () => { stepRange(part, "hi", -1); populatePartConfig(sheet, part); } }, "−"),
+        makePitchSelect(part.lo + 1, PIANO_MAX, part.hi, (v) => { if (v === part.hi) return; pushUndo(); part.hi = v; renderAll(); populatePartConfig(sheet, part); }, sheet),
+        el("button", { title: "Raise the highest visible pitch", onclick: () => { stepRange(part, "hi", +1); populatePartConfig(sheet, part); } }, "+"),
+        el("button", { title: "Fit range to existing notes in this part", onclick: () => {
+          if (!part.notes.length) return;
+          let min = Infinity, max = -Infinity;
+          for (const n of part.notes) {
+            if (n.pitch < min) min = n.pitch;
+            if (n.pitch > max) max = n.pitch;
+          }
+          if (part.lo === min && part.hi === max) return;
+          pushUndo();
+          part.lo = min;
+          part.hi = max;
+          renderAll();
+          populatePartConfig(sheet, part);
+        } }, "Fit"),
+      );
+  partConfigBodyEl.appendChild(
+    el("div", { class: "part-config-row" },
+      el("label", {}, "Range"),
+      rangeOrBadge,
+    )
+  );
+}
+
+// ---------- Annotation operations ----------
+function annotationsContaining(sheet, noteId) {
+  return (sheet.annotations || []).filter(a => a.noteIds.includes(noteId));
+}
+
+async function createAnnotation(sheet, noteIds) {
+  if (!noteIds || noteIds.length === 0) return;
+  const res = await editAnnotation({ isEdit: false });
+  if (res.action !== "save") return;
+  const sheetEl = sheetsEl && sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const bandsEl = sheetEl && sheetEl.querySelector(".bands");
+  const members = computeMemberRects(sheet, noteIds, bandsEl);
+  if (members.length === 0) return;
+  members.sort((p, q) => (p.x - q.x) || (p.y - q.y));
+  const anchor = members[0];
+  const placement = computeDefaultPlacement(members, anchor, ANNOT_DEFAULT_SHRUNK_WIDTH);
+  sheet.annotations.push({
+    id: uid(),
+    text: res.text,
+    noteIds: [...noteIds],
+    shrunkWidth: ANNOT_DEFAULT_SHRUNK_WIDTH,
+    placement,
+  });
+  renderAll();
+  persist();
+}
+
+async function editAnnotationOnSheet(sheet, annotationId) {
+  const a = sheet.annotations.find(x => x.id === annotationId);
+  if (!a) return;
+  const res = await editAnnotation({ initialText: a.text, isEdit: true });
+  if (res.action === "save") {
+    a.text = res.text;
+    renderAll();
+    persist();
+  } else if (res.action === "delete") {
+    pushUndo();
+    sheet.annotations = sheet.annotations.filter(x => x.id !== annotationId);
+    renderAll();
+    persist();
+  }
+}
+
+function deleteAnnotation(sheet, annotationId) {
+  pushUndo();
+  sheet.annotations = sheet.annotations.filter(x => x.id !== annotationId);
+  renderAll();
+  persist();
+}
+
+// ---------- Quantize operation ----------
+function quantizeSelection(sheet, noteIds, posSub, lenSub) {
+  if (!noteIds || noteIds.length === 0) return;
+  if (posSub <= 0 && lenSub <= 0) return;
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  const idSet = new Set(noteIds);
+  const targets = [];
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (idSet.has(n.id)) targets.push(n);
+    }
+  }
+  if (targets.length === 0) return;
+  let mutated = false;
+  let undoPushed = false;
+  for (const n of targets) {
+    const absSub = n.start * SUB_PER_STEP + (n.subOffset || 0);
+    const oldLenSub = n.length * SUB_PER_STEP + (n.subLength || 0);
+    let newLenSub = oldLenSub;
+    if (lenSub > 0) newLenSub = lenSub;
+    let newAbsSub = absSub;
+    if (posSub > 0) {
+      newAbsSub = Math.round(absSub / posSub) * posSub;
+    }
+    const maxAbsSub = Math.max(0, totalSheetSub - newLenSub);
+    if (newAbsSub < 0) newAbsSub = 0;
+    if (newAbsSub > maxAbsSub) newAbsSub = maxAbsSub;
+    if (newAbsSub === absSub && newLenSub === oldLenSub) continue;
+    if (!undoPushed) { pushUndo(); undoPushed = true; }
+    const newStart = Math.floor(newAbsSub / SUB_PER_STEP);
+    n.start = newStart;
+    n.subOffset = newAbsSub - newStart * SUB_PER_STEP;
+    const newLen = Math.floor(newLenSub / SUB_PER_STEP);
+    n.length = newLen;
+    n.subLength = newLenSub - newLen * SUB_PER_STEP;
+    mutated = true;
+  }
+  if (mutated) {
+    renderAll();
+    persist();
+  }
+}
+
+function openNoteContextMenu(ev, sheet, note) {
+  // If right-clicked note isn't in the current selection, replace selection.
+  if (!sheet.selectedNoteIds.has(note.id)) {
+    setSingleSelection(sheet, note.id);
+    renderAll();
+  }
+  const existing = annotationsContaining(sheet, note.id);
+  const items = [];
+  existing.forEach(a => {
+    const preview = a.text.replace(/\s+/g, " ").slice(0, 16);
+    items.push({
+      label: `Edit "${preview}${a.text.length > 16 ? "…" : ""}"`,
+      onClick: () => editAnnotationOnSheet(sheet, a.id),
+    });
+  });
+  if (existing.length > 0) items.push({ sep: true });
+  items.push({
+    label: "Annotate",
+    onClick: () => createAnnotation(sheet, [...sheet.selectedNoteIds]),
+  });
+  items.push({
+    label: "Quantize…",
+    onClick: async () => {
+      const res = await openQuantizeDialog();
+      if (!res) return;
+      quantizeSelection(sheet, [...sheet.selectedNoteIds], res.posSub, res.lenSub);
+    },
+  });
+  openContextMenu(ev.clientX, ev.clientY, items);
+}
+
+// ---------- Rendering ----------
+const sheetsEl = document.getElementById("sheets");
+const tabstripEl = document.getElementById("tabstrip");
+const footerEl = document.getElementById("footer");
+const footerActionsEl = document.getElementById("footer-actions");
+const toolbarSheetEl = document.getElementById("toolbar-sheet");
+
+function getCellW() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")); }
+function getCellH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-h")); }
+function noteWidthPx(length, cellW) { return length * cellW + 1; }
+// Absolute fractional step position of a note, including its syncopation sub-offset.
+function noteFracStart(n) { return n.start + (n.subOffset || 0) / SUB_PER_STEP; }
+// Fractional length in steps (1 step = SUB_PER_STEP sub-steps).
+function noteFracLength(n) { return n.length + (n.subLength || 0) / SUB_PER_STEP; }
+// Shift a note's absolute position by `delta` sub-steps; clamps so the note
+// never crosses the sheet's first/last absolute sub-position. Returns true
+// iff the note actually moved.
+function shiftNoteSubOffset(sheet, note, delta) {
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  let absSub = note.start * SUB_PER_STEP + (note.subOffset || 0);
+  const lenSub = note.length * SUB_PER_STEP + (note.subLength || 0);
+  const maxAbsSub = totalSheetSub - lenSub;
+  let target = absSub + delta;
+  if (target < 0) target = 0;
+  if (target > maxAbsSub) target = maxAbsSub;
+  if (target === absSub) return false;
+  const newStart = Math.floor(target / SUB_PER_STEP);
+  note.start = newStart;
+  note.subOffset = target - newStart * SUB_PER_STEP;
+  return true;
+}
+
+function ensureActiveSheet() {
+  if (!project.sheets.find(s => s.id === activeSheetId)) {
+    activeSheetId = project.sheets[0]?.id ?? null;
+  }
+}
+
+function renderTabs() {
+  tabstripEl.innerHTML = "";
+  project.sheets.forEach((s, i) => {
+    const playMark = playingSheetId === s.id
+      ? el("span", { class: "tab-playing", title: "Playing" }, "▶")
+      : (pausedSheetId === s.id ? el("span", { class: "tab-playing", title: "Paused" }, "⏸") : null);
+    const closeBtn = el("button", {
+      class: "tab-close",
+      title: "Delete sheet",
+      disabled: project.sheets.length <= 1,
+    }, "×");
+    closeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      deleteSheet(s);
+    });
+    const tab = el("div", { class: "tab" + (s.id === activeSheetId ? " active" : "") },
+      el("span", { class: "tab-label" }, s.title || `Sheet ${i + 1}`),
+      playMark,
+      closeBtn,
+    );
+    tab.dataset.sheetId = s.id;
+    tab.addEventListener("click", () => {
+      if (activeSheetId !== s.id) {
+        activeSheetId = s.id;
+        lastFocusedSheetId = s.id;
+        renderAll();
+      }
+    });
+    tabstripEl.appendChild(tab);
+  });
+  const addBtn = el("button", { class: "tab-add", title: "Add sheet" }, "+");
+  addBtn.addEventListener("click", () => {
+    const s = makeSheet(`Sheet ${project.sheets.length + 1}`);
+    project.sheets.push(s);
+    activeSheetId = s.id;
+    lastFocusedSheetId = s.id;
+    renderAll();
+  });
+  tabstripEl.appendChild(addBtn);
+}
+
+function renderAll() {
+  ensureActiveSheet();
+  // Drop preview ghosts on any sheet that no longer has a focused part, or on
+  // any non-active sheet (preview only renders on the active sheet anyway).
+  for (const s of project.sheets) {
+    const hasPrev = s._previewNotes && s._previewNotes.size > 0;
+    const hasAudioOnly = s._previewAudioOnly && s._previewAudioOnly.size > 0;
+    if (!hasPrev && !hasAudioOnly) continue;
+    if (s.id !== activeSheetId || !focusedPartId(s)) clearPreviewNotes(s);
+  }
+  renderTabs();
+  const prevBands = sheetsEl.querySelector(".bands");
+  const prevScrollLeft = prevBands ? prevBands.scrollLeft : 0;
+  const prevScrollTop = prevBands ? prevBands.scrollTop : 0;
+  sheetsEl.innerHTML = "";
+  footerActionsEl.innerHTML = "";
+  toolbarSheetEl.innerHTML = "";
+  const idx = project.sheets.findIndex(s => s.id === activeSheetId);
+  if (idx >= 0) {
+    const sheet = project.sheets[idx];
+    applyActiveMasterGain(sheet);
+    const sheetEl = renderSheet(sheet, idx);
+    sheetsEl.appendChild(sheetEl);
+    footerActionsEl.appendChild(renderFooter(sheet));
+    toolbarSheetEl.appendChild(renderSheetMeta(sheet));
+    footerEl.style.display = "";
+    updatePlayheadDom(sheet);
+    const bandsEl = sheetEl.querySelector(".bands");
+    if (bandsEl) {
+      renderAnnotationOverlay(sheet, bandsEl);
+      bandsEl.scrollLeft = prevScrollLeft;
+      bandsEl.scrollTop = prevScrollTop;
+    }
+  } else {
+    footerEl.style.display = "none";
+  }
+  persist();
+}
+
+// Position the ruler marker(s) at sheet.playStart and clear any grid lines.
+function updatePlayheadDom(sheet) {
+  const absStep = sheet.playStart || 0;
+  const isPaused = pausedSheetId === sheet.id;
+  const liveStep = isPaused ? pausedStep : -1;
+  const cellW = getCellW();
+  document.querySelectorAll(".ruler-track").forEach(track => {
+    const start = track.querySelector(".playhead-marker.start");
+    const live = track.querySelector(".playhead-marker.live");
+    if (start) {
+      start.style.display = "block";
+      start.style.left = (absStep * cellW) + "px";
+      start.classList.remove("dim");
+    }
+    if (live) {
+      if (isPaused) {
+        live.style.display = "block";
+        live.style.left = (liveStep * cellW) + "px";
+      } else {
+        live.style.display = "none";
+      }
+    }
+  });
+  document.querySelectorAll(".grid-wrap").forEach(wrap => {
+    const line = wrap.querySelector(".playhead-line");
+    if (!line) return;
+    if (isPaused) {
+      line.classList.add("active");
+      line.style.left = (liveStep * cellW) + "px";
+    } else {
+      line.classList.remove("active");
+    }
+  });
+}
+
+// Move playhead during playback: live marker follows current position,
+// start marker remains visible (translucent) at sheet.playStart, plus a
+// line in each part's grid at the current absolute step.
+function updatePlaybackPlayhead(absStep, sheet) {
+  const cellW = getCellW();
+  const liveX = absStep * cellW;
+  const startStep = sheet ? (sheet.playStart || 0) : -1;
+  document.querySelectorAll(".ruler-track").forEach(track => {
+    const start = track.querySelector(".playhead-marker.start");
+    const live = track.querySelector(".playhead-marker.live");
+    if (start) {
+      if (startStep >= 0) {
+        start.style.display = "block";
+        start.style.left = (startStep * cellW) + "px";
+        start.classList.add("dim");
+      } else {
+        start.style.display = "none";
+      }
+    }
+    if (live) {
+      live.style.display = "block";
+      live.style.left = liveX + "px";
+    }
+  });
+  document.querySelectorAll(".grid-wrap").forEach(wrap => {
+    const line = wrap.querySelector(".playhead-line");
+    if (!line) return;
+    line.classList.add("active");
+    line.style.left = liveX + "px";
+  });
+}
+
+function addBar(sheet) {
+  pushUndo();
+  sheet.barCount += 1;
+  renderAll();
+  persist();
+}
+function removeLastBar(sheet) {
+  if (sheet.barCount <= 1) return;
+  pushUndo();
+  const lastBarStart = (sheet.barCount - 1) * STEPS_PER_BAR;
+  const toRemove = new Set();
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (n.start >= lastBarStart) toRemove.add(n.id);
+    }
+  }
+  if (toRemove.size > 0) removeNotesByIds(sheet, toRemove);
+  if (sheet.playStart >= lastBarStart) {
+    sheet.playStart = (sheet.barCount - 2) * STEPS_PER_BAR + (sheet.playStart % STEPS_PER_BAR);
+  }
+  sheet.barCount -= 1;
+  renderAll();
+  persist();
+}
+
+function renderFooter(sheet) {
+  const isPlayingThis = playingSheetId === sheet.id;
+  const isPausedThis = pausedSheetId === sheet.id;
+  const isRecordingThis = recordingSheetId === sheet.id;
+  // Another sheet may be playing/paused while the user views this one.
+  const isPlayingOther = !!playingSheetId && !isPlayingThis;
+  const isPausedOther = !!pausedSheetId && !isPausedThis;
+  const anythingActive = isPlayingThis || isPausedThis || isPlayingOther || isPausedOther || isRecordingThis;
+  // During a take, playback is auto-driven by recording — show ▶ Play (disabled)
+  // rather than ⏸ Pause so the button doesn't lie about what it can do.
+  const playLabel = isRecordingThis ? "▶ Play" : ((isPlayingThis || isPlayingOther) ? "⏸ Pause" : ((isPausedThis || isPausedOther) ? "▶ Resume" : "▶ Play"));
+  const playBtn = el("button", {
+    class: "play" + ((isPlayingThis || isPlayingOther) && !isRecordingThis ? " playing" : ""),
+    disabled: isRecordingThis,
+  }, playLabel);
+  playBtn.addEventListener("click", () => {
+    if (recordingState !== "idle") return;
+    if (playingSheetId) pausePlayback();
+    else if (pausedSheetId === sheet.id) resumePlayback(sheet);
+    else if (pausedSheetId) resumePlayback(project.sheets.find(s => s.id === pausedSheetId));
+    else playSheet(sheet);
+  });
+  const stopBtn = el("button", { disabled: !anythingActive }, "■ Stop");
+  stopBtn.addEventListener("click", () => {
+    if (isRecordingThis) { finishRecording("stop"); return; }
+    if (playingSheetId || pausedSheetId) stopPlayback();
+  });
+
+  const recFooterBtn = el("button", {
+    class: "rec-footer-btn" + (isRecordingThis ? " recording" : ""),
+    disabled: recordingState !== "idle",
+    title: "Record MIDI into a part",
+  }, el("span", { style: "color:#d23" }, "●"), " Rec");
+  recFooterBtn.addEventListener("click", async () => {
+    const res = await openRecConfigDialog(sheet);
+    if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
+  });
+
+  const menuBtn = el("button", {
+    class: "overflow-menu-btn",
+    title: "More",
+    "aria-label": "More actions",
+  }, "⋯");
+  menuBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    openFooterOverflowMenu(menuBtn);
+  });
+
+  const mixBtn = el("button", {
+    class: "mix-btn",
+    title: "Mixer",
+    onclick: () => openMixerDialog(sheet),
+  }, "🎚 Mix");
+
+  return el("div", { class: "sheet-actions" },
+    recFooterBtn, playBtn, stopBtn,
+    el("button", {
+      class: "repeat" + (repeatEnabled ? " active" : ""),
+      onclick: () => { repeatEnabled = !repeatEnabled; renderAll(); },
+    }, "⟳ Repeat"),
+    mixBtn,
+    menuBtn,
+  );
+}
+
+function openFooterOverflowMenu(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const themePref = (window.__themeApi && window.__themeApi.read()) || "auto";
+  const THEME_LABELS = { auto: "Auto", light: "Light", dark: "Dark" };
+  const sheet = project.sheets.find(s => s.id === activeSheetId);
+  openContextMenu(rect.left, rect.top, [
+    { label: "Save JSON", onClick: () => saveProjectJson() },
+    { label: "Load JSON", onClick: () => document.getElementById("file-load").click() },
+    { sep: true },
+    { label: "Export current sheet as MIDI", onClick: () => sheet && exportSheetMidi(sheet) },
+    { sep: true },
+    { label: `Theme: ${THEME_LABELS[themePref]}`, onClick: () => window.__themeApi && window.__themeApi.cycle() },
+    { sep: true },
+    { label: "Keyboard shortcuts", onClick: () => document.getElementById("help-dialog").showModal() },
+  ]);
+}
+
+async function deleteSheet(sheet) {
+  if (project.sheets.length <= 1) { alert("At least one sheet is required."); return; }
+  if (!(await confirmAsync("Delete this sheet and all its notes?"))) return;
+  if (playingSheetId === sheet.id) stopPlayback();
+  const removedIdx = project.sheets.findIndex(s => s.id === sheet.id);
+  if (removedIdx < 0) return;
+  project.sheets.splice(removedIdx, 1);
+  const next = project.sheets[removedIdx] || project.sheets[removedIdx - 1] || project.sheets[0];
+  activeSheetId = next ? next.id : null;
+  lastFocusedSheetId = activeSheetId;
+  renderAll();
+}
+
+function renderSheetMeta(sheet) {
+  const defaultTitle = `Sheet ${project.sheets.indexOf(sheet) + 1}`;
+  const titleInput = el("input", {
+    class: "sheet-title", type: "text", value: sheet.title,
+    placeholder: defaultTitle,
+    oninput: (e) => {
+      sheet.title = e.target.value;
+      const tab = tabstripEl.querySelector(`[data-sheet-id="${sheet.id}"] .tab-label`);
+      if (tab) tab.textContent = sheet.title || `Sheet ${project.sheets.indexOf(sheet) + 1}`;
+      persist();
+    },
+  });
+  let bpmEditSnap = null;
+  let bpmEditStartValue = null;
+  const bpmInput = el("input", {
+    type: "number", min: 20, max: 300, value: sheet.bpm,
+    disabled: recordingState !== "idle",
+    onfocus: () => { bpmEditSnap = snapshotProject(); bpmEditStartValue = sheet.bpm; },
+    oninput: (e) => { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) sheet.bpm = v; persist(); },
+    onchange: () => {
+      if (bpmEditSnap && sheet.bpm !== bpmEditStartValue) commitUndoSnapshot(bpmEditSnap);
+      bpmEditSnap = null; bpmEditStartValue = null;
+    },
+    onblur: () => {
+      if (bpmEditSnap && sheet.bpm !== bpmEditStartValue) commitUndoSnapshot(bpmEditSnap);
+      bpmEditSnap = null; bpmEditStartValue = null;
+    },
+  });
+  const rootSelect = el("select", { onchange: (e) => { pushUndo(); sheet.scale.root = parseInt(e.target.value, 10); renderAll(); persist(); } });
+  PITCH_NAMES.forEach((n, i) => rootSelect.appendChild(el("option", { value: String(i), selected: i === sheet.scale.root }, n)));
+  const modeSelect = el("select", { onchange: (e) => { pushUndo(); sheet.scale.mode = e.target.value; renderAll(); persist(); } });
+  SCALE_OPTIONS.forEach(([v, label]) => modeSelect.appendChild(el("option", { value: v, selected: v === sheet.scale.mode }, label)));
+  const frag = document.createDocumentFragment();
+  frag.appendChild(titleInput);
+  frag.appendChild(el("label", { class: "sheet-meta-label" }, "BPM ", bpmInput));
+  frag.appendChild(el("label", { class: "sheet-meta-label" }, "Scale ", rootSelect, modeSelect));
+  return frag;
+}
+
+function renderSheet(sheet, idx) {
+  const sheetEl = el("div", { class: "sheet" });
+  sheetEl.dataset.sheetId = sheet.id;
+  sheetEl.addEventListener("pointerdown", () => { lastFocusedSheetId = sheet.id; }, true);
+
+  // Bands
+  sheetEl.appendChild(renderBands(sheet));
+  return sheetEl;
+}
+
+function makePitchSelect(min, max, value, onChange, sheet) {
+  const sel = el("select");
+  for (let m = max; m >= min; m--) {
+    const label = sheet ? pitchDisplayName(m, sheet, true) : pitchName(m);
+    sel.appendChild(el("option", { value: String(m), selected: m === value }, label));
+  }
+  sel.addEventListener("change", (e) => onChange(parseInt(e.target.value, 10)));
+  return sel;
+}
+
+function updatePartSideLabels(sheetId, partId, name) {
+  document.querySelectorAll(`[data-sheet-id="${sheetId}"] [data-part-id="${partId}"] .part-side .part-name`).forEach(e => {
+    if (document.activeElement !== e) e.value = name;
+  });
+}
+
+function stepRange(part, which, delta) {
+  if (which === "lo") {
+    const next = part.lo + delta;
+    if (next < PIANO_MIN || next >= part.hi) return;
+    pushUndo();
+    part.lo = next;
+  } else {
+    const next = part.hi + delta;
+    if (next > PIANO_MAX || next <= part.lo) return;
+    pushUndo();
+    part.hi = next;
+  }
+  renderAll();
+}
+
+async function changePartInstrument(sheet, part, newId) {
+  if (!INSTRUMENTS[newId] || newId === part.instrument) { renderAll(); return; }
+  const oldInst = getInstrument(part.instrument);
+  const newInst = INSTRUMENTS[newId];
+  if (oldInst.pitchMode !== newInst.pitchMode) {
+    const noteCount = part.notes.length;
+    const msg = noteCount > 0
+      ? `Switching "${part.name}" from ${oldInst.label} to ${newInst.label} will delete ${noteCount} note(s) in this part. Continue?`
+      : `Switching "${part.name}" from ${oldInst.label} to ${newInst.label} will reset its pitch range. Continue?`;
+    const ok = await confirmAsync(msg);
+    if (!ok) { renderAll(); return; }
+    pushUndo();
+    const doomed = new Set(part.notes.map(n => n.id));
+    if (doomed.size > 0) {
+      for (const id of doomed) sheet.selectedNoteIds.delete(id);
+      if (sheet.annotations && sheet.annotations.length > 0) {
+        sheet.annotations = sheet.annotations
+          .map(a => {
+            const noteIds = a.noteIds.filter(id => !doomed.has(id));
+            if (noteIds.length === 0) return null;
+            let placement = a.placement;
+            if (doomed.has(placement.anchorNoteId)) {
+              placement = { ...placement, anchorNoteId: noteIds[0], dx: 0, dy: 0 };
+            }
+            return { ...a, noteIds, placement };
+          })
+          .filter(Boolean);
+      }
+    }
+    part.notes = [];
+    part.lo = newInst.defaultLo;
+    part.hi = newInst.defaultHi;
+  } else {
+    pushUndo();
+  }
+  part.instrument = newId;
+  renderAll();
+  persist();
+}
+
+async function deletePart(sheet, idx) {
+  if (sheet.parts.length <= 1) return;
+  const part = sheet.parts[idx];
+  const count = part.notes.length;
+  if (count > 0 && !(await confirmAsync(`Delete part "${part.name}" and ${count} note(s)?`))) return;
+  pushUndo();
+  const doomed = new Set(part.notes.map(n => n.id));
+  sheet.parts.splice(idx, 1);
+  if (sheet.mix && sheet.mix.parts) delete sheet.mix.parts[part.id];
+  if (doomed.size > 0 && sheet.annotations && sheet.annotations.length > 0) {
+    sheet.annotations = sheet.annotations
+      .map(a => ({ ...a, noteIds: a.noteIds.filter(id => !doomed.has(id)) }))
+      .filter(a => a.noteIds.length > 0);
+  }
+  renderAll();
+}
+
+function renderBands(sheet) {
+  const bandsEl = el("div", { class: "bands" });
+  bandsEl.appendChild(renderBand(sheet));
+  return bandsEl;
+}
+
+function renderBand(sheet) {
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const bandEl = el("div", { class: "band" });
+  const barCount = Math.max(1, sheet.barCount | 0);
+  const sheetSteps = barCount * STEPS_PER_BAR;
+
+  // Opaque sticky rail spanning the full band height at the left edge so
+  // the part-side column appears as one continuous floating bar while
+  // horizontally scrolling.
+  const railRows = 3 + 2 * sheet.parts.length;
+  bandEl.appendChild(el("div", {
+    class: "band-left-rail",
+    style: `grid-row: 1 / span ${railRows};`,
+  }));
+
+  // Sticky header wrapping bar numbers + ruler so they pin together as a
+  // single solid full-width strip during vertical scrolling.
+  const headerEl = el("div", { class: "band-header" });
+  bandEl.appendChild(headerEl);
+
+  // Bar number row — one span per bar, sized to one bar's worth of cells.
+  const numRow = el("div", { class: "band-bar-numbers" });
+  numRow.style.gridTemplateColumns = `repeat(${barCount}, calc(var(--cell-w) * ${STEPS_PER_BAR}))`;
+  for (let i = 0; i < barCount; i++) {
+    numRow.appendChild(el("span", {}, String(i + 1)));
+  }
+  headerEl.appendChild(numRow);
+
+  // Ruler row — a single contiguous clickable track spanning the whole sheet.
+  const rulerRow = el("div", { class: "band-ruler" });
+  const track = el("div", { class: "ruler-track" });
+  track.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
+  const marker = el("div", { class: "playhead-marker start" });
+  marker.style.display = "none";
+  track.appendChild(marker);
+  const liveMarker = el("div", { class: "playhead-marker live" });
+  liveMarker.style.display = "none";
+  track.appendChild(liveMarker);
+  track.addEventListener("click", (ev) => {
+    if (recordingState !== "idle") return;
+    const rect = track.getBoundingClientRect();
+    const cw = getCellW();
+    let step = Math.floor((ev.clientX - rect.left) / cw);
+    if (step < 0) step = 0;
+    if (step > sheetSteps - 1) step = sheetSteps - 1;
+    sheet.playStart = step;
+    if (playingSheetId === sheet.id) {
+      playSheet(sheet, step);
+    } else if (pausedSheetId === sheet.id) {
+      pausedStep = step;
+      updatePlayheadDom(sheet);
+    } else {
+      updatePlayheadDom(sheet);
+    }
+  });
+  rulerRow.appendChild(track);
+  headerEl.appendChild(rulerRow);
+
+  const removeBarBtn = el("button", {
+    class: "part-bar-btn",
+    type: "button",
+    title: "Remove last bar",
+    disabled: sheet.barCount <= 1,
+  }, "−");
+  removeBarBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    removeLastBar(sheet);
+  });
+  const addBarBtn = el("button", {
+    class: "part-bar-btn",
+    type: "button",
+    title: "Add bar",
+  }, "+");
+  addBarBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    addBar(sheet);
+  });
+  headerEl.appendChild(el("div", { class: "ruler-bar-actions" }, removeBarBtn, addBarBtn));
+
+  // Rows: one per part
+  const scaleSet = inScaleSet(sheet);
+  const appendInsertGap = (insertAt, gridRow) => {
+    const addBtn = el("button", {
+      class: "part-add-btn",
+      type: "button",
+      title: "Insert part",
+    }, "+");
+    addBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      pushUndo();
+      const newPart = makePart(`Part ${sheet.parts.length + 1}`);
+      sheet.parts.splice(insertAt, 0, newPart);
+      ensurePartMix(sheet, newPart.id);
+      renderAll();
+      persist();
+    });
+    const gap = el("div", { class: "part-add-gap" }, addBtn);
+    gap.style.gridRow = String(gridRow);
+    bandEl.appendChild(gap);
+  };
+  sheet.parts.forEach((part, partIdx) => {
+    appendInsertGap(partIdx, 3 + 2 * partIdx);
+    const partRow = el("div", { class: "band-row" });
+    partRow.style.gridRow = String(4 + 2 * partIdx);
+    partRow.dataset.partId = part.id;
+    const isRecHere = recordingSheetId === sheet.id && recordingPartId === part.id;
+    const rhythmPart = isRhythmPart(part);
+    const menuBtn = el("button", {
+      class: "part-menu-btn",
+      title: "Part menu",
+      type: "button",
+    }, "⋯");
+    menuBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const rect = menuBtn.getBoundingClientRect();
+      const items = [
+        { label: "Edit…", onClick: () => openPartConfig(sheet, part) },
+      ];
+      if (sheet.parts.length > 1) {
+        items.push({ label: "Delete", onClick: () => {
+          const idx = sheet.parts.indexOf(part);
+          if (idx >= 0) deletePart(sheet, idx);
+        } });
+      }
+      openContextMenu(rect.left, rect.bottom, items);
+    });
+    const pm = ensurePartMix(sheet, part.id);
+    const muteBtn = el("button", {
+      class: "part-ms-btn mute" + (pm.mute ? " on" : ""),
+      title: "Mute",
+      type: "button",
+    }, "M");
+    const soloBtn = el("button", {
+      class: "part-ms-btn solo" + (pm.solo ? " on" : ""),
+      title: "Solo",
+      type: "button",
+    }, "S");
+    muteBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      togglePartMute(sheet, part);
+    });
+    soloBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      togglePartSolo(sheet, part);
+    });
+    const topActions = el("div", { class: "part-side-top" }, menuBtn);
+    if (!rhythmPart) {
+      const recDisabled = recordingState !== "idle" && !isRecHere;
+      const recBtn = el("button", {
+        class: "part-rec-btn" + (isRecHere ? (recordingState === "count-in" ? " count-in" : " recording") : ""),
+        title: isRecHere ? "Stop recording" : "Record MIDI input into this part",
+        disabled: recDisabled,
+      }, isRecHere ? "■" : "●");
+      recBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (isRecHere) finishRecording("stop");
+        else startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
+      });
+      topActions.appendChild(recBtn);
+    }
+    const msRow = el("div", { class: "part-ms-row" }, muteBtn, soloBtn);
+    const side = el("div", { class: "part-side" },
+      topActions,
+      msRow,
+      el("input", {
+        class: "part-name", type: "text", value: part.name,
+        title: "Part name",
+        oninput: (e) => {
+          part.name = e.target.value;
+          if (partConfigDialog.open && partConfigTitleEl) {
+            partConfigTitleEl.textContent = part.name || "Part";
+          }
+          persist();
+        },
+      }),
+    );
+    const numRows = part.hi - part.lo + 1;
+    const gridRow = el("div", { class: "bar-grid" });
+    const wrap = el("div", { class: "grid-wrap" });
+    wrap.dataset.partId = part.id;
+    wrap.dataset.partHi = String(part.hi);
+    wrap.dataset.partLo = String(part.lo);
+    wrap.dataset.instrument = part.instrument || DEFAULT_INSTRUMENT;
+    wrap.style.width = `calc(var(--cell-w) * ${sheetSteps})`;
+    wrap.style.height = `calc(var(--cell-h) * ${numRows})`;
+
+    for (let i = 0; i < numRows; i++) {
+      const rowEl = el("div", { class: "grid-row" });
+      wrap.appendChild(rowEl);
+    }
+    gridRow.appendChild(wrap);
+
+    const rhythm = isRhythmPart(part);
+    for (const n of part.notes) {
+      if (n.pitch < part.lo || n.pitch > part.hi) continue;
+      let drumCls = "";
+      if (rhythm) {
+        const key = RHYTHM_KEYS[part.hi - n.pitch];
+        if (key) drumCls = " drum-" + key;
+      }
+      const scaleCls = noteScaleClass(scaleSet, part, n.pitch);
+      const noteEl = el("div", { class: "note" + drumCls + scaleCls + (isNoteSelected(sheet, n.id) ? " selected" : "") });
+      noteEl.dataset.noteId = n.id;
+      noteEl.dataset.vel = String(n.vel);
+      noteEl.dataset.len = String(noteFracLength(n));
+      const top = (part.hi - n.pitch) * cellH;
+      noteEl.style.left = (noteFracStart(n) * cellW) + "px";
+      noteEl.style.top = top + "px";
+      noteEl.style.width = noteWidthPx(noteFracLength(n), cellW) + "px";
+      noteEl.style.setProperty('--vel-opacity', VEL_OPACITY[n.vel]);
+      noteEl.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openNoteContextMenu(ev, sheet, n);
+      });
+      wrap.appendChild(noteEl);
+    }
+
+    if (!rhythm) {
+      const LABEL_W = 14, LABEL_H = 12;
+      const wrapW = sheetSteps * cellW;
+      const wrapH = numRows * cellH;
+      const labeled = part.notes
+        .filter(n => n.pitch >= part.lo && n.pitch <= part.hi)
+        .map(n => ({
+          n,
+          x: noteFracStart(n) * cellW,
+          y: (part.hi - n.pitch) * cellH,
+          w: noteWidthPx(noteFracLength(n), cellW),
+          h: cellH,
+        }));
+      labeled.sort((a, b) => a.x - b.x || b.n.pitch - a.n.pitch);
+      const others = labeled.slice();
+      // Label suppression (within this part, since `labeled` is built from `part.notes`):
+      //   1. Proximity: suppress if the previous same-pitch note (labeled or not)
+      //      is within 6 steps. Tracking "previous note" (not "previous labeled
+      //      note") is what stops dense rows: a stream of Cs at <=6-step spacing
+      //      keeps resetting the proximity window, so only the first C gets a label.
+      //   2. Bar-width re-anchor: override rule 1 when the last *labeled* same-pitch
+      //      note is more than STEPS_PER_BAR away (delta >= STEPS_PER_BAR + 1).
+      //      This guarantees a recurring pattern like "C_C_C..." gets re-labeled
+      //      about once per bar instead of only the first C of the whole sheet,
+      //      so the eye can keep its bearings.
+      // Iteration is `start` ascending (the existing x-sort is monotonic in start).
+      // Suppressed notes still participate in `others` collision avoidance so that
+      // labels we do render don't land on top of unlabeled notes.
+      const lastStart = new Map();
+      const lastLabeledStart = new Map();
+      for (const r of labeled) {
+        const prevStart = lastStart.get(r.n.pitch);
+        const prevLabeled = lastLabeledStart.get(r.n.pitch);
+        const proximitySuppress = prevStart !== undefined && r.n.start - prevStart <= 6;
+        const reAnchor = prevLabeled === undefined || r.n.start - prevLabeled >= STEPS_PER_BAR + 1;
+        lastStart.set(r.n.pitch, r.n.start);
+        if (proximitySuppress && !reAnchor) continue;
+        lastLabeledStart.set(r.n.pitch, r.n.start);
+        const cxMid = r.x + r.w / 2;
+        const cyMid = r.y + r.h / 2;
+        const left = r.x - LABEL_W / 2;
+        const right = r.x + r.w + LABEL_W / 2;
+        const top = r.y - LABEL_H / 2;
+        const bot = r.y + r.h + LABEL_H / 2;
+        const candidates = [
+          { cx: right, cy: top },     // top-right corner
+          { cx: cxMid, cy: top },     // top-center
+          { cx: right, cy: cyMid },   // right
+          { cx: right, cy: bot },     // bottom-right corner
+          { cx: cxMid, cy: bot },     // bottom-center
+          { cx: left,  cy: bot },     // bottom-left corner
+          { cx: left,  cy: cyMid },   // left
+          { cx: left,  cy: top },     // top-left corner
+          { cx: cxMid, cy: cyMid },   // center (fallback)
+        ];
+        let chosen = candidates[candidates.length - 1];
+        for (const c of candidates) {
+          const lx = c.cx - LABEL_W / 2;
+          const ly = c.cy - LABEL_H / 2;
+          if (lx < 0 || ly < 0 || lx + LABEL_W > wrapW || ly + LABEL_H > wrapH) continue;
+          let hit = false;
+          for (const o of others) {
+            if (o === r) continue;
+            if (lx < o.x + o.w && lx + LABEL_W > o.x && ly < o.y + o.h && ly + LABEL_H > o.y) { hit = true; break; }
+          }
+          if (!hit) { chosen = c; break; }
+        }
+        const labelEl = el("span", { class: "note-label" });
+        labelEl.dataset.noteId = r.n.id;
+        labelEl.textContent = PITCH_NAMES[((r.n.pitch % 12) + 12) % 12];
+        labelEl.style.left = (chosen.cx - LABEL_W / 2) + "px";
+        labelEl.style.top = (chosen.cy - LABEL_H / 2) + "px";
+        labelEl.style.width = LABEL_W + "px";
+        labelEl.style.height = LABEL_H + "px";
+        wrap.appendChild(labelEl);
+      }
+    }
+
+    if (sheet.selectedCell &&
+        sheet.selectedCell.partId === part.id &&
+        sheet.selectedCell.pitch >= part.lo &&
+        sheet.selectedCell.pitch <= part.hi &&
+        sheet.selectedCell.step >= 0 &&
+        sheet.selectedCell.step < sheetSteps) {
+      const selEl = el("div", { class: "cell-selected" });
+      selEl.style.left = (sheet.selectedCell.step * cellW) + "px";
+      selEl.style.top = ((part.hi - sheet.selectedCell.pitch) * cellH) + "px";
+      selEl.style.width = (cellW + 1) + "px";
+      selEl.style.height = (cellH - 1) + "px";
+      wrap.appendChild(selEl);
+    }
+
+    if (sheet._previewNotes && sheet._previewNotes.size > 0 && part.id === focusedPartId(sheet)) {
+      const stripW = sheetSteps * cellW;
+      for (const [pitch, pv] of sheet._previewNotes) {
+        if (pitch < part.lo || pitch > part.hi) continue;
+        const pEl = el("div", { class: "row-preview" });
+        pEl.style.top = ((part.hi - pitch) * cellH + 1) + "px";
+        pEl.style.width = stripW + "px";
+        pEl.style.setProperty('--vel-opacity', VEL_OPACITY[pv.velIdx]);
+        wrap.appendChild(pEl);
+      }
+    }
+
+    const playLine = el("div", { class: "playhead-line" });
+    wrap.appendChild(playLine);
+
+    wrap.addEventListener("pointerdown", (ev) => handlePointerDown(ev, sheet, part, wrap));
+
+    partRow.appendChild(side);
+    partRow.appendChild(gridRow);
+    bandEl.appendChild(partRow);
+  });
+  appendInsertGap(sheet.parts.length, 3 + 2 * sheet.parts.length);
+  return bandEl;
+}
+
+// ---------- Annotation overlay ----------
+// Strategy hook: where to place the floating card. Receives the array of
+// member descriptors (each with bands-relative x/y center and left/top/right/
+// bottom rect). Returns { x, y, side } where side ∈ {"top","bottom","left",
+// "right"} and the card is anchored just outside the member-bbox on that side,
+// so expansion can grow away from the notes without overlapping them.
+// Default card top-left for a freshly-created annotation: horizontally
+// centered on the member-notes' bounding-box midX, placed above or below
+// the group depending on which side the vertical centroid leans toward.
+function computeDefaultCardTopLeft(members, shrunkWidth) {
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  let sy = 0;
+  for (const m of members) {
+    if (m.left   < left)   left   = m.left;
+    if (m.top    < top)    top    = m.top;
+    if (m.right  > right)  right  = m.right;
+    if (m.bottom > bottom) bottom = m.bottom;
+    sy += m.y;
+  }
+  const cy = sy / members.length;
+  const midX = (left + right) / 2;
+  const goesAbove = (cy - top) <= (bottom - cy);
+  return {
+    x: midX - shrunkWidth / 2,
+    y: goesAbove ? top - ANNOT_GAP - ANNOT_SHRUNK_HEIGHT : bottom + ANNOT_GAP,
+  };
+}
+
+function computeDefaultPlacement(members, anchor, shrunkWidth) {
+  const tl = computeDefaultCardTopLeft(members, shrunkWidth);
+  return { anchorNoteId: anchor.note.id, dx: tl.x - anchor.x, dy: tl.y - anchor.y };
+}
+
+// Build member-rect entries (centers + edges in bands-relative coords) for
+// the given noteIds by reading the live DOM. Shared between render and the
+// initial-placement computation at annotation creation.
+function computeMemberRects(sheet, noteIds, bandsEl) {
+  if (!bandsEl) return [];
+  const bandsRect = bandsEl.getBoundingClientRect();
+  const noteById = new Map();
+  for (const pt of sheet.parts) for (const n of pt.notes) noteById.set(n.id, n);
+  const out = [];
+  for (const id of noteIds) {
+    const note = noteById.get(id);
+    if (!note) continue;
+    const domEl = bandsEl.querySelector(`.note[data-note-id="${id}"]`);
+    if (!domEl) continue;
+    const r = domEl.getBoundingClientRect();
+    const left = r.left - bandsRect.left;
+    const top = r.top - bandsRect.top;
+    const right = r.right - bandsRect.left;
+    const bottom = r.bottom - bandsRect.top;
+    out.push({
+      note, domEl,
+      left, top, right, bottom,
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+    });
+  }
+  return out;
+}
+
+function renderAnnotationOverlay(sheet, bandsEl) {
+  // Tear down any previous overlay.
+  const prev = bandsEl.querySelector(":scope > .annot-overlay");
+  if (prev) prev.remove();
+  if (!annotationsVisible) return;
+  if (!sheet.annotations || sheet.annotations.length === 0) return;
+
+  const overlay = el("div", { class: "annot-overlay" });
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(SVG_NS, "svg");
+  overlay.appendChild(svg);
+
+  // Per-annotation entries used for hover wiring.
+  const entries = []; // { id, card, line|null, noteEls:[] }
+
+  sheet.annotations.forEach(a => {
+    const members = computeMemberRects(sheet, a.noteIds, bandsEl);
+    if (members.length === 0) return;
+    // Sort visually: left-to-right, then top-to-bottom within the same column.
+    members.sort((p, q) => (p.x - q.x) || (p.y - q.y));
+    const centers = members.map(m => ({ x: m.x, y: m.y }));
+
+    // Polyline (only when 2+ notes).
+    let lineEl = null;
+    if (centers.length >= 2) {
+      const points = centers.map(c => `${c.x},${c.y}`).join(" ");
+      lineEl = document.createElementNS(SVG_NS, "polyline");
+      lineEl.setAttribute("class", "annot-line");
+      lineEl.setAttribute("points", points);
+      svg.appendChild(lineEl);
+    }
+
+    // Card position: anchor-relative top-left. The anchor should always be a
+    // member (deserialize/pruning guarantees this); members[0] is a defensive
+    // fallback in case a render races a removal.
+    const anchor = members.find(m => m.note.id === a.placement.anchorNoteId) || members[0];
+    const pos = { x: anchor.x + a.placement.dx, y: anchor.y + a.placement.dy };
+    const card = el("div", { class: "annot-card" });
+    card.dataset.annotationId = a.id;
+    const preview = a.text.replace(/\s+/g, " ");
+    const previewLabel = el("span", { class: "annot-preview" }, preview);
+    const fullBody = el("div", { class: "annot-full" });
+    fullBody.textContent = a.text;
+    fullBody.style.display = "none";
+    const actions = el("div", { class: "annot-actions" },
+      el("button", {
+        class: "annot-btn-edit",
+        onclick: (ev) => { ev.stopPropagation(); editAnnotationOnSheet(sheet, a.id); },
+      }, "edit"),
+      el("button", {
+        class: "annot-btn-edit",
+        onclick: (ev) => { ev.stopPropagation(); deleteAnnotation(sheet, a.id); },
+      }, "delete"),
+    );
+    card.appendChild(previewLabel);
+    card.appendChild(fullBody);
+    card.appendChild(actions);
+    card.style.left = pos.x + "px";
+    card.style.top = pos.y + "px";
+    const sw = a.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
+    card.style.width = sw + "px";
+    card.style.setProperty("--annot-shrunk-width", sw + "px");
+    overlay.appendChild(card);
+
+    entries.push({ id: a.id, annotation: a, members, card, line: lineEl, noteEls: members.map(m => m.domEl), previewLabel, fullBody });
+  });
+
+  bandsEl.appendChild(overlay);
+
+  // Hover activation: hovering a card or any member note opacifies the
+  // card, its line, and all member notes. Hovering the card additionally
+  // expands it (small delay) to show full text and actions.
+  const noteToEntries = new Map();
+  entries.forEach(e => {
+    e.noteEls.forEach(noteEl => {
+      let arr = noteToEntries.get(noteEl);
+      if (!arr) { arr = []; noteToEntries.set(noteEl, arr); }
+      arr.push(e);
+    });
+  });
+
+  function setActive(e, on) {
+    e.card.classList.toggle("active", on);
+    if (e.line) e.line.classList.toggle("active", on);
+    e.noteEls.forEach(el => el.classList.toggle("annot-active", on));
+  }
+  function setExpanded(e, on) {
+    e.card.classList.toggle("expanded", on);
+    e.previewLabel.style.display = on ? "none" : "";
+    e.fullBody.style.display = on ? "block" : "none";
+  }
+
+  entries.forEach(e => {
+    let expandTimer = null;
+    let dragging = false;
+    e.card.addEventListener("mouseenter", () => {
+      if (dragging) return;
+      setActive(e, true);
+      if (expandTimer) clearTimeout(expandTimer);
+      expandTimer = setTimeout(() => setExpanded(e, true), 200);
+    });
+    e.card.addEventListener("mouseleave", () => {
+      if (dragging) return;
+      setActive(e, false);
+      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      setExpanded(e, false);
+    });
+
+    // Edge-aware cursor on the expanded card: near the left/right edge → ew-resize,
+    // otherwise grab (handled by CSS default on .expanded).
+    function edgeHit(ev) {
+      const r = e.card.getBoundingClientRect();
+      const relLeft = ev.clientX - r.left;
+      const relRight = r.right - ev.clientX;
+      if (relLeft <= ANNOT_RESIZE_EDGE) return "left";
+      if (relRight <= ANNOT_RESIZE_EDGE) return "right";
+      return null;
+    }
+    e.card.addEventListener("pointermove", (ev) => {
+      if (!e.card.classList.contains("expanded")) return;
+      if (e.card.classList.contains("dragging") || e.card.classList.contains("resizing")) return;
+      e.card.style.cursor = edgeHit(ev) ? "ew-resize" : "";
+    });
+
+    // Card pointerdown: edges → resize; interior → reposition drag (below the
+    // click threshold the press is treated as a click so the Edit/Delete
+    // buttons still work). On release we persist either `shrunkWidth`
+    // (resize) or `placement` (reposition).
+    e.card.addEventListener("pointerdown", (ev) => {
+      if (ev.button !== 0) return;
+      if (!e.card.classList.contains("expanded")) return;
+      if (ev.target.closest("button")) return;
+
+      const edge = edgeHit(ev);
+      if (edge) {
+        beginResize(ev, edge);
+        return;
+      }
+      beginReposition(ev);
+    });
+
+    function beginResize(ev, edge) {
+      ev.preventDefault();
+      const pointerId = ev.pointerId;
+      const startX = ev.clientX;
+      const startWidth = e.annotation.shrunkWidth || ANNOT_DEFAULT_SHRUNK_WIDTH;
+      const bandsRect0 = bandsEl.getBoundingClientRect();
+
+      dragging = true;
+      if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+      setExpanded(e, false);
+      e.card.classList.add("resizing");
+      e.card.style.width = startWidth + "px";
+
+      // After collapse + width snap the card's `style.left` already places it
+      // at the shrunk top-left (no CSS centering exists anymore).
+      const startLeftInBands = parseFloat(e.card.style.left);
+      try { e.card.setPointerCapture(pointerId); } catch {}
+
+      let newWidth = startWidth;
+      const onMove = (em) => {
+        const delta = em.clientX - startX;
+        let w = edge === "right" ? startWidth + delta : startWidth - delta;
+        w = Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, w));
+        newWidth = w;
+        e.card.style.width = w + "px";
+        if (edge === "left") {
+          // Pin the shrunk card's original right edge.
+          e.card.style.left = (startLeftInBands + startWidth - w) + "px";
+        }
+        em.preventDefault();
+      };
+      const onUp = () => {
+        e.card.removeEventListener("pointermove", onMove);
+        e.card.removeEventListener("pointerup", onUp);
+        e.card.removeEventListener("pointercancel", onUp);
+        try { e.card.releasePointerCapture(pointerId); } catch {}
+        e.card.classList.remove("resizing");
+        e.card.style.cursor = "";
+
+        if (newWidth !== startWidth) {
+          pushUndo();
+          e.annotation.shrunkWidth = newWidth;
+          const finalLeft = parseFloat(e.card.style.left);
+          const finalTop = parseFloat(e.card.style.top);
+          const memberById = new Map(e.members.map(m => [m.note.id, m]));
+          const anchor = memberById.get(e.annotation.placement.anchorNoteId) || e.members[0];
+          e.annotation.placement = {
+            anchorNoteId: anchor.note.id,
+            dx: finalLeft - anchor.x,
+            dy: finalTop - anchor.y,
+          };
+          persist();
+          renderAll();
+        } else {
+          // No-op click on an edge — restore the expanded view in place so
+          // the user doesn't appear to have collapsed the card.
+          if (edge === "left") {
+            e.card.style.left = startLeftInBands + "px";
+          }
+          setExpanded(e, true);
+        }
+        dragging = false;
+      };
+      e.card.addEventListener("pointermove", onMove);
+      e.card.addEventListener("pointerup", onUp);
+      e.card.addEventListener("pointercancel", onUp);
+    }
+
+    function beginReposition(ev) {
+      const startX = ev.clientX, startY = ev.clientY;
+      const pointerId = ev.pointerId;
+      let started = false;
+      let grabDx = 0, grabDy = 0;
+
+      const beginDrag = () => {
+        started = true;
+        dragging = true;
+        if (expandTimer) { clearTimeout(expandTimer); expandTimer = null; }
+        const cardRect = e.card.getBoundingClientRect();
+        const bandsRect0 = bandsEl.getBoundingClientRect();
+        grabDx = startX - cardRect.left;
+        grabDy = startY - cardRect.top;
+        const startLeft = cardRect.left - bandsRect0.left + bandsEl.scrollLeft;
+        const startTop = cardRect.top - bandsRect0.top + bandsEl.scrollTop;
+        e.card.classList.add("dragging");
+        setExpanded(e, false);
+        e.card.style.left = startLeft + "px";
+        e.card.style.top = startTop + "px";
+        try { e.card.setPointerCapture(pointerId); } catch {}
+      };
+
+      const onMove = (em) => {
+        if (!started) {
+          if (Math.hypot(em.clientX - startX, em.clientY - startY) < CLICK_MAX_MOVE) return;
+          beginDrag();
+        }
+        const br = bandsEl.getBoundingClientRect();
+        e.card.style.left = (em.clientX - br.left + bandsEl.scrollLeft - grabDx) + "px";
+        e.card.style.top = (em.clientY - br.top + bandsEl.scrollTop - grabDy) + "px";
+        em.preventDefault();
+      };
+      const onUp = () => {
+        e.card.removeEventListener("pointermove", onMove);
+        e.card.removeEventListener("pointerup", onUp);
+        e.card.removeEventListener("pointercancel", onUp);
+        if (!started) return;
+        try { e.card.releasePointerCapture(pointerId); } catch {}
+
+        const finalLeft = parseFloat(e.card.style.left);
+        const finalTop = parseFloat(e.card.style.top);
+
+        const memberById = new Map(e.members.map(m => [m.note.id, m]));
+        const anchor = memberById.get(e.annotation.placement.anchorNoteId) || e.members[0];
+        if (!anchor) { dragging = false; return; }
+
+        pushUndo();
+        e.annotation.placement = {
+          anchorNoteId: anchor.note.id,
+          dx: finalLeft - anchor.x,
+          dy: finalTop - anchor.y,
+        };
+        persist();
+        renderAll();
+      };
+      e.card.addEventListener("pointermove", onMove);
+      e.card.addEventListener("pointerup", onUp);
+      e.card.addEventListener("pointercancel", onUp);
+    }
+  });
+
+  noteToEntries.forEach((es, noteEl) => {
+    noteEl.addEventListener("mouseenter", () => { es.forEach(e => setActive(e, true)); });
+    noteEl.addEventListener("mouseleave", () => { es.forEach(e => setActive(e, false)); });
+  });
+}
+
+// ---------- Pointer interactions ----------
+const RESIZE_EDGE = 5;
+const CLICK_MAX_MOVE = 3;
+let drag = null;
+let stepHighlightEl = null;
+
+function showStepHighlight(wrap, absStep) {
+  if (!wrap) return;
+  const cellW = getCellW();
+  if (!stepHighlightEl || stepHighlightEl.parentNode !== wrap) {
+    if (stepHighlightEl && stepHighlightEl.parentNode) {
+      stepHighlightEl.parentNode.removeChild(stepHighlightEl);
+    }
+    stepHighlightEl = el("div", { class: "step-highlight-line" });
+    wrap.appendChild(stepHighlightEl);
+  }
+  stepHighlightEl.style.left = (absStep * cellW) + "px";
+  stepHighlightEl.classList.toggle("bar", absStep % STEPS_PER_BAR === 0);
+  stepHighlightEl.classList.add("active");
+}
+
+function hideStepHighlight() {
+  if (stepHighlightEl && stepHighlightEl.parentNode) {
+    stepHighlightEl.parentNode.removeChild(stepHighlightEl);
+  }
+  stepHighlightEl = null;
+}
+
+function handlePointerDown(ev, sheet, part, wrap) {
+  if (ev.button !== 0) return;
+  lastFocusedSheetId = sheet.id;
+  const rect = wrap.getBoundingClientRect();
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const sheetSteps = totalSteps(sheet);
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  const stepAbs = Math.floor(x / cellW);
+  const rowIdx = Math.floor(y / cellH);
+  const numRows = part.hi - part.lo + 1;
+  const target = ev.target.closest(".note");
+  if (!target && (stepAbs < 0 || stepAbs >= sheetSteps || rowIdx < 0 || rowIdx >= numRows)) return;
+  const pitch = part.hi - rowIdx;
+
+  if (target) {
+    const noteId = target.dataset.noteId;
+    const note = part.notes.find(n => n.id === noteId);
+    if (!note) return;
+    const pendingUndo = snapshotProject();
+    const noteRect = target.getBoundingClientRect();
+    const relLeft = ev.clientX - noteRect.left;
+    const relRight = noteRect.right - ev.clientX;
+    let mode = "move";
+    if (!isRhythmPart(part)) {
+      if (relLeft <= RESIZE_EDGE) mode = "resize-left";
+      else if (relRight <= RESIZE_EDGE) mode = "resize-right";
+    }
+
+    const wasInSelection = isNoteSelected(sheet, note.id);
+    const prevSize = sheet.selectedNoteIds.size;
+
+    if (ev.shiftKey) {
+      toggleNoteSelection(sheet, note);
+      renderAll();
+      ev.preventDefault();
+      return;
+    }
+
+    const wasSoleSelection = wasInSelection && prevSize === 1;
+    sheet.selectedCell = null;
+    if (!wasInSelection) {
+      const sheetEl = wrap.closest(".sheet");
+      if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+      setSingleSelection(sheet, note.id);
+      target.classList.add("selected");
+    }
+
+    // Snapshot every selected note in this part. With one grid per part, all
+    // selected notes share `wrap`.
+    const group = [];
+    for (const n of part.notes) {
+      if (!isNoteSelected(sheet, n.id)) continue;
+      group.push({
+        note: n, wrap,
+        origStart: n.start, origLength: n.length, origPitch: n.pitch,
+        origSubOffset: n.subOffset || 0, origSubLength: n.subLength || 0,
+      });
+    }
+    drag = {
+      mode, primaryNote: note, group,
+      part, sheet, wrap,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      moved: false,
+      isExisting: true,
+      wasSoleSelection,
+      wasInMultiSelection: wasInSelection && prevSize > 1,
+      wasCreateModifier: isCreateModifier(ev),
+      pendingUndo,
+    };
+    document.body.classList.add("dragging-notes");
+    try { wrap.setPointerCapture(ev.pointerId); } catch {}
+    ev.preventDefault();
+    return;
+  }
+
+  const existing = part.notes.find(n => n.pitch === pitch && n.start === stepAbs);
+  if (existing) return;
+
+  if (isCreateModifier(ev)) {
+    const pendingUndo = snapshotProject();
+    if (sheet.selectedNoteIds.size > 0) {
+      const sheetEl = wrap.closest(".sheet");
+      if (sheetEl) sheetEl.querySelectorAll(".note.selected").forEach(e => e.classList.remove("selected"));
+    }
+    const note = { id: uid(), partId: part.id, pitch, start: stepAbs, length: 1, vel: DEFAULT_VEL, subOffset: 0, subLength: 0 };
+    part.notes.push(note);
+    setSingleSelection(sheet, note.id);
+
+    const noteEl = document.createElement("div");
+    noteEl.className = "note selected";
+    noteEl.dataset.noteId = note.id;
+    noteEl.dataset.len = "1";
+    noteEl.dataset.vel = String(note.vel);
+    noteEl.style.left = (noteFracStart(note) * cellW) + "px";
+    noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
+    noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
+    noteEl.style.setProperty('--vel-opacity', VEL_OPACITY[note.vel]);
+    wrap.appendChild(noteEl);
+
+    drag = {
+      mode: "move",
+      primaryNote: note,
+      group: [{
+        note, wrap,
+        origStart: note.start, origLength: note.length, origPitch: note.pitch,
+        origSubOffset: note.subOffset || 0, origSubLength: note.subLength || 0,
+      }],
+      part, sheet, wrap,
+      startX: ev.clientX, startY: ev.clientY,
+      moved: false,
+      isExisting: false,
+      wasSoleSelection: false,
+      pendingUndo,
+    };
+    document.body.classList.add("dragging-notes");
+    try { wrap.setPointerCapture(ev.pointerId); } catch {}
+    ev.preventDefault();
+    return;
+  }
+
+  if (ev.shiftKey) {
+    startGlobalRubberBand({ sheet, additive: true, anchorX: ev.clientX, anchorY: ev.clientY });
+    ev.preventDefault();
+    return;
+  }
+
+  drag = {
+    mode: "empty-pending",
+    part, sheet, wrap,
+    startX: ev.clientX, startY: ev.clientY,
+    pendingCell: { partId: part.id, step: stepAbs, pitch },
+    moved: false,
+  };
+  try { wrap.setPointerCapture(ev.pointerId); } catch {}
+  ev.preventDefault();
+}
+
+function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function rectsOverlap(a, b) {
+  return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+}
+
+function startGlobalRubberBand(opts) {
+  const { sheet, additive, anchorX, anchorY } = opts;
+  const sheetEl = sheetsEl.querySelector(`[data-sheet-id="${sheet.id}"]`);
+  const noteElCache = new Map();
+  if (sheetEl) {
+    for (const noteEl of sheetEl.querySelectorAll(".note")) {
+      noteElCache.set(noteEl.dataset.noteId, noteEl);
+    }
+  }
+  const initialSelection = new Set(sheet.selectedNoteIds);
+  const initialPartId = partOfSelection(sheet);
+  if (!additive) {
+    for (const id of sheet.selectedNoteIds) {
+      const e = noteElCache.get(id); if (e) e.classList.remove("selected");
+    }
+    sheet.selectedNoteIds = new Set();
+  }
+  sheet.selectedCell = null;
+  const sel = sheetEl && sheetEl.querySelector(".cell-selected");
+  if (sel && sel.parentNode) sel.parentNode.removeChild(sel);
+  const bandEl = el("div", { class: "rubber-band" });
+  document.body.appendChild(bandEl);
+  drag = {
+    mode: "rubber-band",
+    sheet, additive, initialSelection, initialPartId,
+    lockedPartId: null,
+    anchorX, anchorY,
+    bandEl, noteElCache,
+  };
+}
+
+function rubberBandTick(ev) {
+  const x0 = Math.min(drag.anchorX, ev.clientX);
+  const y0 = Math.min(drag.anchorY, ev.clientY);
+  const x1 = Math.max(drag.anchorX, ev.clientX);
+  const y1 = Math.max(drag.anchorY, ev.clientY);
+  drag.bandEl.style.left = x0 + "px";
+  drag.bandEl.style.top = y0 + "px";
+  drag.bandEl.style.width = (x1 - x0) + "px";
+  drag.bandEl.style.height = (y1 - y0) + "px";
+  const bandRect = { left: x0, top: y0, right: x1, bottom: y1 };
+
+  const sheetEl = sheetsEl.querySelector(`[data-sheet-id="${drag.sheet.id}"]`);
+  if (!sheetEl) return;
+  const tickHits = [];
+  for (const wrap of sheetEl.querySelectorAll(".grid-wrap")) {
+    const wr = wrap.getBoundingClientRect();
+    if (!rectsOverlap(bandRect, wr)) continue;
+    const partId = wrap.dataset.partId;
+    for (const noteEl of wrap.querySelectorAll(".note")) {
+      const nr = noteEl.getBoundingClientRect();
+      if (!rectsOverlap(bandRect, nr)) continue;
+      const noteId = noteEl.dataset.noteId;
+      const cx = (nr.left + nr.right) / 2, cy = (nr.top + nr.bottom) / 2;
+      const d = Math.hypot(cx - drag.anchorX, cy - drag.anchorY);
+      tickHits.push({ noteId, partId, d });
+    }
+  }
+  if (drag.lockedPartId === null && tickHits.length > 0) {
+    tickHits.sort((a, b) => a.d - b.d);
+    drag.lockedPartId = tickHits[0].partId;
+    if (drag.additive && drag.initialPartId && drag.initialPartId !== drag.lockedPartId) {
+      drag.initialSelection = new Set();
+    }
+  }
+  const locked = drag.lockedPartId;
+  const intended = new Set();
+  if (locked) {
+    for (const h of tickHits) if (h.partId === locked) intended.add(h.noteId);
+  }
+  if (drag.additive) for (const id of drag.initialSelection) intended.add(id);
+  applySelectionDiff(drag.sheet, intended, drag.noteElCache);
+}
+
+function applySelectionDiff(sheet, intended, cache) {
+  for (const id of [...sheet.selectedNoteIds]) {
+    if (!intended.has(id)) {
+      sheet.selectedNoteIds.delete(id);
+      const e = cache.get(id); if (e) e.classList.remove("selected");
+    }
+  }
+  for (const id of intended) {
+    if (!sheet.selectedNoteIds.has(id)) {
+      sheet.selectedNoteIds.add(id);
+      const e = cache.get(id); if (e) e.classList.add("selected");
+    }
+  }
+}
+
+document.addEventListener("pointermove", (ev) => {
+  if (!drag) return;
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const dx = ev.clientX - drag.startX;
+  const dy = ev.clientY - drag.startY;
+  const overThreshold = Math.abs(dx) > CLICK_MAX_MOVE || Math.abs(dy) > CLICK_MAX_MOVE;
+  if (!drag.moved && overThreshold) {
+    drag.moved = true;
+    if (drag.mode === "move") {
+      for (const g of drag.group) {
+        const lbl = drag.wrap.querySelector(`.note-label[data-note-id="${g.note.id}"]`);
+        if (lbl) lbl.style.display = "none";
+      }
+    }
+  }
+
+  // empty-pending: morph into global rubber-band on first real movement.
+  if (drag.mode === "empty-pending" && overThreshold) {
+    const sheet = drag.sheet;
+    const anchorX = drag.startX, anchorY = drag.startY;
+    drag = null;
+    hideStepHighlight();
+    startGlobalRubberBand({ sheet, additive: false, anchorX, anchorY });
+    rubberBandTick(ev);
+    return;
+  }
+
+  if (drag.mode === "rubber-band") {
+    rubberBandTick(ev);
+    return;
+  }
+
+  if (!drag.group) return;
+  // Drag math operates at sub-step granularity (1/SUB_PER_STEP step). All
+  // *Sub variables are integers in those units; `start`/`subOffset` and
+  // `length`/`subLength` are recovered by splitting.
+  const subPx = cellW / SUB_PER_STEP;
+  const dSubSteps = Math.round(dx / subPx);
+  const dRows = Math.round(dy / cellH);
+  const splitStart = (subStep) => {
+    const s = Math.floor(subStep / SUB_PER_STEP);
+    return { start: s, subOffset: subStep - s * SUB_PER_STEP };
+  };
+  const splitLen = (subLen) => {
+    const l = Math.floor(subLen / SUB_PER_STEP);
+    return { length: l, subLength: subLen - l * SUB_PER_STEP };
+  };
+  const sheetSubTotal = totalSteps(drag.sheet) * SUB_PER_STEP;
+
+  if (drag.mode === "move") {
+    let minPitch = Infinity, maxPitch = -Infinity;
+    let dsLo = -Infinity, dsHi = Infinity;
+    for (const g of drag.group) {
+      if (g.origPitch < minPitch) minPitch = g.origPitch;
+      if (g.origPitch > maxPitch) maxPitch = g.origPitch;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
+      if (-origAbsSub > dsLo) dsLo = -origAbsSub;
+      if (sheetSubTotal - origAbsSub - origLenSub < dsHi) dsHi = sheetSubTotal - origAbsSub - origLenSub;
+    }
+    const ds = clampNum(dSubSteps, dsLo, dsHi);
+    const dr = clampNum(dRows, maxPitch - drag.part.hi, minPitch - drag.part.lo);
+    let changed = false;
+    for (const g of drag.group) {
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      const newAbsSub = origAbsSub + ds;
+      const { start: ns, subOffset: nso } = splitStart(newAbsSub);
+      const np = g.origPitch - dr;
+      if (g.note.start !== ns || g.note.pitch !== np || (g.note.subOffset || 0) !== nso) {
+        g.note.start = ns;
+        g.note.pitch = np;
+        g.note.subOffset = nso;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part, drag.sheet);
+    if (drag.moved) {
+      let minAbsSub = Infinity;
+      for (const g of drag.group) {
+        const absSub = g.note.start * SUB_PER_STEP + (g.note.subOffset || 0);
+        if (absSub < minAbsSub) minAbsSub = absSub;
+      }
+      if (minAbsSub !== Infinity && minAbsSub % SUB_PER_STEP === 0) {
+        showStepHighlight(drag.wrap, minAbsSub / SUB_PER_STEP);
+      } else {
+        hideStepHighlight();
+      }
+    }
+  } else if (drag.mode === "resize-right") {
+    const useSub = isCreateModifier(ev);
+    let minLenSub = Infinity;
+    let dlHi = Infinity;
+    for (const g of drag.group) {
+      const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
+      if (origLenSub < minLenSub) minLenSub = origLenSub;
+      const origStartSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      const slack = sheetSubTotal - origStartSub - origLenSub;
+      if (slack < dlHi) dlHi = slack;
+    }
+    let dl = clampNum(dSubSteps, 1 - minLenSub, dlHi);
+    if (!useSub) dl = Math.round(dl / SUB_PER_STEP) * SUB_PER_STEP;
+    let changed = false;
+    for (const g of drag.group) {
+      let newLenSub = g.origLength * SUB_PER_STEP + g.origSubLength + dl;
+      if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
+      const { length: nl, subLength: nsl } = splitLen(newLenSub);
+      if (g.note.length !== nl || (g.note.subLength || 0) !== nsl) {
+        g.note.length = nl;
+        g.note.subLength = nsl;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part, drag.sheet);
+  } else if (drag.mode === "resize-left") {
+    const useSub = isCreateModifier(ev);
+    let minLenSub = Infinity;
+    let dsLo = -Infinity, dsHi = Infinity;
+    for (const g of drag.group) {
+      const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
+      if (origLenSub < minLenSub) minLenSub = origLenSub;
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      if (-origAbsSub > dsLo) dsLo = -origAbsSub;
+    }
+    dsHi = Math.min(dsHi, minLenSub - 1);
+    let ds = clampNum(dSubSteps, dsLo, dsHi);
+    if (!useSub) ds = Math.round(ds / SUB_PER_STEP) * SUB_PER_STEP;
+    let changed = false;
+    for (const g of drag.group) {
+      const origAbsSub = g.origStart * SUB_PER_STEP + g.origSubOffset;
+      const origLenSub = g.origLength * SUB_PER_STEP + g.origSubLength;
+      const newAbsSub = origAbsSub + ds;
+      let newLenSub = origLenSub - ds;
+      if (!useSub) newLenSub = Math.max(SUB_PER_STEP, Math.round(newLenSub / SUB_PER_STEP) * SUB_PER_STEP);
+      const { start: ns, subOffset: nso } = splitStart(newAbsSub);
+      const { length: nl, subLength: nsl } = splitLen(newLenSub);
+      if (g.note.start !== ns || g.note.length !== nl
+          || (g.note.subOffset || 0) !== nso || (g.note.subLength || 0) !== nsl) {
+        g.note.start = ns;
+        g.note.length = nl;
+        g.note.subOffset = nso;
+        g.note.subLength = nsl;
+        changed = true;
+      }
+    }
+    if (changed) for (const g of drag.group) updateNoteDom2(g.wrap, g.note, drag.part, drag.sheet);
+  }
+});
+
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  document.body.classList.remove("dragging-notes");
+  hideStepHighlight();
+
+  if (d.mode === "rubber-band") {
+    if (d.bandEl && d.bandEl.parentNode) d.bandEl.parentNode.removeChild(d.bandEl);
+    renderAll();
+    persist();
+    refreshCellTooltipAtLastPointer();
+    return;
+  }
+
+  if (d.mode === "empty-pending") {
+    // No drag → select the empty cell; clears note selection.
+    setCellSelection(d.sheet, d.pendingCell);
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+    return;
+  }
+
+  if (!d.moved && d.isExisting) {
+    if (d.wasSoleSelection && d.wasCreateModifier) {
+      commitUndoSnapshot(d.pendingUndo);
+      d.primaryNote.vel = (d.primaryNote.vel + 1) % VEL_LABELS.length;
+    } else if (d.wasInMultiSelection && d.wasCreateModifier) {
+      // Modifier+click on a member of a multi-selection: advance every
+      // selected note's velocity independently — selection is preserved.
+      commitUndoSnapshot(d.pendingUndo);
+      for (const g of d.group) {
+        g.note.vel = (g.note.vel + 1) % VEL_LABELS.length;
+      }
+    } else if (d.wasInMultiSelection) {
+      // Plain click on a member of a multi-selection: collapse to sole
+      // selection on the clicked note. No velocity change, no undo entry.
+      setSingleSelection(d.sheet, d.primaryNote.id);
+    }
+    // else: sole-selected plain click, or a fresh single selection from
+    // pointerdown — no-op.
+    auditionNote(d.sheet, d.primaryNote);
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+  } else if (d.moved) {
+    commitUndoSnapshot(d.pendingUndo);
+    if (!d.isExisting) auditionNote(d.sheet, d.primaryNote);
+    if (d.group && d.group.length > 0) {
+      const movedIds = new Set(d.group.map(g => g.note.id));
+      reconcilePlacementAfterMove(d.sheet, movedIds);
+    }
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+  } else if (!d.isExisting) {
+    // Modifier+click that created a note but never moved — still a mutation.
+    commitUndoSnapshot(d.pendingUndo);
+    auditionNote(d.sheet, d.primaryNote);
+    renderAll();
+    refreshCellTooltipAtLastPointer();
+  }
+});
+
+function updateNoteDom2(wrap, note, part, sheet) {
+  const noteEl = wrap.querySelector(`[data-note-id="${note.id}"]`);
+  if (!noteEl) return;
+  const cellW = getCellW();
+  const cellH = getCellH();
+  noteEl.style.left = (noteFracStart(note) * cellW) + "px";
+  noteEl.style.top = ((part.hi - note.pitch) * cellH) + "px";
+  noteEl.style.width = noteWidthPx(noteFracLength(note), cellW) + "px";
+  if (sheet) {
+    const scaleSet = inScaleSet(sheet);
+    noteEl.classList.remove("in-scale");
+    const cls = noteScaleClass(scaleSet, part, note.pitch).trim();
+    if (cls) noteEl.classList.add(cls);
+  }
+}
+
+// ---------- Hover tooltip ----------
+// Format a length in steps as "N" for whole steps or "N+a/b" when fractional
+// (a/b is the sub-step part reduced; e.g. 1.25 → "1+1/4", 0.5 → "1/2").
+function formatLengthSteps(steps) {
+  const totalSub = Math.round(steps * SUB_PER_STEP);
+  const whole = Math.floor(totalSub / SUB_PER_STEP);
+  const sub = totalSub - whole * SUB_PER_STEP;
+  if (sub === 0) return `${whole}`;
+  const g = (a, b) => b === 0 ? a : g(b, a % b);
+  const d = g(sub, SUB_PER_STEP);
+  const frac = `${sub / d}/${SUB_PER_STEP / d}`;
+  return whole === 0 ? frac : `${whole}+${frac}`;
+}
+let cellTooltipEl = null;
+function getCellTooltip() {
+  if (!cellTooltipEl) {
+    cellTooltipEl = el("div", { class: "cell-tooltip" });
+    document.body.appendChild(cellTooltipEl);
+  }
+  return cellTooltipEl;
+}
+function hideCellTooltip() {
+  if (cellTooltipEl) cellTooltipEl.style.display = "none";
+}
+function showCellTooltipAt(ev, wrap) {
+  const rect = wrap.getBoundingClientRect();
+  const cellH = getCellH();
+  const partHi = parseInt(wrap.dataset.partHi, 10);
+  const partLo = parseInt(wrap.dataset.partLo, 10);
+  const numRows = partHi - partLo + 1;
+  let pitch;
+  let velLabel = null;
+  let lenSteps = null;
+  const isNoteDrag = drag && drag.primaryNote && (drag.mode === "move" || drag.mode === "resize-left" || drag.mode === "resize-right");
+  if (isNoteDrag) {
+    pitch = drag.primaryNote.pitch;
+    velLabel = VEL_LABELS[drag.primaryNote.vel];
+    lenSteps = noteFracLength(drag.primaryNote);
+  } else {
+    const y = ev.clientY - rect.top;
+    const rowIdx = Math.floor(y / cellH);
+    if (rowIdx < 0 || rowIdx >= numRows) { hideCellTooltip(); return; }
+    pitch = partHi - rowIdx;
+    const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+    if (noteTarget && wrap.contains(noteTarget)) {
+      const v = parseInt(noteTarget.dataset.vel, 10);
+      if (Number.isFinite(v)) velLabel = VEL_LABELS[v];
+      const l = parseFloat(noteTarget.dataset.len);
+      if (Number.isFinite(l)) lenSteps = l;
+    }
+  }
+  const tip = getCellTooltip();
+  const isRhythm = getInstrument(wrap.dataset.instrument).pitchMode === "fixed";
+  const pitchLabel = isRhythm
+    ? (RHYTHM_NAMES[partHi - pitch] || "")
+    : pitchName(pitch);
+  const pitchHtml = `<span class="pitch">${escapeHtml(pitchLabel)}</span>`;
+  const velHtml = velLabel ? `<span class="vel">${escapeHtml(velLabel)}</span>` : "";
+  const lenHtml = (lenSteps != null && !isRhythm) ? `<span class="len">${escapeHtml(formatLengthSteps(lenSteps))}</span>` : "";
+  tip.innerHTML = pitchHtml + velHtml + lenHtml;
+  tip.style.display = "block";
+  const offX = 12, offY = 14;
+  let left = ev.clientX + offX;
+  let top = ev.clientY + offY;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (left + tw > window.innerWidth - 4) left = ev.clientX - tw - offX;
+  if (top + th > window.innerHeight - 4) top = ev.clientY - th - offY;
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+}
+let lastPointer = null;
+let cellHoverEl = null;
+function getCellHover() {
+  if (!cellHoverEl) {
+    cellHoverEl = el("div", { class: "cell-hover" });
+    document.body.appendChild(cellHoverEl);
+  }
+  return cellHoverEl;
+}
+function hideCellHover() { if (cellHoverEl) cellHoverEl.style.display = "none"; }
+function updateCellHover(ev, wrap) {
+  if (drag) { hideCellHover(); return; }
+  const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+  if (noteTarget && wrap.contains(noteTarget)) { hideCellHover(); return; }
+  const rect = wrap.getBoundingClientRect();
+  const cellW = getCellW();
+  const cellH = getCellH();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  const stepAbs = Math.floor(x / cellW);
+  const rowIdx = Math.floor(y / cellH);
+  const partHi = parseInt(wrap.dataset.partHi, 10);
+  const partLo = parseInt(wrap.dataset.partLo, 10);
+  const numRows = partHi - partLo + 1;
+  const maxStep = Math.round(rect.width / cellW);
+  if (stepAbs < 0 || stepAbs >= maxStep || rowIdx < 0 || rowIdx >= numRows) {
+    hideCellHover();
+    return;
+  }
+  const hover = getCellHover();
+  hover.style.display = "block";
+  hover.style.left = (rect.left + stepAbs * cellW) + "px";
+  hover.style.top = (rect.top + rowIdx * cellH) + "px";
+  hover.style.width = (cellW + 2) + "px";
+  hover.style.height = cellH + "px";
+}
+function updateNoteCursor(ev) {
+  if (drag) return;
+  const noteTarget = ev.target && ev.target.closest && ev.target.closest(".note");
+  if (!noteTarget) return;
+  const wrap = noteTarget.closest(".grid-wrap");
+  if (wrap && getInstrument(wrap.dataset.instrument).pitchMode === "fixed") {
+    noteTarget.style.cursor = "";
+    return;
+  }
+  const rect = noteTarget.getBoundingClientRect();
+  const relLeft = ev.clientX - rect.left;
+  const relRight = rect.right - ev.clientX;
+  const canResizeLeft = relLeft <= RESIZE_EDGE;
+  const canResizeRight = relRight <= RESIZE_EDGE;
+  noteTarget.style.cursor = (canResizeLeft || canResizeRight) ? "ew-resize" : "";
+}
+document.addEventListener("pointermove", (ev) => {
+  lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+  if (drag && drag.mode === "rubber-band") {
+    hideCellTooltip(); hideCellHover();
+    return;
+  }
+  let wrap;
+  if (drag && drag.wrap) {
+    wrap = drag.wrap;
+  } else {
+    wrap = ev.target && ev.target.closest && ev.target.closest(".grid-wrap");
+  }
+  if (!wrap) { hideCellTooltip(); hideCellHover(); return; }
+  showCellTooltipAt(ev, wrap);
+  updateCellHover(ev, wrap);
+  updateNoteCursor(ev);
+});
+function refreshCellTooltipAtLastPointer() {
+  if (!lastPointer) return;
+  const elAtPoint = document.elementFromPoint(lastPointer.clientX, lastPointer.clientY);
+  const wrap = elAtPoint && elAtPoint.closest && elAtPoint.closest(".grid-wrap");
+  if (!wrap) { hideCellTooltip(); hideCellHover(); return; }
+  const fakeEv = { clientX: lastPointer.clientX, clientY: lastPointer.clientY, target: elAtPoint };
+  showCellTooltipAt(fakeEv, wrap);
+  updateCellHover(fakeEv, wrap);
+}
+document.documentElement.addEventListener("pointerleave", () => { hideCellTooltip(); hideCellHover(); });
+window.addEventListener("blur", () => { hideCellTooltip(); hideCellHover(); });
+
+// ---------- Clipboard (copy/paste) ----------
+let clipboard = null;
+// shape: {
+//   notes: [{ key, dStart, dRow, length, vel }, ...],
+//   annotations: [{ text, noteKeys: [key, ...] }, ...]
+// }
+// `key` is the source note's id at copy time. Annotations refer to copied
+// notes by key so paste can rebind them to freshly-minted ids.
+
+function cutSelection(sheet) {
+  if (!sheet || sheet.selectedNoteIds.size === 0) return;
+  pushUndo();
+  copySelection(sheet);
+  removeNotesByIds(sheet, sheet.selectedNoteIds);
+  clearSelection(sheet);
+  sheet.selectedCell = null;
+  renderAll();
+  persist();
+}
+
+function copySelection(sheet) {
+  if (!sheet || sheet.selectedNoteIds.size === 0) return;
+  const ids = sheet.selectedNoteIds;
+  const picked = [];
+  for (const p of sheet.parts) {
+    for (const n of p.notes) {
+      if (ids.has(n.id)) picked.push(n);
+    }
+  }
+  if (picked.length === 0) return;
+  let minStart = Infinity, maxPitch = -Infinity;
+  for (const n of picked) {
+    if (n.start < minStart) minStart = n.start;
+    if (n.pitch > maxPitch) maxPitch = n.pitch;
+  }
+  const pickedIdSet = new Set(picked.map(n => n.id));
+  const annotations = [];
+  for (const a of (sheet.annotations || [])) {
+    const noteKeys = a.noteIds.filter(id => pickedIdSet.has(id));
+    if (noteKeys.length > 0) annotations.push({ text: a.text, noteKeys });
+  }
+  clipboard = {
+    notes: picked.map(n => ({
+      key: n.id,
+      dStart: n.start - minStart,
+      dRow: maxPitch - n.pitch,
+      length: n.length,
+      vel: n.vel,
+      subOffset: n.subOffset || 0,
+      subLength: n.subLength || 0,
+    })),
+    annotations,
+  };
+}
+
+async function pasteClipboard(sheet) {
+  if (!sheet || !clipboard || clipboard.notes.length === 0) return;
+  pushUndo();
+
+  let targetStep = 0, targetPitch = 0, targetPart = null;
+  const sheetSteps = totalSteps(sheet);
+
+  if (sheet.selectedNoteIds.size > 1) {
+    const ids = sheet.selectedNoteIds;
+    let minStart = Infinity, maxPitch = -Infinity;
+    let foundPartId = null;
+    for (const p of sheet.parts) {
+      for (const n of p.notes) {
+        if (!ids.has(n.id)) continue;
+        if (n.start < minStart) minStart = n.start;
+        if (n.pitch > maxPitch) maxPitch = n.pitch;
+        if (foundPartId === null) foundPartId = n.partId;
+      }
+    }
+    if (foundPartId === null) return;
+    targetPart = sheet.parts.find(p => p.id === foundPartId);
+    if (!targetPart) return;
+    targetStep = minStart;
+    targetPitch = maxPitch;
+    removeNotesByIds(sheet, ids);
+    sheet.selectedNoteIds = new Set();
+  } else if (sheet.selectedNoteIds.size === 1) {
+    const onlyId = sheet.selectedNoteIds.values().next().value;
+    const foundNote = findNote(sheet, onlyId);
+    if (!foundNote) return;
+    targetPart = sheet.parts.find(p => p.id === foundNote.partId);
+    if (!targetPart) return;
+    targetStep = foundNote.start;
+    targetPitch = foundNote.pitch;
+  } else if (sheet.selectedCell) {
+    const c = sheet.selectedCell;
+    targetPart = sheet.parts.find(p => p.id === c.partId);
+    if (!targetPart) return;
+    targetStep = c.step;
+    targetPitch = c.pitch;
+  } else {
+    return;
+  }
+
+  const newIds = [];
+  const keyToNewId = new Map();
+  let outOfRangeMin = Infinity, outOfRangeMax = -Infinity, outOfRangeCount = 0;
+  for (const cn of clipboard.notes) {
+    const absStart = targetStep + cn.dStart;
+    const newPitch = targetPitch - cn.dRow;
+    if (absStart < 0 || absStart >= sheetSteps) continue;
+    if (isRhythmPart(targetPart)) {
+      if (newPitch < 0 || newPitch > 2) continue;
+    } else {
+      if (newPitch < PIANO_MIN || newPitch > PIANO_MAX) continue;
+    }
+    let newLength = Math.min(cn.length, sheetSteps - absStart);
+    if (newLength < 1) newLength = 1;
+    if (isRhythmPart(targetPart)) newLength = 1;
+    const note = {
+      id: uid(),
+      partId: targetPart.id,
+      pitch: newPitch,
+      start: absStart,
+      length: newLength,
+      vel: cn.vel,
+      subOffset: cn.subOffset || 0,
+      subLength: cn.subLength || 0,
+    };
+    targetPart.notes.push(note);
+    newIds.push(note.id);
+    if (cn.key != null) keyToNewId.set(cn.key, note.id);
+    if (newPitch < targetPart.lo || newPitch > targetPart.hi) {
+      outOfRangeCount++;
+      if (newPitch < outOfRangeMin) outOfRangeMin = newPitch;
+      if (newPitch > outOfRangeMax) outOfRangeMax = newPitch;
+    }
+  }
+
+  // Recreate annotations bound to the surviving pasted notes. Annotations
+  // whose noteKeys all dropped out of range are not recreated.
+  if (newIds.length > 0 && Array.isArray(clipboard.annotations)) {
+    for (const ca of clipboard.annotations) {
+      const mapped = ca.noteKeys.map(k => keyToNewId.get(k)).filter(Boolean);
+      if (mapped.length === 0) continue;
+      sheet.annotations.push({ id: uid(), text: ca.text, noteIds: mapped });
+    }
+  }
+
+  sheet.selectedCell = null;
+  sheet.selectedNoteIds = new Set(newIds);
+  renderAll();
+  persist();
+
+  if (outOfRangeCount > 0) {
+    const newLo = Math.min(targetPart.lo, outOfRangeMin);
+    const newHi = Math.max(targetPart.hi, outOfRangeMax);
+    const noun = outOfRangeCount === 1 ? "note falls" : "notes fall";
+    const msg = `${outOfRangeCount} pasted ${noun} outside "${targetPart.name}"'s pitch range (${pitchName(targetPart.lo)}–${pitchName(targetPart.hi)}). Extend the range to ${pitchName(newLo)}–${pitchName(newHi)} so they become visible?`;
+    const ok = await confirmAsync(msg);
+    if (ok) {
+      targetPart.lo = newLo;
+      targetPart.hi = newHi;
+      renderAll();
+      persist();
+    }
+  }
+}
+
+// ---------- Keyboard ----------
+document.addEventListener("keydown", (ev) => {
+  if (isCreateModifier(ev) && (ev.key === "s" || ev.key === "S")) {
+    ev.preventDefault();
+    saveProjectJson();
+    return;
+  }
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (ev.key === " " && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.repeat) {
+    ev.preventDefault();
+    if (recordingState !== "idle") {
+      finishRecording("stop");
+      return;
+    }
+    const playingSheet = project.sheets.find(s => s.id === playingSheetId);
+    const pausedSheet  = project.sheets.find(s => s.id === pausedSheetId);
+    const focusedSheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (playingSheet) pausePlayback();
+    else if (pausedSheet) resumePlayback(pausedSheet);
+    else if (focusedSheet) playSheet(focusedSheet);
+    return;
+  }
+  if (recordingState !== "idle") return; // disable shortcuts during recording
+
+  if (ev.key === "Enter" && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    ev.preventDefault();
+    const playingSheet = project.sheets.find(s => s.id === playingSheetId);
+    const pausedSheet  = project.sheets.find(s => s.id === pausedSheetId);
+    const focusedSheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    const target = playingSheet || pausedSheet || focusedSheet;
+    if (!target) return;
+    target.playStart = 0;
+    if (playingSheet === target) {
+      playSheet(target, 0);
+    } else if (pausedSheet === target) {
+      pausedStep = 0;
+      updatePlayheadDom(target);
+    } else {
+      updatePlayheadDom(target);
+    }
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "z" || ev.key === "Z")) {
+    if (ev.shiftKey) redo(); else undo();
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "c" || ev.key === "C")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    copySelection(sec);
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "x" || ev.key === "X")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    cutSelection(sec);
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "a" || ev.key === "A")) {
+    annotationsVisible = !annotationsVisible;
+    renderAll();
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "v" || ev.key === "V")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec) return;
+    pasteClipboard(sec);
+    ev.preventDefault();
+    return;
+  }
+  if (isCreateModifier(ev) && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec || sec.selectedNoteIds.size === 0) return;
+    const delta = ev.key === "ArrowRight" ? 1 : -1;
+    const notes = [];
+    for (const p of sec.parts) {
+      for (const n of p.notes) if (sec.selectedNoteIds.has(n.id)) notes.push(n);
+    }
+    if (notes.length === 0) return;
+    const snap = snapshotProject();
+    let moved = false;
+    for (const n of notes) {
+      if (shiftNoteSubOffset(sec, n, delta)) moved = true;
+    }
+    if (moved) {
+      commitUndoSnapshot(snap);
+      renderAll();
+      persist();
+    }
+    ev.preventDefault();
+    return;
+  }
+
+  if ((ev.key === "r" || ev.key === "R") && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+    const sheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sheet) return;
+    const partId = (sheet.selectedCell && sheet.selectedCell.partId) || partOfSelection(sheet);
+    const part = partId ? sheet.parts.find(p => p.id === partId) : null;
+    ev.preventDefault();
+    if (part) {
+      startRecording(sheet, part, recQuantizeLastPosSub, recQuantizeLastLenSub, getRecBpmForSheet(sheet.id));
+    } else {
+      openRecConfigDialog(sheet).then(res => {
+        if (res) startRecording(sheet, res.part, res.posSub, res.lenSub, res.bpmOverride);
+      });
+    }
+    return;
+  }
+
+  if ((ev.key === "q" || ev.key === "Q") && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+    if (!sec || sec.selectedNoteIds.size === 0) return;
+    ev.preventDefault();
+    const ids = [...sec.selectedNoteIds];
+    openQuantizeDialog().then(res => {
+      if (!res) return;
+      quantizeSelection(sec, ids, res.posSub, res.lenSub);
+    });
+    return;
+  }
+
+  if (ev.key !== "Backspace" && ev.key !== "Delete") return;
+  const sec = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+  if (!sec || sec.selectedNoteIds.size === 0) return;
+  const snap = snapshotProject();
+  const removed = removeNotesByIds(sec, sec.selectedNoteIds);
+  if (removed > 0) {
+    commitUndoSnapshot(snap);
+    clearSelection(sec);
+    sec.selectedCell = null;
+    renderAll();
+    ev.preventDefault();
+  }
+});
+
+// Document-level pointerdown: initiate a global rubber-band when the press
+// lands outside any grid-wrap (page background, between sheets, sheet header,
+// margins). Wrap handlers take precedence and pre-set `drag` for in-wrap presses.
+document.addEventListener("pointerdown", (ev) => {
+  if (drag) return;
+  if (ev.button !== 0) return;
+  const t = ev.target;
+  if (!t || !t.closest) return;
+  if (t.closest(".toolbar")) return;
+  if (t.closest(".footer")) return;
+  if (t.closest("dialog")) return;
+  if (t.closest(".tabstrip")) return;
+  if (t.closest(".ctx-menu")) return;
+  if (t.closest(".annot-card")) return;
+  if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.tagName === "OPTION" || t.isContentEditable) return;
+  if (t.tagName === "BUTTON") return;
+  if (t.closest("label")) return;
+  if (t.closest(".note")) return;
+  if (t.closest(".grid-wrap")) return;
+  if (t.closest(".ruler-track")) return;
+  const sheetEl = t.closest(".sheet");
+  let sheet;
+  if (sheetEl) {
+    sheet = project.sheets.find(s => s.id === sheetEl.dataset.sheetId);
+    lastFocusedSheetId = sheetEl.dataset.sheetId;
+  } else {
+    sheet = project.sheets.find(s => s.id === lastFocusedSheetId) || project.sheets[0];
+  }
+  if (!sheet) return;
+  startGlobalRubberBand({ sheet, additive: ev.shiftKey, anchorX: ev.clientX, anchorY: ev.clientY });
+  ev.preventDefault();
+});
+
+// click empty area within a sheet deselects that sheet's note
+sheetsEl.addEventListener("pointerdown", (ev) => {
+  if (ev.target.closest(".note") || ev.target.closest(".grid-wrap")) return;
+  const tt = ev.target.tagName;
+  if (tt === "INPUT" || tt === "TEXTAREA" || tt === "SELECT" || tt === "OPTION" || tt === "BUTTON" || tt === "LABEL") return;
+  if (ev.target.closest("label") || ev.target.closest("button")) return;
+  const sec = ev.target.closest(".sheet");
+  if (!sec) return;
+  const id = sec.dataset.sheetId;
+  const s = project.sheets.find(x => x.id === id);
+  if (!s) return;
+  let changed = false;
+  if (s.selectedNoteIds.size > 0) { clearSelection(s); changed = true; }
+  if (s.selectedCell) { s.selectedCell = null; changed = true; }
+  if (changed) renderAll();
+});
+
+// ---------- Help dialog ----------
+{
+  const MOD = IS_MAC ? "⌘" : "Ctrl";
+  const ROWS = [
+    [`${MOD} + Z`, "Undo last note edit"],
+    [`Shift + ${MOD} + Z`, "Redo last undone note edit"],
+    [`${MOD} + C`, "Copy selected notes"],
+    [`${MOD} + X`, "Cut selected notes"],
+    [`${MOD} + V`, "Paste at the selected cell, single note, or replacing the selected notes"],
+    [`${MOD} + A`, "Show / hide all annotations"],
+    [`${MOD} + S`, "Download the project as a JSON file"],
+    [`${MOD} + ←`, "Nudge selected notes back by 1/4 step"],
+    [`${MOD} + →`, "Nudge selected notes forward by 1/4 step"],
+    ["Space", "Play / pause; stop recording if active"],
+    ["Enter", "Rewind to beginning; restart if playing"],
+    ["Backspace / Delete", "Delete selected notes"],
+    ["Q", "Open Quantize pane for the selected notes"],
+    ["R", "Start recording into the selected part (else open Rec dialog)"],
+    ["Click empty cell", "Select that cell (paste target; clears note selection)"],
+    [`${MOD} + Click empty cell`, "Create a new note"],
+    ["Drag empty cell", "Rubber-band select notes in the same part"],
+    ["Shift + Drag empty cell", "Add to current selection via rubber-band"],
+    ["Click note", "Select the note (or collapse a multi-selection to this note)"],
+    [`${MOD} + Click note`, "Cycle velocity (every selected note if it's part of a multi-selection)"],
+    ["Shift + Click note", "Toggle that note in the selection"],
+    ["Drag note", "Move (group-aware if multi-selected); vertical drag changes pitch"],
+    ["Drag note edge", "Resize (group-aware if multi-selected)"],
+    ["Right-click note", "Open annotate menu (replaces selection with the clicked note if needed)"],
+    ["Hover annotation card", "Expand to full text with Edit / Delete buttons"],
+  ];
+  const table = document.getElementById("help-table");
+  table.innerHTML = ROWS.map(([k, d]) =>
+    `<tr><td class="key">${k}</td><td>${d}</td></tr>`).join("");
+  const dlg = document.getElementById("help-dialog");
+  document.getElementById("help-close").addEventListener("click", () => dlg.close());
+}
+
+// ---------- Theme ----------
+{
+  const THEME_KEY = "midi-editor:theme";
+  const ORDER = ["auto", "light", "dark"];
+  const mql = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  function readPref() {
+    const v = localStorage.getItem(THEME_KEY);
+    return ORDER.includes(v) ? v : "auto";
+  }
+  function applyTheme(pref) {
+    const dark = pref === "dark" || (pref === "auto" && mql && mql.matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }
+  function cycleTheme() {
+    const cur = readPref();
+    const next = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  }
+
+  applyTheme(readPref());
+  window.__themeApi = { read: readPref, cycle: cycleTheme };
+  if (mql) {
+    const onChange = () => { if (readPref() === "auto") applyTheme("auto"); };
+    if (mql.addEventListener) mql.addEventListener("change", onChange);
+    else if (mql.addListener) mql.addListener(onChange);
+  }
+}
+
+// ---------- Project name ----------
+syncProjectNameInput();
+document.getElementById("project-name").addEventListener("input", (e) => {
+  project.name = e.target.value;
+  updateDocumentTitle();
+  persist();
+});
+
+// ---------- Save / Load JSON ----------
+async function saveProjectJson() {
+  const json = JSON.stringify(serializeProject(project), null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const safe = (project.name || "score").trim().replace(/[\\/:*?"<>|]+/g, "_") || "score";
+  const filename = safe + ".json";
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      alert("Failed to save JSON: " + err.message);
+    }
+  } else {
+    triggerDownload(blob, filename);
+  }
+}
+document.getElementById("file-load").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const parsed = JSON.parse(fr.result);
+      if (parsed && parsed.version !== SCHEMA_VERSION) {
+        throw new Error(`Unsupported schema version ${parsed.version} (expected ${SCHEMA_VERSION})`);
+      }
+      const obj = deserializeProject(parsed);
+      if (!obj) throw new Error("Invalid format");
+      project.name = obj.name || "";
+      project.sheets = obj.sheets;
+      activeSheetId = project.sheets[0]?.id ?? null;
+      lastFocusedSheetId = activeSheetId;
+      syncProjectNameInput();
+      renderAll();
+    } catch (err) {
+      alert("Failed to load JSON: " + err.message);
+    }
+  };
+  fr.readAsText(file);
+  e.target.value = "";
+});
+
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- Playback (per sheet, exclusive) ----------
+let masterGain = null;
+// partId → GainNode, live per-part bus connected to masterGain.
+// Rebuilt at playSheet/auditionNote; mixer adjustments update node gains directly.
+let partGainNodes = new Map();
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!masterGain) {
+    masterGain = audioCtx.createGain();
+    const s = project.sheets.find(s => s.id === activeSheetId);
+    masterGain.gain.value = effectiveMasterValue(s);
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+function applyActiveMasterGain(sheet) {
+  if (!masterGain || !audioCtx) return;
+  const v = effectiveMasterValue(sheet);
+  masterGain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.01);
+}
+function teardownPartGainNodes() {
+  for (const node of partGainNodes.values()) {
+    try { node.disconnect(); } catch {}
+  }
+  partGainNodes.clear();
+}
+function ensurePartGainNodes(sheet) {
+  if (!audioCtx || !masterGain) return;
+  // Drop nodes for parts no longer in the sheet.
+  const ids = new Set(sheet.parts.map(p => p.id));
+  for (const [id, node] of partGainNodes) {
+    if (!ids.has(id)) { try { node.disconnect(); } catch {} partGainNodes.delete(id); }
+  }
+  for (const p of sheet.parts) {
+    if (!partGainNodes.has(p.id)) {
+      const g = audioCtx.createGain();
+      g.gain.value = effectivePartGain(sheet, p);
+      g.connect(masterGain);
+      partGainNodes.set(p.id, g);
+    }
+  }
+}
+function applyPartGainsLive(sheet) {
+  if (!audioCtx) return;
+  for (const p of sheet.parts) {
+    const node = partGainNodes.get(p.id);
+    if (!node) continue;
+    node.gain.setTargetAtTime(effectivePartGain(sheet, p), audioCtx.currentTime, 0.01);
+  }
+}
+function partDestFor(sheet, part) {
+  if (!part) return masterGain || audioCtx.destination;
+  const node = partGainNodes.get(part.id);
+  return node || masterGain || audioCtx.destination;
+}
+
+function syncPartMuteSoloDom(sheet, partId) {
+  const pm = sheet.mix.parts[partId];
+  if (!pm) return;
+  document.querySelectorAll(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${partId}"] .part-ms-btn.mute`
+  ).forEach(b => b.classList.toggle("on", pm.mute));
+  document.querySelectorAll(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${partId}"] .part-ms-btn.solo`
+  ).forEach(b => b.classList.toggle("on", pm.solo));
+  if (mixerDialog.open && mixerSheetId === sheet.id) populateMixer(sheet);
+}
+function togglePartMute(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  pm.mute = !pm.mute;
+  if (pm.mute) pm.solo = false;
+  applyPartGainsLive(sheet);
+  syncPartMuteSoloDom(sheet, part.id);
+  persist();
+}
+function togglePartSolo(sheet, part) {
+  const pm = ensurePartMix(sheet, part.id);
+  pm.solo = !pm.solo;
+  if (pm.solo) pm.mute = false;
+  applyPartGainsLive(sheet);
+  syncPartMuteSoloDom(sheet, part.id);
+  persist();
+}
+
+function teardownPlayback() {
+  for (const fn of activeOscillators) fn();
+  activeOscillators = [];
+  if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+  if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+  teardownPartGainNodes();
+}
+
+function stopPlayback() {
+  // Full stop: clear playing and paused state. sheet.playStart unchanged.
+  teardownPlayback();
+  playingSheetId = null;
+  pausedSheetId = null;
+  pausedStep = 0;
+  renderAll();
+}
+
+const playbackEndedNaturally = stopPlayback;
+
+function pausePlayback() {
+  if (!playingSheetId || !audioCtx) return;
+  const elapsed = audioCtx.currentTime - playbackT0;
+  const step = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+  const clamped = Math.max(0, Math.min(playbackTotalSteps - 0.0001, step));
+  teardownPlayback();
+  pausedSheetId = playingSheetId;
+  pausedStep = clamped;
+  playingSheetId = null;
+  renderAll();
+}
+
+function resumePlayback(sheet) {
+  const fromStep = pausedStep;
+  pausedSheetId = null;
+  pausedStep = 0;
+  playSheet(sheet, fromStep);
+}
+
+let noiseBuffer = null;
+function getNoiseBuffer() {
+  if (noiseBuffer && noiseBuffer.sampleRate === audioCtx.sampleRate) return noiseBuffer;
+  const len = Math.floor(audioCtx.sampleRate * 0.5);
+  noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const ch = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  return noiseBuffer;
+}
+
+function scheduleDrum(when, durSec, drumKey, vel, dest) {
+  if (!dest) dest = masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[vel];
+  const stops = [];
+  if (drumKey === "kick") {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(180, when);
+    osc.frequency.exponentialRampToValueAtTime(80, when + 0.08);
+    const kickPeak = Math.min(1.0, peak * 1.8);
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(kickPeak, when + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+    osc.connect(gain).connect(dest);
+    osc.start(when);
+    osc.stop(when + 0.22);
+    stops.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
+  } else if (drumKey === "snare") {
+    const src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1700;
+    bp.Q.value = 0.9;
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0, when);
+    ng.gain.linearRampToValueAtTime(peak * 0.9, when + 0.003);
+    ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.14);
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(when);
+    src.stop(when + 0.18);
+    const body = audioCtx.createOscillator();
+    const bg = audioCtx.createGain();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(220, when);
+    body.frequency.exponentialRampToValueAtTime(140, when + 0.05);
+    bg.gain.setValueAtTime(0, when);
+    bg.gain.linearRampToValueAtTime(peak * 0.4, when + 0.003);
+    bg.gain.exponentialRampToValueAtTime(0.0001, when + 0.09);
+    body.connect(bg).connect(dest);
+    body.start(when);
+    body.stop(when + 0.12);
+    stops.push(() => { try { src.stop(); src.disconnect(); bp.disconnect(); ng.disconnect(); body.stop(); body.disconnect(); bg.disconnect(); } catch {} });
+  } else {
+    // hihat
+    const src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 7000;
+    const ng = audioCtx.createGain();
+    const decay = Math.max(0.04, Math.min(0.25, durSec * 0.6));
+    ng.gain.setValueAtTime(0, when);
+    ng.gain.linearRampToValueAtTime(peak * 0.7, when + 0.002);
+    ng.gain.exponentialRampToValueAtTime(0.0001, when + decay);
+    src.connect(hp).connect(ng).connect(dest);
+    src.start(when);
+    src.stop(when + decay + 0.02);
+    stops.push(() => { try { src.stop(); src.disconnect(); hp.disconnect(); ng.disconnect(); } catch {} });
+  }
+  for (const s of stops) activeOscillators.push(s);
+}
+
+function auditionNote(sheet, note, opts) {
+  ensureAudio();
+  const secPerStep = 60 / sheet.bpm / 4;
+  const dur = secPerStep * 0.95;
+  const when = audioCtx.currentTime + 0.005;
+  const part = sheet.parts.find(p => p.id === note.partId);
+  ensurePartGainNodes(sheet);
+  const bypassPartGain = !!(opts && opts.bypassPartGain);
+  const dest = bypassPartGain ? (masterGain || audioCtx.destination) : partDestFor(sheet, part);
+  if (part && isRhythmPart(part)) {
+    const key = RHYTHM_KEYS[part.hi - note.pitch];
+    if (key) scheduleDrum(when, dur, key, note.vel, dest);
+  } else {
+    scheduleNote(when, dur, note.pitch, note.vel, dest);
+  }
+}
+
+function scheduleNote(when, durSec, midi, vel, dest) {
+  if (!dest) dest = masterGain || audioCtx.destination;
+  const peak = VEL_GAIN[vel];
+  const freq = 440 * Math.pow(2, (midi - 69) / 12);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(freq, when);
+  gain.gain.setValueAtTime(0, when);
+  gain.gain.linearRampToValueAtTime(peak, when + 0.005);
+  gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
+  gain.gain.linearRampToValueAtTime(0, when + durSec);
+  osc.connect(gain).connect(dest);
+  osc.start(when);
+  osc.stop(when + durSec + 0.02);
+  activeOscillators.push(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch {} });
+}
+
+function playSheet(sheet, fromStep, startAudioTime) {
+  ensureAudio();
+  const isSeamlessRepeat = startAudioTime != null && startAudioTime > audioCtx.currentTime;
+  if (isSeamlessRepeat) {
+    // Previous loop's oscillators are scheduled to end at/before startAudioTime —
+    // let them finish naturally. Just discard the tracking array and cancel timers.
+    activeOscillators = [];
+    if (playStopTimer) { clearTimeout(playStopTimer); playStopTimer = null; }
+    if (playbackRaf) { cancelAnimationFrame(playbackRaf); playbackRaf = null; }
+  } else {
+    teardownPlayback();
+  }
+  pausedSheetId = null;
+  pausedStep = 0;
+  playingSheetId = sheet.id;
+  const secPerStep = 60 / sheet.bpm / 4;
+  const sheetSteps = totalSteps(sheet);
+  const wantedStart = (fromStep != null) ? fromStep : (sheet.playStart || 0);
+  const startStep = Math.max(0, Math.min(sheetSteps - 1, wantedStart));
+  const effectiveStart = startStep >= sheetSteps ? 0 : startStep;
+  const t0 = isSeamlessRepeat ? startAudioTime : audioCtx.currentTime + 0.05;
+  let lastEnd = t0;
+  ensurePartGainNodes(sheet);
+  applyPartGainsLive(sheet);
+  for (const part of sheet.parts) {
+    const dest = partDestFor(sheet, part);
+    for (const n of part.notes) {
+      const absStart = noteFracStart(n);
+      if (absStart < effectiveStart) continue;
+      const start = t0 + (absStart - effectiveStart) * secPerStep;
+      const dur = noteFracLength(n) * secPerStep * 0.95;
+      if (isRhythmPart(part)) {
+        const key = RHYTHM_KEYS[part.hi - n.pitch];
+        if (key) scheduleDrum(start, dur, key, n.vel, dest);
+      } else {
+        scheduleNote(start, dur, n.pitch, n.vel, dest);
+      }
+      if (start + dur > lastEnd) lastEnd = start + dur;
+    }
+  }
+  applyActiveMasterGain(sheet);
+  playbackT0 = t0;
+  playbackStartStep = effectiveStart;
+  playbackSecPerStep = secPerStep;
+  playbackTotalSteps = sheetSteps;
+  const endStepTime = t0 + (sheetSteps - effectiveStart) * secPerStep;
+  const endTime = Math.max(lastEnd, endStepTime);
+  const myId = sheet.id;
+  // Fire 50ms before the loop ends so endStepTime is still in the future when
+  // playSheet schedules the next iteration (guarantees seamless audio handoff).
+  const earlyMs = Math.max(0, (endStepTime - audioCtx.currentTime) * 1000 - 50);
+  playStopTimer = setTimeout(() => {
+    if (playingSheetId !== myId) return;
+    // Suppress repeat during a recording take — finishRecording stops playback at the take's end.
+    if (repeatEnabled && recordingState === "idle") {
+      playSheet(sheet, 0, endStepTime);
+    } else {
+      // Wait for any notes that extend past endStepTime before stopping.
+      const remainingMs = Math.max(100, (endTime - audioCtx.currentTime) * 1000 + 100);
+      playStopTimer = setTimeout(() => {
+        if (playingSheetId === myId) playbackEndedNaturally();
+      }, remainingMs);
+    }
+  }, earlyMs);
+
+  const tick = () => {
+    if (playingSheetId !== sheet.id || !audioCtx) return;
+    // Only animate DOM when the playing sheet is the visible tab; the
+    // other tab's DOM has the same selectors and would otherwise animate too.
+    if (activeSheetId === sheet.id) {
+      const elapsed = audioCtx.currentTime - playbackT0;
+      const cur = playbackStartStep + Math.max(0, elapsed) / playbackSecPerStep;
+      if (cur >= playbackTotalSteps) {
+        updatePlaybackPlayhead(playbackTotalSteps - 0.0001, sheet);
+      } else {
+        updatePlaybackPlayhead(cur, sheet);
+      }
+    }
+    playbackRaf = requestAnimationFrame(tick);
+  };
+  renderAll();
+  playbackRaf = requestAnimationFrame(tick);
+}
+
+// ---------- MIDI live recording ----------
+function scheduleMetronomeClick(when, accent) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(accent ? 1500 : 900, when);
+  const peak = 0.18;
+  gain.gain.setValueAtTime(0, when);
+  gain.gain.linearRampToValueAtTime(peak, when + 0.002);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+  osc.connect(gain).connect(masterGain || audioCtx.destination);
+  osc.start(when);
+  osc.stop(when + 0.07);
+}
+
+function currentRecordingStep() {
+  const elapsed = (performance.now() - recordingT0) / 1000;
+  return recordingStartStep + elapsed / recordingSecPerStep;
+}
+
+async function startRecording(sheet, part, posSub = 0, lenSub = 0, bpmOverride = 0) {
+  if (recordingState !== "idle") return;
+  if (playingSheetId || pausedSheetId) stopPlayback();
+  // Note: we DO start playback ourselves at beginRecordingPhase so the user
+  // hears the rest of the arrangement while overdubbing the armed part.
+  if (!navigator.requestMIDIAccess) {
+    await alertAsync("Live MIDI recording requires a Chromium-based browser (Chrome, Edge, Opera).");
+    return;
+  }
+  if (!midiAccess) {
+    try {
+      midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+    } catch (e) {
+      await alertAsync("Could not access MIDI devices: " + (e && e.message ? e.message : e));
+      return;
+    }
+  }
+  clearPreviewNotes(sheet);
+  if (midiAccess.inputs.size === 0) {
+    await alertAsync("No MIDI input devices detected. Connect a MIDI keyboard and try again.");
+    return;
+  }
+
+  ensureAudio();
+
+  const startStepWanted = sheet.playStart || 0;
+  const totalSheetSteps = totalSteps(sheet);
+  const effectiveStart = startStepWanted >= totalSheetSteps ? 0 : startStepWanted;
+  if (totalSheetSteps - effectiveStart <= 0) {
+    await alertAsync("Nothing to record into — add a bar first.");
+    return;
+  }
+
+  recordingUndoSnap = snapshotProject();
+  recordingSheetId = sheet.id;
+  recordingPartId = part.id;
+  recordingQuantizePosSub = posSub;
+  recordingQuantizeLenSub = lenSub;
+  recordingStartStep = effectiveStart;
+  recordingOriginalBpm = sheet.bpm;
+  if (bpmOverride > 0) sheet.bpm = bpmOverride;
+  recordingSecPerStep = 60 / sheet.bpm / 4;
+  recordingTotalSteps = totalSheetSteps - effectiveStart;
+  recordingHeld = new Map();
+  recordingState = "count-in";
+
+  // Subscribe to all MIDI inputs.
+  midiInputDisposers = [];
+  midiAccess.inputs.forEach(input => {
+    const handler = onMidiMessage;
+    input.addEventListener("midimessage", handler);
+    midiInputDisposers.push(() => input.removeEventListener("midimessage", handler));
+  });
+
+  // Schedule 1-bar (4-beat) count-in clicks.
+  const stepsPerBeat = 4;
+  const beatSec = recordingSecPerStep * stepsPerBeat;
+  const countInStart = audioCtx.currentTime + 0.05;
+  for (let i = 0; i < 4; i++) {
+    scheduleMetronomeClick(countInStart + i * beatSec, i === 0);
+  }
+  const countInDurationMs = beatSec * 4 * 1000;
+
+  renderAll();
+
+  recordingCountInTimer = setTimeout(() => {
+    recordingCountInTimer = null;
+    beginRecordingPhase(sheet);
+  }, countInDurationMs);
+}
+
+function beginRecordingPhase(sheet) {
+  if (recordingState !== "count-in") return;
+  recordingState = "recording";
+  recordingT0 = performance.now();
+  // Punch-in: play the rest of the sheet alongside the take. The armed part is
+  // forced silent by effectivePartGain; every other part still obeys sheet.mix.
+  playSheet(sheet, recordingStartStep);
+  // Schedule metronome clicks during recording — every beat from startStep onward.
+  metronomeNextBeat = Math.ceil(recordingStartStep / 4) * 4;
+  scheduleUpcomingMetronome();
+
+  const tick = () => {
+    if (recordingState !== "recording") return;
+    const cur = currentRecordingStep();
+    if (activeSheetId === sheet.id) {
+      const clamped = Math.min(cur, recordingStartStep + recordingTotalSteps - 0.0001);
+      updatePlaybackPlayhead(clamped, sheet);
+    }
+    scheduleUpcomingMetronome();
+    growHeldNotes();
+    if (recAutoAppendBar && cur >= (sheet.barCount - 1) * STEPS_PER_BAR) {
+      sheet.barCount += 1;
+      recordingTotalSteps += STEPS_PER_BAR;
+      recAutoAddedBars += 1;
+      renderAll();
+    }
+    if (cur >= recordingStartStep + recordingTotalSteps) {
+      finishRecording("end");
+      return;
+    }
+    recordingRaf = requestAnimationFrame(tick);
+  };
+  renderAll();
+  recordingRaf = requestAnimationFrame(tick);
+}
+
+function scheduleUpcomingMetronome() {
+  if (!audioCtx) return;
+  const lookaheadSec = 0.25;
+  const cur = currentRecordingStep();
+  const horizon = cur + lookaheadSec / recordingSecPerStep;
+  const endStep = recordingStartStep + recordingTotalSteps;
+  while (metronomeNextBeat <= horizon && metronomeNextBeat < endStep) {
+    const offsetSec = (metronomeNextBeat - cur) * recordingSecPerStep;
+    const when = audioCtx.currentTime + Math.max(0, offsetSec);
+    const accent = (metronomeNextBeat % STEPS_PER_BAR) === 0;
+    scheduleMetronomeClick(when, accent);
+    metronomeNextBeat += 4;
+  }
+}
+
+
+function onMidiMessage(ev) {
+  if (recordingState !== "recording") return; // ignore during count-in / idle
+  const data = ev.data;
+  if (!data || data.length < 2) return;
+  const status = data[0] & 0xf0;
+  const pitch = data[1];
+  const vel = data.length > 2 ? data[2] : 0;
+  if (status === 0x90 && vel > 0) {
+    handleNoteOn(pitch, vel);
+  } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+    handleNoteOff(pitch);
+  }
+}
+
+function handleNoteOn(pitch, midiVel) {
+  const sheet = project.sheets.find(s => s.id === recordingSheetId);
+  if (!sheet) return;
+  const part = sheet.parts.find(p => p.id === recordingPartId);
+  if (!part) return;
+  const cur = currentRecordingStep();
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let curSubAbs = Math.round(cur * SUB_PER_STEP);
+  if (curSubAbs < recordingStartStep * SUB_PER_STEP) curSubAbs = recordingStartStep * SUB_PER_STEP;
+  if (curSubAbs >= endSubAbs) curSubAbs = endSubAbs - 1;
+  if (recordingQuantizePosSub > 0) {
+    curSubAbs = Math.round(curSubAbs / recordingQuantizePosSub) * recordingQuantizePosSub;
+    const startSub = recordingStartStep * SUB_PER_STEP;
+    curSubAbs = Math.max(startSub, Math.min(curSubAbs, endSubAbs - 1));
+  }
+  const start = Math.floor(curSubAbs / SUB_PER_STEP);
+  const subOffset = curSubAbs - start * SUB_PER_STEP;
+  const velIdx = midiVelToIdx(midiVel);
+  if (recordingHeld.has(pitch)) {
+    const existing = recordingHeld.get(pitch);
+    if (curSubAbs <= existing.startSubAbs) {
+      // Duplicate note-on within the same sub-step (e.g. MIDI Thru echo
+      // or keyboard re-trigger). Keep the existing held note and monitor
+      // intact — finalizing it now would clamp it to a 1-sub-step ghost.
+      return;
+    }
+    finalizeHeldNote(pitch, curSubAbs);
+  }
+  const note = {
+    id: uid(),
+    partId: recordingPartId,
+    pitch,
+    start,
+    length: 1,
+    vel: velIdx,
+    subOffset,
+    subLength: 0,
+  };
+  part.notes.push(note);
+  maybeAutoExpandRange(part, pitch);
+  let stopMonitor = null;
+  try {
+    ensureAudio();
+    stopMonitor = startSustainedPreviewTone(sheet, part, pitch, velIdx, { bypassPartGain: true });
+  } catch {}
+  recordingHeld.set(pitch, { note, startSubAbs: curSubAbs, stopMonitor });
+  renderAll();
+}
+
+function handleNoteOff(pitch) {
+  if (!recordingHeld.has(pitch)) return;
+  const cur = currentRecordingStep();
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let curSubAbs = Math.round(cur * SUB_PER_STEP);
+  if (curSubAbs > endSubAbs) curSubAbs = endSubAbs;
+  finalizeHeldNote(pitch, curSubAbs);
+}
+
+function finalizeHeldNote(pitch, endSubAbs) {
+  const entry = recordingHeld.get(pitch);
+  if (!entry) return;
+  recordingHeld.delete(pitch);
+  if (entry.stopMonitor) { try { entry.stopMonitor(); } catch {} }
+  updateHeldNoteLength(entry, endSubAbs);
+}
+
+function updateHeldNoteLength(entry, endSubAbs) {
+  const sheet = project.sheets.find(s => s.id === recordingSheetId);
+  if (!sheet) return;
+  const totalSheetSub = totalSteps(sheet) * SUB_PER_STEP;
+  const endCappedSub = Math.min(endSubAbs, totalSheetSub);
+  const maxLenSub = totalSheetSub - entry.startSubAbs;
+  let newLenSub = Math.max(1, Math.min(endCappedSub - entry.startSubAbs, maxLenSub));
+  if (recordingQuantizeLenSub > 0) {
+    newLenSub = Math.max(
+      recordingQuantizeLenSub,
+      Math.round(newLenSub / recordingQuantizeLenSub) * recordingQuantizeLenSub
+    );
+    newLenSub = Math.min(newLenSub, maxLenSub);
+  }
+  const newLength = Math.floor(newLenSub / SUB_PER_STEP);
+  const newSubLength = newLenSub - newLength * SUB_PER_STEP;
+  if (entry.note.length === newLength && (entry.note.subLength || 0) === newSubLength) return;
+  entry.note.length = newLength;
+  entry.note.subLength = newSubLength;
+  const part = sheet.parts.find(p => p.id === entry.note.partId);
+  if (!part) return;
+  if (entry.note.pitch < part.lo || entry.note.pitch > part.hi) return;
+  const wrap = document.querySelector(
+    `[data-sheet-id="${sheet.id}"] [data-part-id="${part.id}"] .grid-wrap`
+  );
+  if (wrap) updateNoteDom2(wrap, entry.note, part);
+}
+
+function growHeldNotes() {
+  if (recordingHeld.size === 0) return;
+  const cur = currentRecordingStep();
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  const curSubAbs = Math.min(Math.round(cur * SUB_PER_STEP), endSubAbs);
+  for (const entry of recordingHeld.values()) {
+    updateHeldNoteLength(entry, curSubAbs);
+  }
+}
+
+function finishRecording(reason) {
+  if (recordingState === "idle") return;
+  // Close any still-held notes at the current sub-step (clamped to end).
+  const endSubAbs = (recordingStartStep + recordingTotalSteps) * SUB_PER_STEP;
+  let closeSubAbs;
+  if (recordingState === "recording") {
+    const cur = currentRecordingStep();
+    closeSubAbs = Math.min(Math.round(cur * SUB_PER_STEP), endSubAbs);
+  } else {
+    // Stopped during count-in: no notes were recorded.
+    closeSubAbs = recordingStartStep * SUB_PER_STEP;
+  }
+  for (const pitch of Array.from(recordingHeld.keys())) {
+    finalizeHeldNote(pitch, closeSubAbs);
+  }
+  if (recordingRaf) { cancelAnimationFrame(recordingRaf); recordingRaf = null; }
+  if (recordingCountInTimer) { clearTimeout(recordingCountInTimer); recordingCountInTimer = null; }
+  for (const dispose of midiInputDisposers) { try { dispose(); } catch {} }
+  midiInputDisposers = [];
+  // Drop trailing empty auto-added bars.
+  if (recAutoAddedBars > 0) {
+    const sheet = project.sheets.find(s => s.id === recordingSheetId);
+    if (sheet) {
+      while (recAutoAddedBars > 0 && sheet.barCount > 1 && !hasNotesInLastBar(sheet)) {
+        sheet.barCount -= 1;
+        recAutoAddedBars -= 1;
+      }
+    }
+    recAutoAddedBars = 0;
+  }
+  // Restore sheet.bpm if a per-take BPM override swapped it. Done before the
+  // undo commit so both the snapshot (taken pre-swap) and the current state
+  // reflect the real sheet BPM — the override never enters persisted state.
+  if (recordingOriginalBpm > 0) {
+    const sheetForBpm = project.sheets.find(s => s.id === recordingSheetId);
+    if (sheetForBpm) sheetForBpm.bpm = recordingOriginalBpm;
+    recordingOriginalBpm = 0;
+  }
+  // Commit the whole recording as one undo entry.
+  if (recordingUndoSnap) {
+    commitUndoSnapshot(recordingUndoSnap);
+    recordingUndoSnap = null;
+  }
+  const recordedSheetId = recordingSheetId;
+  recordingSheetId = null;
+  recordingPartId = null;
+  recordingState = "idle";
+  recordingHeld = new Map();
+  // Stop the punch-in backing playback we started in beginRecordingPhase.
+  if (playingSheetId === recordedSheetId || pausedSheetId === recordedSheetId) {
+    stopPlayback();
+  }
+  renderAll();
+  persist();
+}
+
+// ---------- MIDI export (per sheet) ----------
+function writeVarLen(n) {
+  const bytes = [n & 0x7f];
+  n >>= 7;
+  while (n > 0) { bytes.unshift((n & 0x7f) | 0x80); n >>= 7; }
+  return bytes;
+}
+function strBytes(s) { return Array.from(new TextEncoder().encode(s)); }
+
+function buildSheetTrack(sheet, part, isFirstTrack) {
+  const events = [];
+  if (isFirstTrack) {
+    const mpq = Math.round(60000000 / sheet.bpm);
+    events.push({ tick: 0, order: 0, bytes: [0xff, 0x51, 0x03, (mpq >> 16) & 0xff, (mpq >> 8) & 0xff, mpq & 0xff] });
+  }
+  const nameBytes = strBytes(part.name);
+  events.push({ tick: 0, order: 0, bytes: [0xff, 0x03, nameBytes.length, ...nameBytes] });
+  for (const n of part.notes) {
+    const onTick = Math.round(noteFracStart(n) * TICKS_PER_STEP);
+    const offTick = Math.round((noteFracStart(n) + noteFracLength(n)) * TICKS_PER_STEP);
+    events.push({ tick: onTick, order: 1, bytes: [0x90, n.pitch, VEL_MIDI[n.vel]] });
+    events.push({ tick: offTick, order: 0, bytes: [0x80, n.pitch, 0] });
+  }
+  events.sort((a, b) => a.tick - b.tick || a.order - b.order);
+  const lastTick = events.length ? events[events.length - 1].tick : 0;
+  events.push({ tick: lastTick, order: 2, bytes: [0xff, 0x2f, 0x00] });
+  const out = [];
+  let prev = 0;
+  for (const e of events) {
+    const delta = e.tick - prev;
+    prev = e.tick;
+    out.push(...writeVarLen(delta), ...e.bytes);
+  }
+  return out;
+}
+
+function exportSheetMidi(sheet) {
+  const tracks = sheet.parts.map((p, i) => buildSheetTrack(sheet, p, i === 0));
+  const numTracks = tracks.length;
+  const header = [
+    0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1,
+    (numTracks >> 8) & 0xff, numTracks & 0xff,
+    (TICKS_PER_QUARTER >> 8) & 0xff, TICKS_PER_QUARTER & 0xff,
+  ];
+  const bytes = [...header];
+  for (const t of tracks) {
+    bytes.push(0x4d, 0x54, 0x72, 0x6b);
+    const len = t.length;
+    bytes.push((len >> 24) & 0xff, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff);
+    bytes.push(...t);
+  }
+  const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
+  const safe = (sheet.title || "sheet").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 40) || "sheet";
+  triggerDownload(blob, `${safe}.mid`);
+}
+
+// ---------- Init ----------
+initMidiInput();
+renderAll();
+
+})();
+</script>
+</body>
+</html>
