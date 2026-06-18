@@ -12,6 +12,7 @@ export interface AnnotationsProps {
   readOnly?: boolean;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
+  onDelete?: (id: string) => void;
 }
 
 interface Pt {
@@ -26,7 +27,7 @@ interface Pt {
  * geometry is analytic in the part's grid-wrap coordinate space (notes of an
  * annotation always belong to one part, by the single-part invariant).
  */
-export function Annotations({ part, annotations, cellW, cellH, readOnly = false, onEdit, onMove }: AnnotationsProps) {
+export function Annotations({ part, annotations, cellW, cellH, readOnly = false, onEdit, onMove, onDelete }: AnnotationsProps) {
   const noteById = new Map(part.notes.map((n) => [n.id, n]));
   const centerOf = (id: string): Pt | null => {
     const n = noteById.get(id);
@@ -57,6 +58,7 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
             readOnly={readOnly}
             onEdit={onEdit}
             onMove={onMove}
+            onDelete={onDelete}
           />
         );
       })}
@@ -71,6 +73,7 @@ function AnnotationCard({
   readOnly,
   onEdit,
   onMove,
+  onDelete,
 }: {
   annotation: Annotation;
   x: number;
@@ -78,6 +81,7 @@ function AnnotationCard({
   readOnly: boolean;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
+  onDelete?: (id: string) => void;
 }) {
   const dragState = useRef<{ startX: number; startY: number; baseDx: number; baseDy: number; moved: boolean } | null>(null);
 
@@ -113,6 +117,20 @@ function AnnotationCard({
       title={readOnly ? a.text : "Drag to move · click to edit"}
     >
       {a.text}
+      {!readOnly && (onEdit || onDelete) && (
+        <div className={styles.cardActions} onClick={(ev) => ev.stopPropagation()}>
+          {onEdit && (
+            <button className={styles.cardBtn} onPointerDown={(ev) => ev.stopPropagation()} onClick={() => onEdit(a.id)}>
+              Edit
+            </button>
+          )}
+          {onDelete && (
+            <button className={`${styles.cardBtn} ${styles.cardDelete}`} onPointerDown={(ev) => ev.stopPropagation()} onClick={() => onDelete(a.id)}>
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

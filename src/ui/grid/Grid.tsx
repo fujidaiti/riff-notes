@@ -35,6 +35,7 @@ export interface GridProps {
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
+  onAnnotationDelete?: (id: string) => void;
 }
 
 const RESIZE_EDGE = 5;
@@ -66,6 +67,7 @@ function GridImpl({
   onGridPointerDown,
   onAnnotationEdit,
   onAnnotationMove,
+  onAnnotationDelete,
 }: GridProps) {
   const numRows = part.hi - part.lo + 1;
   const rhythm = isRhythmPart(part);
@@ -180,6 +182,7 @@ function GridImpl({
           readOnly={readOnly}
           onEdit={onAnnotationEdit}
           onMove={onAnnotationMove}
+          onDelete={onAnnotationDelete}
         />
       )}
     </div>

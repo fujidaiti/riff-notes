@@ -282,6 +282,7 @@ export function App() {
           onInsertPart={(atIndex) => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano", insertAt: atIndex })}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
+          onAnnotationDelete={(id) => dispatch({ type: "DELETE_ANNOTATION", sheetId: sheet.id, id })}
         />
       </div>
 
