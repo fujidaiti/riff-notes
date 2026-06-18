@@ -5,6 +5,7 @@ import { isRhythmPart } from "../../core/model/factory";
 import { uid } from "../../core/model/uid";
 import { computeMove, computeResizeLeft, computeResizeRight, type DragMetrics, type DragOrigin, type NotePatch } from "../../core/drag";
 import { dropForeignPart } from "../../core/selection";
+import type { AudioEngine } from "../../audio/AudioEngine";
 import type { Action, SheetSelection } from "../../state/types";
 import type { NoteRegion } from "../../ui/grid/Grid";
 import { isCreateModifier } from "../platform";
@@ -48,11 +49,12 @@ export function useGridInteraction(
   dispatch: (a: Action) => void,
   cellW: number,
   cellH: number,
+  engine?: AudioEngine,
 ) {
   const [preview, setPreview] = useState<Map<string, NotePatch> | null>(null);
   const drag = useRef<DragState | null>(null);
-  const cfg = useRef({ sheet, selection, dispatch, cellW, cellH });
-  cfg.current = { sheet, selection, dispatch, cellW, cellH };
+  const cfg = useRef({ sheet, selection, dispatch, cellW, cellH, engine });
+  cfg.current = { sheet, selection, dispatch, cellW, cellH, engine };
 
   const computeFor = useCallback((d: DragState, dx: number, dy: number): Map<string, NotePatch> => {
     const { cellW: cw, cellH: ch, sheet: sh } = cfg.current;
@@ -95,7 +97,7 @@ export function useGridInteraction(
 
   const onNotePointerDown = useCallback((note: Note, ev: React.PointerEvent, region: NoteRegion) => {
     ev.preventDefault();
-    const { sheet: sh, selection: sel, dispatch: dsp } = cfg.current;
+    const { sheet: sh, selection: sel, dispatch: dsp, engine: eng } = cfg.current;
     const part = sh.parts.find((p) => p.id === note.partId);
     if (!part) return;
 
@@ -112,6 +114,7 @@ export function useGridInteraction(
     } else if (!selected.has(note.id)) {
       selected = new Set([note.id]);
       dsp({ type: "SET_SELECTION", sheetId: sh.id, noteIds: selected });
+      eng?.auditionNote(sh, note);
     }
 
     const groupIds = selected.has(note.id) ? selected : new Set([note.id]);
@@ -126,7 +129,7 @@ export function useGridInteraction(
   }, []);
 
   const onGridPointerDown = useCallback((ev: React.PointerEvent) => {
-    const { sheet: sh, dispatch: dsp, cellW: cw, cellH: ch } = cfg.current;
+    const { sheet: sh, dispatch: dsp, cellW: cw, cellH: ch, engine: eng } = cfg.current;
     const wrap = ev.currentTarget as HTMLElement;
     const part = sh.parts.find((p) => p.id === wrap.dataset.partId);
     if (!part) return;
@@ -149,6 +152,7 @@ export function useGridInteraction(
         mutate: (s) => void s.parts.find((p) => p.id === part.id)?.notes.push(note),
         selectNoteIds: new Set([id]),
       });
+      eng?.auditionNote(sh, note);
       return;
     }
 

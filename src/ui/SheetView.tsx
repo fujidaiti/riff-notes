@@ -14,6 +14,7 @@ export interface SheetViewProps {
   selection?: SheetSelection;
   showLabels?: boolean;
   playheadStep?: number | null;
+  getPlayheadStep?: () => number | null;
   readOnly?: boolean;
   onNotePointerDown?: (note: Note, ev: React.PointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: React.MouseEvent) => void;
@@ -28,6 +29,7 @@ function SheetViewImpl({
   selection,
   showLabels,
   playheadStep = null,
+  getPlayheadStep,
   readOnly = false,
   onNotePointerDown,
   onNoteContextMenu,
@@ -49,6 +51,7 @@ function SheetViewImpl({
           selectedCell={cell}
           showLabels={showLabels}
           playheadStep={playheadStep}
+          getPlayheadStep={getPlayheadStep}
           readOnly={readOnly}
           onNotePointerDown={onNotePointerDown}
           onNoteContextMenu={onNoteContextMenu}
