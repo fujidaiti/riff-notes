@@ -129,7 +129,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       const entry = held.current.get(d1);
       if (!entry) return;
       held.current.delete(d1);
-      let endSub = Math.max(entry.startSub + 1, Math.round(curStep * SUB_PER_STEP));
+      const endSub = Math.max(entry.startSub + 1, Math.round(curStep * SUB_PER_STEP));
       let lenSub = endSub - entry.startSub;
       if (o.lenQuantizeSub > 0) lenSub = Math.max(o.lenQuantizeSub, Math.round(lenSub / o.lenQuantizeSub) * o.lenQuantizeSub);
       const length = Math.max(1, Math.floor(lenSub / SUB_PER_STEP));
