@@ -51,7 +51,7 @@ export type Action =
   | { type: "SET_SCALE"; sheetId: string; scale: Scale }
   | { type: "ADD_SHEET" }
   | { type: "DELETE_SHEET"; sheetId: string }
-  | { type: "ADD_PART"; sheetId: string; instrument: InstrumentId }
+  | { type: "ADD_PART"; sheetId: string; instrument: InstrumentId; insertAt?: number }
   | { type: "DELETE_PART"; sheetId: string; partId: string }
   | { type: "UPDATE_PART"; sheetId: string; partId: string; fields: { name?: string; lo?: number; hi?: number; instrument?: InstrumentId } }
   | { type: "QUANTIZE_SELECTION"; sheetId: string; noteIds: Set<string>; posSub: number; lenSub: number }

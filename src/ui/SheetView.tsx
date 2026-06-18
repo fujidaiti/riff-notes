@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
 import { Band, BAND_SIDE_W } from "./Band";
@@ -6,6 +6,36 @@ import { Ruler } from "./Ruler";
 import type { GridProps, NoteRegion } from "./grid/Grid";
 import type { Note } from "../core/model/types";
 import type { CellSelection, SheetSelection } from "../state/types";
+
+function PartGap({ onInsert }: { onInsert: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      style={{ height: 4, display: "flex", alignItems: "center" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        style={{
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.15s",
+          border: "1px dashed var(--sheet-border)",
+          background: "var(--sheet-bg)",
+          color: "var(--ink-soft)",
+          borderRadius: 4,
+          fontSize: 11,
+          cursor: "pointer",
+          padding: "1px 8px",
+          lineHeight: 1,
+        }}
+        onClick={onInsert}
+        title="Insert part here"
+      >
+        + Part
+      </button>
+    </div>
+  );
+}
 
 export interface SheetViewProps {
   sheet: Sheet;
@@ -35,6 +65,8 @@ export interface SheetViewProps {
   onToggleMute?: (partId: string) => void;
   onToggleSolo?: (partId: string) => void;
   onPartDelete?: (partId: string) => void;
+  /** Editor-only: insert a new part before the given index. */
+  onInsertPart?: (atIndex: number) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
 }
@@ -63,6 +95,7 @@ function SheetViewImpl({
   onToggleMute,
   onToggleSolo,
   onPartDelete,
+  onInsertPart,
   onAnnotationEdit,
   onAnnotationMove,
 }: SheetViewProps) {
@@ -94,35 +127,42 @@ function SheetViewImpl({
           onRemoveBar={onRemoveBar}
         />
       )}
-      {sheet.parts.map((part) => (
-        <Band
-          key={part.id}
-          sheet={sheet}
-          part={part}
-          sheetSteps={sheetSteps}
-          cellW={cellW}
-          cellH={cellH}
-          selectedNoteIds={selection?.noteIds}
-          selectedCell={cell}
-          showLabels={showLabels}
-          playheadStep={playheadStep}
-          getPlayheadStep={getPlayheadStep}
-          annotations={annotationsByPart.get(part.id)}
-          annotationsVisible={annotationsVisible}
-          readOnly={readOnly}
-          onNotePointerDown={onNotePointerDown}
-          onNoteContextMenu={onNoteContextMenu}
-          onGridPointerDown={onGridPointerDown}
-          onPartClick={onPartClick}
-          onPartRecord={onPartRecord}
-          isRecording={recordingPartId === part.id}
-          onToggleMute={onToggleMute}
-          onToggleSolo={onToggleSolo}
-          onPartDelete={onPartDelete}
-          onAnnotationEdit={onAnnotationEdit}
-          onAnnotationMove={onAnnotationMove}
-        />
-      ))}
+      {sheet.parts.flatMap((part, idx) => {
+        const band = (
+          <Band
+            key={part.id}
+            sheet={sheet}
+            part={part}
+            sheetSteps={sheetSteps}
+            cellW={cellW}
+            cellH={cellH}
+            selectedNoteIds={selection?.noteIds}
+            selectedCell={cell}
+            showLabels={showLabels}
+            playheadStep={playheadStep}
+            getPlayheadStep={getPlayheadStep}
+            annotations={annotationsByPart.get(part.id)}
+            annotationsVisible={annotationsVisible}
+            readOnly={readOnly}
+            onNotePointerDown={onNotePointerDown}
+            onNoteContextMenu={onNoteContextMenu}
+            onGridPointerDown={onGridPointerDown}
+            onPartClick={onPartClick}
+            onPartRecord={onPartRecord}
+            isRecording={recordingPartId === part.id}
+            onToggleMute={onToggleMute}
+            onToggleSolo={onToggleSolo}
+            onPartDelete={onPartDelete}
+            onAnnotationEdit={onAnnotationEdit}
+            onAnnotationMove={onAnnotationMove}
+          />
+        );
+        if (!onInsertPart) return [band];
+        const gap = (
+          <PartGap key={`gap-${idx}`} onInsert={() => onInsertPart(idx + 1)} />
+        );
+        return [band, gap];
+      })}
     </div>
   );
 }
