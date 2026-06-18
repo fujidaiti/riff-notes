@@ -12,6 +12,7 @@ import { MixerDialog } from "./dialogs/MixerDialog";
 import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import { QuantizeDialog } from "./dialogs/QuantizeDialog";
 import { HelpDialog } from "./dialogs/HelpDialog";
+import { AnnotationDialog } from "./dialogs/AnnotationDialog";
 import { downloadProjectJson, pickProjectJson } from "./io";
 import styles from "./App.module.css";
 
@@ -40,6 +41,8 @@ export function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [partConfigId, setPartConfigId] = useState<string | null>(null);
   const partConfig = partConfigId ? (sheet.parts.find((p) => p.id === partConfigId) ?? null) : null;
+  const [editAnnId, setEditAnnId] = useState<string | null>(null);
+  const editAnn = editAnnId ? (sheet.annotations.find((a) => a.id === editAnnId) ?? null) : null;
 
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
@@ -82,6 +85,13 @@ export function App() {
         </button>
         <button className={styles.btn} disabled={!hasSelection} onClick={() => setQuantizeOpen(true)}>
           Quantize
+        </button>
+        <button
+          className={styles.btn}
+          disabled={!hasSelection}
+          onClick={() => dispatch({ type: "ADD_ANNOTATION", sheetId: sheet.id, noteIds: [...selection.noteIds] })}
+        >
+          Annotate
         </button>
         <span style={{ width: 12 }} />
         <button className={styles.btn} onClick={() => downloadProjectJson(state.project)}>
@@ -189,11 +199,13 @@ export function App() {
           cellW={cellW}
           cellH={cellH}
           selection={selection}
-          showLabels={state.ui.annotationsVisible}
+          annotationsVisible={state.ui.annotationsVisible}
           getPlayheadStep={transport === "stopped" ? undefined : getPlayheadStep}
           onNotePointerDown={onNotePointerDown}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}
+          onAnnotationEdit={setEditAnnId}
+          onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
         />
       </div>
 
@@ -207,6 +219,7 @@ export function App() {
         }
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
     </div>
   );
 }
