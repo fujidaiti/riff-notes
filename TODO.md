@@ -1,32 +1,21 @@
 # TODO
 
-## React migration — remaining parity with `legacy/index.html`
+## React migration
 
-These features exist in the legacy app and still need porting to `src/` (see
-CLAUDE.md "Migration status"). Each should reuse `src/core` where possible:
+The migration from `legacy/index.html` to `src/` has reached feature parity for all the major
+features (see CLAUDE.md "Migration status"): audio + transport + playhead, mixer, parts/drums,
+velocity cycling, quantize, rubber-band selection, annotations, JSON save/load, help, and Web-MIDI
+recording. The legacy file is kept as an archived reference.
 
-- [ ] Audio engine + transport. Port WebAudio playback/scheduling, per-part +
-      master gain (reuse `core/mixer.effectivePartGain`), `scheduleNote`/
-      `scheduleDrum`, and `auditionNote` into `src/audio/AudioEngine.ts`. Keep
-      the RAF playhead loop out-of-band (engine → ref), not through the reducer.
-- [ ] Playhead rendering driven by the engine callback.
-- [ ] Web-MIDI recording (count-in metronome, quantize, held-note tracking) as
-      `src/editor/hooks/useMidiInput.ts`.
-- [ ] Global rubber-band selection across bars (`useGlobalRubberBand`), porting
-      the document-pointerdown bail-out allowlist; apply the single-part
-      invariant from `core/selection`.
-- [ ] Annotations UI: cards (hover-expand, drag-reposition, edge-resize), the
-      editor dialog, and the polyline connectors. The DOM-based placement
-      reconciliation (visual-position-preserving) belongs in the editor layer;
-      the pure pruning is already in `core/notes`.
-- [ ] Dialogs: mixer, quantize (wire `core/quantize`), part config, help. Use
-      native `<dialog>` in a portal so the rubber-band allowlist's
-      `closest("dialog")` keeps matching. Make a single `shortcuts.ts` the
-      source for both the keyboard handler and the help table.
-- [ ] Velocity cycling (modifier-click) and the hover tooltip / cell highlight.
-- [ ] Save/Load JSON import-export UI (serialize boundary already exists).
-- [ ] Bundle check: confirm the embed chunk pulls in no editor code.
-- [ ] Phase 7 cutover: once parity is reached, remove `legacy/index.html`.
+Remaining:
+
+- [ ] Manual browser QA pass against `legacy/index.html`, then delete the legacy file (Phase 7
+      cutover). Automated checks (Vitest, tsc, build, an SSR smoke test) pass, but no browser run
+      has been done in CI.
+- [ ] Hover cell tooltip showing pitch/step under the cursor (minor polish).
+- [ ] Recording extras from the legacy app: per-take BPM override, auto-expand bars on overflow,
+      append mode, and silencing the armed part's existing notes while punching in over a backing
+      track (the current take records over a metronome only).
 
 ## Product follow-ups (carried over from the original app)
 
