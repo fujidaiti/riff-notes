@@ -30,9 +30,15 @@ export function App() {
   if (!engineRef.current) engineRef.current = new AudioEngine();
   const engine = engineRef.current;
 
-  useKeyboardShortcuts(state, dispatch, { openQuantize: () => setQuantizeOpen(true), openHelp: () => setHelpOpen(true) });
   const { transport, repeat, setRepeat, play, pause, stop, getPlayheadStep } = useTransport(engine, sheet);
   const recording = useMidiRecording(engine, sheet, dispatch);
+  useKeyboardShortcuts(state, dispatch, {
+    openQuantize: () => setQuantizeOpen(true),
+    openHelp: () => setHelpOpen(true),
+    onSave: () => downloadProjectJson(state.project),
+    onRewind: stop,
+    onRecord: () => (recording.recording ? recording.stop() : setRecConfigOpen(true)),
+  });
   const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
 
   const sheetRef = useRef<HTMLDivElement>(null);

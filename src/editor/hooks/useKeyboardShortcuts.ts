@@ -3,6 +3,7 @@ import { removeNotesByIds } from "../../core/notes";
 import { copyNotes, pasteNotes, type Clipboard, type PasteAnchor } from "../../core/clipboard";
 import { findNote, totalSteps } from "../../core/model/factory";
 import { uid } from "../../core/model/uid";
+import { shiftNoteSubOffset } from "../../core/timing";
 import type { Action, AppState } from "../../state/types";
 import { activeSheet } from "../../state/reducer";
 import { isCreateModifier } from "../platform";
@@ -20,6 +21,9 @@ function isEditable(target: EventTarget | null): boolean {
 export interface ShortcutHandlers {
   openQuantize: () => void;
   openHelp: () => void;
+  onSave: () => void;
+  onRewind: () => void;
+  onRecord: () => void;
 }
 
 export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => void, handlers: ShortcutHandlers) {
@@ -38,6 +42,11 @@ export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => v
       if (mod && ev.key.toLowerCase() === "z") {
         ev.preventDefault();
         dsp({ type: ev.shiftKey ? "REDO" : "UNDO" });
+        return;
+      }
+      if (mod && ev.key.toLowerCase() === "s") {
+        ev.preventDefault();
+        h.onSave();
         return;
       }
       if (mod && ev.key.toLowerCase() === "c") {
@@ -78,13 +87,39 @@ export function useKeyboardShortcuts(state: AppState, dispatch: (a: Action) => v
         dsp({ type: "TOGGLE_ANNOTATIONS" });
         return;
       }
+      if (mod && (ev.key === "ArrowLeft" || ev.key === "ArrowRight") && sel.noteIds.size > 0) {
+        ev.preventDefault();
+        const delta = ev.key === "ArrowLeft" ? -1 : 1;
+        dsp({
+          type: "MUTATE_SHEET",
+          sheetId: sheet.id,
+          mutate: (s) => {
+            for (const part of s.parts) {
+              for (const note of part.notes) {
+                if (sel.noteIds.has(note.id)) shiftNoteSubOffset(s, note, delta);
+              }
+            }
+          },
+          selectNoteIds: new Set(sel.noteIds),
+        });
+        return;
+      }
       if ((ev.key === "Backspace" || ev.key === "Delete") && sel.noteIds.size > 0) {
         ev.preventDefault();
         dsp({ type: "MUTATE_SHEET", sheetId: sheet.id, mutate: (s) => void removeNotesByIds(s, sel.noteIds), selectNoteIds: new Set() });
         return;
       }
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        h.onRewind();
+        return;
+      }
       if (!mod && ev.key.toLowerCase() === "q" && sel.noteIds.size > 0) {
         h.openQuantize();
+        return;
+      }
+      if (!mod && ev.key.toLowerCase() === "r") {
+        h.onRecord();
         return;
       }
       if (ev.key === "?") {

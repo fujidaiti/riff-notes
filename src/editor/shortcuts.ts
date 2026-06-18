@@ -13,6 +13,8 @@ const mod = IS_MAC ? "⌘" : "Ctrl";
 
 export const SHORTCUTS: Shortcut[] = [
   { keys: "Space", description: "Play / pause" },
+  { keys: "Enter", description: "Rewind to start" },
+  { keys: "R", description: "Record" },
   { keys: `${mod}-click empty cell`, description: "Create a note" },
   { keys: "Drag note", description: "Move; drag the edges to resize" },
   { keys: `${mod}-click note`, description: "Cycle velocity" },
@@ -21,6 +23,8 @@ export const SHORTCUTS: Shortcut[] = [
   { keys: `${mod}+Z / ${mod}+Shift+Z`, description: "Undo / redo" },
   { keys: `${mod}+C / ${mod}+X / ${mod}+V`, description: "Copy / cut / paste" },
   { keys: `${mod}+A`, description: "Toggle annotations" },
+  { keys: `${mod}+← / ${mod}+→`, description: "Nudge selected notes ±¼ step" },
+  { keys: `${mod}+S`, description: "Save project as JSON" },
   { keys: "Q", description: "Quantize selected notes" },
   { keys: "?", description: "Show this help" },
 ];
