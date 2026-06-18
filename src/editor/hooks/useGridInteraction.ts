@@ -23,6 +23,7 @@ interface DragState {
   /** Create-modifier held at press — a non-moved click cycles velocity. */
   createMod: boolean;
   groupIds: Set<string>;
+  stepHighlight: HTMLDivElement | null;
 }
 
 function applyPatches(sheet: Sheet, patches: Map<string, NotePatch>): Sheet {
@@ -134,7 +135,23 @@ export function useGridInteraction(
       if (!d.moved && Math.abs(dx) < CLICK_MAX_MOVE && Math.abs(dy) < CLICK_MAX_MOVE) return;
       d.moved = true;
       d.subGranular = isCreateModifier(ev);
-      setPreview(computeFor(d, dx, d.mode === "move" ? dy : 0));
+      const patches = computeFor(d, dx, d.mode === "move" ? dy : 0);
+      setPreview(patches);
+      // Step-highlight: show a vertical line at the snapped step position.
+      if (d.mode === "move" || d.mode === "resize-l") {
+        const firstPatch = patches.values().next().value as (typeof patches extends Map<string, infer V> ? V : never) | undefined;
+        const snapStep = firstPatch?.start ?? null;
+        const gridEl = document.querySelector<HTMLElement>(`[data-part-id="${d.part.id}"]`);
+        if (snapStep != null && gridEl) {
+          if (!d.stepHighlight) {
+            const el = document.createElement("div");
+            el.style.cssText = "position:absolute;top:0;width:2px;height:100%;background:var(--note-sel,#2b6cb0);opacity:0.7;pointer-events:none;z-index:8;";
+            gridEl.appendChild(el);
+            d.stepHighlight = el;
+          }
+          d.stepHighlight.style.left = `${snapStep * cfg.current.cellW}px`;
+        }
+      }
     };
     const onUp = (ev: PointerEvent) => {
       const rb = rubber.current;
@@ -151,6 +168,7 @@ export function useGridInteraction(
       const d = drag.current;
       drag.current = null;
       if (!d) return;
+      d.stepHighlight?.remove();
       const { dispatch: dsp, sheet: sh } = cfg.current;
       if (d.moved) {
         const patches = computeFor(d, ev.clientX - d.startX, d.mode === "move" ? ev.clientY - d.startY : 0);
@@ -167,6 +185,7 @@ export function useGridInteraction(
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       rubber.current?.overlay?.remove();
+      drag.current?.stepHighlight?.remove();
     };
   }, [computeFor]);
 
@@ -210,6 +229,7 @@ export function useGridInteraction(
       subGranular: isCreateModifier(ev),
       createMod: isCreateModifier(ev),
       groupIds,
+      stepHighlight: null,
     };
   }, []);
 
