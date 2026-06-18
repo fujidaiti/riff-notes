@@ -17,6 +17,7 @@ import { QuantizeDialog } from "./dialogs/QuantizeDialog";
 import { HelpDialog } from "./dialogs/HelpDialog";
 import { AnnotationDialog } from "./dialogs/AnnotationDialog";
 import { downloadProjectJson, downloadSheetMidi, pickProjectJson } from "./io";
+import { useTheme } from "./useTheme";
 import { getSavedAt } from "../state/persistence";
 import styles from "./App.module.css";
 
@@ -70,6 +71,8 @@ export function App() {
     const id = setTimeout(() => setSavedAt(Date.now()), 400);
     return () => clearTimeout(id);
   }, [state.project]);
+
+  const { label: themeLabel, cycle: cycleTheme } = useTheme();
 
   const loadFromFile = async () => {
     const project = await pickProjectJson();
@@ -138,6 +141,9 @@ export function App() {
         </button>
         <button className={styles.btn} onClick={() => downloadSheetMidi(sheet)} title="Export active sheet as MIDI">
           Export MIDI
+        </button>
+        <button className={styles.btn} onClick={cycleTheme} title="Cycle theme">
+          {themeLabel}
         </button>
         <button className={styles.btn} onClick={() => setHelpOpen(true)} title="Keyboard shortcuts">
           ?
