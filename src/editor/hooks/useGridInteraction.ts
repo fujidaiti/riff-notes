@@ -24,6 +24,9 @@ interface DragState {
   createMod: boolean;
   groupIds: Set<string>;
   stepHighlight: HTMLDivElement | null;
+  /** Note that was clicked — if released without drag and already multi-selected, collapses selection to this note. */
+  clickedNoteId: string;
+  clickedWasInMultiSelection: boolean;
 }
 
 function applyPatches(sheet: Sheet, patches: Map<string, NotePatch>): Sheet {
@@ -176,6 +179,9 @@ export function useGridInteraction(
       } else if (d.createMod) {
         // Modifier-click without a drag cycles the selected notes' velocity.
         dsp({ type: "CYCLE_VELOCITY", sheetId: sh.id, noteIds: d.groupIds });
+      } else if (!ev.shiftKey && d.clickedWasInMultiSelection) {
+        // Click-release on an already-selected note in a multi-selection collapses to just that note.
+        dsp({ type: "SET_SELECTION", sheetId: sh.id, noteIds: new Set([d.clickedNoteId]) });
       }
       setPreview(null);
     };
@@ -230,6 +236,8 @@ export function useGridInteraction(
       createMod: isCreateModifier(ev),
       groupIds,
       stepHighlight: null,
+      clickedNoteId: note.id,
+      clickedWasInMultiSelection: sel.noteIds.has(note.id) && sel.noteIds.size > 1,
     };
   }, []);
 
