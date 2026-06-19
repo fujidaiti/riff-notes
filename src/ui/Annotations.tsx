@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Annotation, Part } from "../core/model/types";
 import { noteFracLength, noteFracStart } from "../core/timing";
 import { noteWidthPx } from "../core/timing";
@@ -109,12 +109,39 @@ function AnnotationCard({
   const dragState = useRef<DragState | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cmdHeld, setCmdHeld] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (readOnly) return;
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Meta" || ev.key === "Control") setCmdHeld(true);
+    };
+    const onKeyUp = (ev: KeyboardEvent) => {
+      if (ev.key === "Meta" || ev.key === "Control") setCmdHeld(false);
+    };
+    const onBlur = () => setCmdHeld(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [readOnly]);
+
+  const isExpanded = isHovered && !cmdHeld && !isResizing && !isDragging;
 
   const onMouseMove = (ev: React.MouseEvent<HTMLDivElement>) => {
     if (dragState.current || readOnly || !onResize) return;
-    const rect = ev.currentTarget.getBoundingClientRect();
-    const nearEdge = ev.clientX - rect.left <= RESIZE_EDGE || rect.right - ev.clientX <= RESIZE_EDGE;
-    ev.currentTarget.style.cursor = nearEdge ? "ew-resize" : "";
+    if (cmdHeld && !isExpanded) {
+      const rect = ev.currentTarget.getBoundingClientRect();
+      const nearEdge = ev.clientX - rect.left <= RESIZE_EDGE || rect.right - ev.clientX <= RESIZE_EDGE;
+      ev.currentTarget.style.cursor = nearEdge ? "ew-resize" : "";
+    } else {
+      ev.currentTarget.style.cursor = "";
+    }
   };
 
   const onPointerDown = (ev: React.PointerEvent<HTMLDivElement>) => {
@@ -123,7 +150,8 @@ function AnnotationCard({
     const rect = ev.currentTarget.getBoundingClientRect();
     const relLeft = ev.clientX - rect.left;
     const relRight = rect.right - ev.clientX;
-    if (onResize && (relLeft <= RESIZE_EDGE || relRight <= RESIZE_EDGE)) {
+    const nearEdge = relLeft <= RESIZE_EDGE || relRight <= RESIZE_EDGE;
+    if (onResize && cmdHeld && !isExpanded && nearEdge) {
       const edge = relLeft <= RESIZE_EDGE ? "left" : "right";
       ev.currentTarget.setPointerCapture(ev.pointerId);
       dragState.current = { mode: "resize", startX: ev.clientX, startW: a.shrunkWidth, startDx: a.placement.dx, edge };
@@ -164,18 +192,18 @@ function AnnotationCard({
     }
   };
 
-  const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · drag edge to resize" : "Drag to move · click to edit";
+  const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · cmd+drag edge to resize" : "Drag to move · click to edit";
 
   return (
     <div
-      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""} ${isDragging ? styles.dragging : ""}`}
+      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""} ${isDragging ? styles.dragging : ""} ${cmdHeld ? styles.cmdHeld : ""}`}
       style={{ left: x, top: y, width: a.shrunkWidth, ["--annot-shrunk-width" as string]: `${a.shrunkWidth}px` } as React.CSSProperties}
       onMouseMove={readOnly ? undefined : onMouseMove}
       onPointerDown={readOnly ? undefined : onPointerDown}
       onPointerMove={readOnly ? undefined : onPointerMove}
       onPointerUp={readOnly ? undefined : onPointerUp}
-      onMouseEnter={() => onHover?.(a.id)}
-      onMouseLeave={() => onHover?.(null)}
+      onMouseEnter={() => { setIsHovered(true); onHover?.(a.id); }}
+      onMouseLeave={(ev) => { setIsHovered(false); onHover?.(null); ev.currentTarget.style.cursor = ""; }}
       title={title}
     >
       {a.text}
