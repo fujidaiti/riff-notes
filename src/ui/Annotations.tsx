@@ -5,7 +5,6 @@ import { noteWidthPx } from "../core/timing";
 import { ANNOT_MIN_WIDTH, ANNOT_MAX_WIDTH } from "../core/serialize";
 import styles from "./Annotations.module.css";
 
-const RESIZE_EDGE = 14;
 
 export interface AnnotationsProps {
   part: Part;
@@ -110,7 +109,6 @@ function AnnotationCard({
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [cmdHeld, setCmdHeld] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (readOnly) return;
@@ -131,14 +129,12 @@ function AnnotationCard({
     };
   }, [readOnly]);
 
-  const isExpanded = isHovered && !cmdHeld && !isResizing && !isDragging;
-
   const onMouseMove = (ev: React.MouseEvent<HTMLDivElement>) => {
     if (dragState.current || readOnly || !onResize) return;
-    if (cmdHeld && !isExpanded) {
+    if (cmdHeld) {
       const rect = ev.currentTarget.getBoundingClientRect();
-      const nearEdge = ev.clientX - rect.left <= RESIZE_EDGE || rect.right - ev.clientX <= RESIZE_EDGE;
-      ev.currentTarget.style.cursor = nearEdge ? "ew-resize" : "";
+      const inLeftHalf = ev.clientX - rect.left < rect.width / 2;
+      ev.currentTarget.style.cursor = inLeftHalf ? "w-resize" : "e-resize";
     } else {
       ev.currentTarget.style.cursor = "";
     }
@@ -147,16 +143,17 @@ function AnnotationCard({
   const onPointerDown = (ev: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
     ev.stopPropagation();
-    const rect = ev.currentTarget.getBoundingClientRect();
-    const relLeft = ev.clientX - rect.left;
-    const relRight = rect.right - ev.clientX;
-    const nearEdge = relLeft <= RESIZE_EDGE || relRight <= RESIZE_EDGE;
-    if (onResize && cmdHeld && !isExpanded && nearEdge) {
-      const edge = relLeft <= RESIZE_EDGE ? "left" : "right";
-      ev.currentTarget.setPointerCapture(ev.pointerId);
-      dragState.current = { mode: "resize", startX: ev.clientX, startW: a.shrunkWidth, startDx: a.placement.dx, edge };
-      setIsResizing(true);
-    } else if (onMove) {
+    if (cmdHeld) {
+      if (onResize) {
+        const rect = ev.currentTarget.getBoundingClientRect();
+        const edge = ev.clientX - rect.left < rect.width / 2 ? "left" : "right";
+        ev.currentTarget.setPointerCapture(ev.pointerId);
+        dragState.current = { mode: "resize", startX: ev.clientX, startW: a.shrunkWidth, startDx: a.placement.dx, edge };
+        setIsResizing(true);
+      }
+      return;
+    }
+    if (onMove) {
       ev.currentTarget.setPointerCapture(ev.pointerId);
       dragState.current = { mode: "move", startX: ev.clientX, startY: ev.clientY, baseDx: a.placement.dx, baseDy: a.placement.dy, moved: false };
     }
@@ -192,7 +189,7 @@ function AnnotationCard({
     }
   };
 
-  const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · cmd+drag edge to resize" : "Drag to move · click to edit";
+  const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · cmd+drag to resize" : "Drag to move · click to edit";
 
   return (
     <div
@@ -202,8 +199,8 @@ function AnnotationCard({
       onPointerDown={readOnly ? undefined : onPointerDown}
       onPointerMove={readOnly ? undefined : onPointerMove}
       onPointerUp={readOnly ? undefined : onPointerUp}
-      onMouseEnter={() => { setIsHovered(true); onHover?.(a.id); }}
-      onMouseLeave={(ev) => { setIsHovered(false); onHover?.(null); ev.currentTarget.style.cursor = ""; }}
+      onMouseEnter={() => onHover?.(a.id)}
+      onMouseLeave={(ev) => { onHover?.(null); ev.currentTarget.style.cursor = ""; }}
       title={title}
     >
       {a.text}

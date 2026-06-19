@@ -84,12 +84,14 @@ test("hover without cmd — card expands", async ({ page }) => {
   expect(width).toBeGreaterThan(80);
 });
 
-test("hover near edge without cmd — no resize cursor", async ({ page }) => {
+test("hover without cmd — no resize cursor anywhere on card", async ({ page }) => {
   const card = page.getByTitle(/Drag to move/);
-  // Move to right edge zone without pressing cmd.
-  await moveRelative(page, card, 80 - 7, 10);
-  const cursor = await card.evaluate((el: HTMLElement) => el.style.cursor);
-  expect(cursor).not.toBe("ew-resize");
+  // Move through left half, center, and right half — no resize cursor without cmd.
+  for (const relX of [7, 40, 73]) {
+    await moveRelative(page, card, relX, 10);
+    const cursor = await card.evaluate((el: HTMLElement) => el.style.cursor);
+    expect(cursor).not.toMatch(/resize/);
+  }
 });
 
 test("hold cmd, hover minimized card — card does not expand", async ({ page }) => {
@@ -101,28 +103,31 @@ test("hold cmd, hover minimized card — card does not expand", async ({ page })
   expect(width).toBe(80);
 });
 
-test("hold cmd, hover near edge — resize cursor shown", async ({ page }) => {
+test("hold cmd — left half shows w-resize, right half shows e-resize", async ({ page }) => {
   const card = page.getByTitle(/Drag to move/);
   await page.keyboard.down("Meta");
+  // Left half (x=7, card width=80, midpoint=40).
   await moveRelative(page, card, 7, 10);
   const cursorLeft = await card.evaluate((el: HTMLElement) => el.style.cursor);
-  await moveRelative(page, card, 80 - 7, 10);
+  // Right half (x=73).
+  await moveRelative(page, card, 73, 10);
   const cursorRight = await card.evaluate((el: HTMLElement) => el.style.cursor);
   await page.keyboard.up("Meta");
-  expect(cursorLeft).toBe("ew-resize");
-  expect(cursorRight).toBe("ew-resize");
+  expect(cursorLeft).toBe("w-resize");
+  expect(cursorRight).toBe("e-resize");
 });
 
-test("hold cmd, drag right edge — card widens", async ({ page }) => {
+test("hold cmd, drag right half — card widens rightward", async ({ page }) => {
   const card = page.getByTitle(/Drag to move/);
   const box = await card.boundingBox();
   if (!box) throw new Error("card not found");
   await page.keyboard.down("Meta");
-  const rightEdgeX = box.x + box.width - 7;
+  // Start in the right half (x = 73, midpoint = 40).
+  const startX = box.x + 73;
   const midY = box.y + box.height / 2;
-  await page.mouse.move(rightEdgeX, midY);
+  await page.mouse.move(startX, midY);
   await page.mouse.down();
-  await page.mouse.move(rightEdgeX + 50, midY);
+  await page.mouse.move(startX + 50, midY);
   await page.mouse.up();
   await page.keyboard.up("Meta");
   const ann = await getAnnotation(page);
@@ -130,23 +135,43 @@ test("hold cmd, drag right edge — card widens", async ({ page }) => {
   expect(ann.placement.dx).toBe(0);
 });
 
-test("hold cmd, drag left edge — card widens and dx adjusts", async ({ page }) => {
+test("hold cmd, drag left half — card widens leftward and dx adjusts", async ({ page }) => {
   const card = page.getByTitle(/Drag to move/);
   const box = await card.boundingBox();
   if (!box) throw new Error("card not found");
   await page.keyboard.down("Meta");
-  const leftEdgeX = box.x + 7;
+  // Start in the left half (x = 7, midpoint = 40).
+  const startX = box.x + 7;
   const midY = box.y + box.height / 2;
-  await page.mouse.move(leftEdgeX, midY);
+  await page.mouse.move(startX, midY);
   await page.mouse.down();
-  await page.mouse.move(leftEdgeX - 50, midY);
+  await page.mouse.move(startX - 50, midY);
   await page.mouse.up();
   await page.keyboard.up("Meta");
   const ann = await getAnnotation(page);
   expect(ann.shrunkWidth).toBeGreaterThan(80);
-  // Left-edge resize: dx shrinks by the same amount as the width increase.
+  // Left resize: dx decreases by the same amount as the width increase.
   const widthIncrease = ann.shrunkWidth - 80;
   expect(ann.placement.dx).toBeCloseTo(-widthIncrease, 0);
+});
+
+test("hold cmd and drag — card does not move", async ({ page }) => {
+  const card = page.getByTitle(/Drag to move/);
+  const box = await card.boundingBox();
+  if (!box) throw new Error("card not found");
+  await page.keyboard.down("Meta");
+  // Drag from center — without cmd this would move, but with cmd it should resize (not move).
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 40, cy);
+  await page.mouse.up();
+  await page.keyboard.up("Meta");
+  const ann = await getAnnotation(page);
+  // dx and dy must stay at their fixture values (0 and -40).
+  expect(ann.placement.dx).not.toBeCloseTo(40, 0);
+  expect(ann.placement.dy).toBe(-40);
 });
 
 test("drag card without cmd — card moves", async ({ page }) => {
@@ -224,11 +249,12 @@ test("resize clamps at max width", async ({ page }) => {
   const box = await card.boundingBox();
   if (!box) throw new Error("card not found");
   await page.keyboard.down("Meta");
-  const rightEdgeX = box.x + box.width - 7;
+  // Drag from right half far to the right.
+  const startX = box.x + 73;
   const midY = box.y + box.height / 2;
-  await page.mouse.move(rightEdgeX, midY);
+  await page.mouse.move(startX, midY);
   await page.mouse.down();
-  await page.mouse.move(rightEdgeX + 9999, midY);
+  await page.mouse.move(startX + 9999, midY);
   await page.mouse.up();
   await page.keyboard.up("Meta");
   const ann = await getAnnotation(page);
@@ -241,12 +267,12 @@ test("resize clamps at min width", async ({ page }) => {
   const box = await card.boundingBox();
   if (!box) throw new Error("card not found");
   await page.keyboard.down("Meta");
-  const leftEdgeX = box.x + 7;
+  // Drag from left half far to the right to shrink leftward.
+  const startX = box.x + 7;
   const midY = box.y + box.height / 2;
-  await page.mouse.move(leftEdgeX, midY);
+  await page.mouse.move(startX, midY);
   await page.mouse.down();
-  // Drag far to the right to shrink from the left.
-  await page.mouse.move(leftEdgeX + 9999, midY);
+  await page.mouse.move(startX + 9999, midY);
   await page.mouse.up();
   await page.keyboard.up("Meta");
   const ann = await getAnnotation(page);
