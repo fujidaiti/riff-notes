@@ -74,31 +74,69 @@ export function ViewerApp() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { transport, repeat, setRepeat, play, stop, getPlayheadStep } =
-    useViewerTransport(engine, sheet, mix, bpm);
+  const barW = cellW * STEPS_PER_BAR;
+  // `page` is the 0-indexed start bar of the visible window, not a page index.
+  const pageBar = page;
+
+  const { transport, repeat, setRepeat, play, stop, getPlayheadStep, isLoopingRef } =
+    useViewerTransport(engine, sheet, mix, bpm, pageBar);
 
   // Hover tooltip + cell highlight (always enabled — viewer is always read-only).
   useCellHover(gridRef, cellW, cellH, true);
 
-  // Keep a ref so the rAF callback always sees the latest page without a stale closure.
+  // Refs so the rAF callback always reads the latest values without stale closures.
   const pageRef = useRef(page);
   pageRef.current = page;
+  const repeatRef = useRef(repeat);
+  repeatRef.current = repeat;
 
-  // Auto-advance the page when the playhead exits the visible 2-bar window.
+  // Playhead monitor: runs every frame while a sheet is loaded.
+  //
+  // Mode A (isLoopingRef = false): engine plays the full sheet. The monitor
+  // either auto-advances the page or switches to Mode B at the next bar boundary.
+  //
+  // Mode B (isLoopingRef = true): engine loops the trimmed 2-bar sheet
+  // seamlessly via its own internal scheduling. The monitor does nothing unless
+  // repeat is turned off, in which case it switches back to Mode A.
+  //
+  // Toggling repeat only flips repeatRef — no immediate engine call. The mode
+  // switch happens at the next rAF tick (Mode B→A) or the next bar boundary
+  // (Mode A→B), so the engine is never interrupted mid-measure by a toggle.
   useEffect(() => {
     if (!sheet) return;
     const barCount = sheet.barCount;
     let rafId: number;
     const tick = () => {
-      const step = getPlayheadStep();
-      if (step !== null) {
-        const playheadBar = Math.floor(step / STEPS_PER_BAR);
-        const cur = pageRef.current;
-        if (playheadBar < cur || playheadBar >= cur + BARS_PER_PAGE) {
-          const next = Math.max(0, Math.min(playheadBar, barCount - BARS_PER_PAGE));
-          if (next !== cur) {
-            pageRef.current = next;
-            setPage(next);
+      const cur = pageRef.current;
+      if (isLoopingRef.current) {
+        // Mode B: engine is looping seamlessly. Only act if repeat was turned off.
+        if (!repeatRef.current) {
+          void play(cur); // switch to Mode A from current page
+          // isLoopingRef.current becomes false synchronously inside play()
+        }
+      } else {
+        // Mode A: full-sheet playback — watch for boundary crossings.
+        const step = getPlayheadStep();
+        if (step !== null) {
+          const playheadBar = Math.floor(step / STEPS_PER_BAR);
+          if (playheadBar >= cur + BARS_PER_PAGE) {
+            if (repeatRef.current) {
+              void play(cur); // switch to Mode B (seamless loop from page start)
+              // isLoopingRef.current becomes true synchronously inside play()
+            } else {
+              const next = Math.min(playheadBar, barCount - BARS_PER_PAGE);
+              if (next !== cur) {
+                pageRef.current = next;
+                setPage(next);
+              }
+            }
+          } else if (playheadBar < cur) {
+            // Backward jump (e.g. engine restarted from page change).
+            const next = Math.max(0, Math.min(playheadBar, barCount - BARS_PER_PAGE));
+            if (next !== cur) {
+              pageRef.current = next;
+              setPage(next);
+            }
           }
         }
       }
@@ -106,11 +144,7 @@ export function ViewerApp() {
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [getPlayheadStep, sheet]);
-
-  const barW = cellW * STEPS_PER_BAR;
-  // `page` is the 0-indexed start bar of the visible window, not a page index.
-  const pageBar = page;
+  }, [getPlayheadStep, isLoopingRef, sheet, play]);
 
   // Annotations grouped by part (same logic as SheetView).
   const annotationsByPart = useMemo(() => {
@@ -133,7 +167,7 @@ export function ViewerApp() {
     pageRef.current = newPage;
     setPage(newPage);
     if (transport === "playing") {
-      void play(newPage * STEPS_PER_BAR);
+      void play(newPage);
     }
   }, [transport, play]);
 
@@ -236,23 +270,26 @@ export function ViewerApp() {
       {/* Sticky toolbar */}
       <div className={styles.toolbar}>
         <button
+          data-testid="play-stop-btn"
           className={styles.toolBtn}
-          onClick={transport === "playing" ? stop : () => void play(pageBar * STEPS_PER_BAR)}
+          onClick={transport === "playing" ? stop : () => void play()}
         >
           {transport === "playing" ? "Stop" : "Play"}
         </button>
         <button
+          data-testid="repeat-btn"
           className={`${styles.toolBtn} ${repeat ? styles.active : ""}`}
           onClick={() => setRepeat((r) => !r)}
         >
           Repeat
         </button>
-        <button className={styles.toolBtn} onClick={() => setMixerOpen(true)}>
+        <button data-testid="mix-btn" className={styles.toolBtn} onClick={() => setMixerOpen(true)}>
           Mix
         </button>
         <label className={styles.bpmLabel}>
           BPM
           <input
+            data-testid="bpm-input"
             className={styles.bpmInput}
             type="number"
             min={20}
@@ -267,6 +304,7 @@ export function ViewerApp() {
           <>
             <div className={styles.toolbarSpacer} />
             <button
+              data-testid="pager-prev"
               className={styles.pagerArrow}
               onClick={() => handlePageChange(Math.max(0, page - BARS_PER_PAGE))}
               disabled={page === 0}
@@ -274,10 +312,11 @@ export function ViewerApp() {
             >
               ‹
             </button>
-            <span className={styles.pagerBars}>
+            <span data-testid="pager-bars" className={styles.pagerBars}>
               {firstBar === lastBar ? firstBar : `${firstBar} ${lastBar}`}
             </span>
             <button
+              data-testid="pager-next"
               className={styles.pagerArrow}
               onClick={() => handlePageChange(Math.min(page + BARS_PER_PAGE, sheet.barCount - BARS_PER_PAGE))}
               disabled={page >= sheet.barCount - BARS_PER_PAGE}
