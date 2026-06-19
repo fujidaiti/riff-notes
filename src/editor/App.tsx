@@ -112,7 +112,7 @@ export function App() {
   ];
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} onContextMenu={(e) => e.preventDefault()}>
       <div className={styles.toolbar}>
         <button className={styles.btn} onClick={transport === "playing" ? pause : play}>
           {transport === "playing" ? "⏸ Pause" : transport === "paused" ? "▶ Resume" : "▶ Play"}
