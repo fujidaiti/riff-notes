@@ -39,7 +39,20 @@ export function App() {
     openHelp: () => setHelpOpen(true),
     onSave: () => void downloadProjectJson(state.project),
     onRewind: stop,
-    onRecord: () => (recording.recording ? recording.stop() : setRecConfigOpen(true)),
+    onRecord: () => {
+      if (recording.recording) { recording.stop(); return; }
+      // Infer the target part from the current selection (cell or first selected note).
+      let partId: string | null = selection.cell?.partId ?? null;
+      if (!partId && selection.noteIds.size > 0) {
+        const firstId = [...selection.noteIds][0];
+        partId = sheet.parts.find((p) => p.notes.some((n) => n.id === firstId))?.id ?? null;
+      }
+      if (partId) {
+        void recording.start({ partId });
+      } else {
+        setRecConfigOpen(true);
+      }
+    },
   });
   const { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
 
