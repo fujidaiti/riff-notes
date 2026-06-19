@@ -13,7 +13,7 @@ const mod = IS_MAC ? "⌘" : "Ctrl";
 
 export const SHORTCUTS: Shortcut[] = [
   // Transport
-  { keys: "Space", description: "Play / pause" },
+  { keys: "Space", description: "Play / pause; stop recording if active" },
   { keys: "Enter", description: "Rewind to start" },
   { keys: "R", description: "Start / stop recording" },
   // Mouse — empty cell

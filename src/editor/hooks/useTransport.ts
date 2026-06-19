@@ -9,7 +9,7 @@ export type TransportState = "stopped" | "playing" | "paused";
  * grids poll from their own rAF. Transport *state* (a low-frequency value) goes
  * through React; the playhead *position* does not.
  */
-export function useTransport(engine: AudioEngine, sheet: Sheet) {
+export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { recording: boolean; stop: () => void }) {
   const [transport, setTransport] = useState<TransportState>("stopped");
   const [repeat, setRepeat] = useState(false);
   // Unified cursor: where playback starts from (also updated on pause/seek).
@@ -69,13 +69,22 @@ export function useTransport(engine: AudioEngine, sheet: Sheet) {
     return () => engine.stop();
   }, [engine]);
 
-  // Space toggles play/pause; not when typing in a field.
+  // Keep the latest recording state in a ref so the stable listener sees current values.
+  const recordingRef = useRef(recording);
+  recordingRef.current = recording;
+
+  // Space: stop recording if active, otherwise toggle play/pause.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (ev.code !== "Space") return;
       const t = ev.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       ev.preventDefault();
+      const rec = recordingRef.current;
+      if (rec?.recording) {
+        rec.stop();
+        return;
+      }
       if (engine.isPlaying) pause();
       else play();
     };
