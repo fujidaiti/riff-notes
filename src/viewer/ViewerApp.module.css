@@ -5,7 +5,6 @@
   min-height: 100vh;
   background: transparent;
   color: var(--ink);
-  --sheet-bg: transparent;
 }
 
 .message {
@@ -26,6 +25,7 @@
   align-items: center;
   justify-content: center;
   gap: 0;
+  --sheet-bg: transparent;
 }
 
 .row {
