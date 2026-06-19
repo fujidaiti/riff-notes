@@ -132,6 +132,7 @@ function SheetViewImpl({
           onRemoveBar={onRemoveBar}
         />
       )}
+      {onInsertPart && <PartGap key="gap-pre" onInsert={() => onInsertPart(0)} />}
       {sheet.parts.flatMap((part, idx) => {
         const band = (
           <Band
