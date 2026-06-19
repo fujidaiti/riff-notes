@@ -93,19 +93,6 @@ export function PartConfigDialog({ sheet, part, open, onClose }: { sheet: Sheet;
           </div>
         </>
       )}
-      {sheet.parts.length > 1 && (
-        <div className={styles.row}>
-          <button
-            className={styles.toggle}
-            onClick={() => {
-              dispatch({ type: "DELETE_PART", sheetId: sheet.id, partId: part.id });
-              onClose();
-            }}
-          >
-            Delete part
-          </button>
-        </div>
-      )}
     </Dialog>
   );
 }
