@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Riff Notes — View Debug</title>
+    <style>
+      html, body {
+        height: 100%;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .controls label {
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        gap: 4px;
+      }
+      .controls input {
+        padding: 4px 6px;
+        font: inherit;
+      }
+      iframe {
+        border: 1px solid #ccc;
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="frame" src="../view.html"></iframe>
+    <div class="controls">
+      <label>
+        width
+        <input id="width" type="number" value="800" min="0" />
+      </label>
+      <label>
+        height
+        <input id="height" type="number" value="600" min="0" />
+      </label>
+      <label>
+        file
+        <input id="file" type="text" value="" placeholder="project" />
+      </label>
+    </div>
+
+    <script>
+      const widthInput = document.getElementById("width");
+      const heightInput = document.getElementById("height");
+      const fileInput = document.getElementById("file");
+      const frame = document.getElementById("frame");
+
+      function updateSize() {
+        frame.width = widthInput.value;
+        frame.height = heightInput.value;
+      }
+
+      function updateSrc() {
+        const file = fileInput.value.trim();
+        frame.src = file ? `../view.html?src=${encodeURIComponent(file)}.json` : `../view.html`;
+      }
+
+      widthInput.addEventListener("change", updateSize);
+      heightInput.addEventListener("change", updateSize);
+      fileInput.addEventListener("change", updateSrc);
+
+      updateSize();
+      updateSrc();
+    </script>
+  </body>
+</html>
