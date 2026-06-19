@@ -5,13 +5,14 @@ import { test, expect, type Page } from "@playwright/test";
 const BASE = "/riff-notes";
 
 function fixtureJson(name: string) {
-  return readFileSync(resolve(__dirname, "fixtures", name), "utf-8");
+  return readFileSync(resolve(import.meta.dirname, "fixtures", name), "utf-8");
 }
 
 async function routeFixture(page: Page, name: string) {
   const body = fixtureJson(name);
-  await page.route(`**/${name}`, (route) =>
-    route.fulfill({ contentType: "application/json", body })
+  await page.route(
+    (url) => url.pathname.endsWith(`/${name}`),
+    (route) => route.fulfill({ contentType: "application/json", body }),
   );
 }
 
@@ -47,17 +48,16 @@ test("initial pager label is '1 2'", async ({ page }) => {
   await expect(page.getByTestId("pager-bars")).toHaveText("1 2");
 });
 
-test("next advances to bars 3 4", async ({ page }) => {
+test("next advances to bars 2 3", async ({ page }) => {
   await loadViewer(page);
   await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 });
 
 test("next is disabled on the last page", async ({ page }) => {
   await loadViewer(page);
-  // 6-bar fixture: 1-2 → 3-4 → 5-6 (last page)
-  await page.getByTestId("pager-next").click();
-  await page.getByTestId("pager-next").click();
+  // 6-bar fixture: 1-2 → 2-3 → … → 5-6 (last page, 4 clicks)
+  for (let i = 0; i < 4; i++) await page.getByTestId("pager-next").click();
   await expect(page.getByTestId("pager-next")).toBeDisabled();
 });
 
@@ -186,7 +186,7 @@ test("toggling repeat while playing does not restart playback", async ({ page })
 
   // Navigate to a mid-sheet page so any accidental restart to bar 1 is detectable.
   await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("play-stop-btn").click();
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
@@ -194,12 +194,12 @@ test("toggling repeat while playing does not restart playback", async ({ page })
   // Toggle repeat on — transport must stay playing, page must not change.
   await page.getByTestId("repeat-btn").click();
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   // Toggle repeat off — transport must stay playing, page must not change.
   await page.getByTestId("repeat-btn").click();
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("play-stop-btn").click(); // clean up
 });
@@ -208,7 +208,7 @@ test("toggling repeat while playing does not restart playback", async ({ page })
 test("enabling repeat while playing keeps visible bars and transport", async ({ page }) => {
   await loadViewer(page);
   await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("play-stop-btn").click();
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
@@ -216,7 +216,7 @@ test("enabling repeat while playing keeps visible bars and transport", async ({ 
   await page.getByTestId("repeat-btn").click();
   await expect(page.getByTestId("repeat-btn")).toHaveClass(/active/);
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("play-stop-btn").click(); // clean up
 });
@@ -224,7 +224,7 @@ test("enabling repeat while playing keeps visible bars and transport", async ({ 
 test("disabling repeat while playing keeps visible bars and transport", async ({ page }) => {
   await loadViewer(page);
   await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("repeat-btn").click();
   await page.getByTestId("play-stop-btn").click();
@@ -233,7 +233,7 @@ test("disabling repeat while playing keeps visible bars and transport", async ({
   await page.getByTestId("repeat-btn").click();
   await expect(page.getByTestId("repeat-btn")).not.toHaveClass(/active/);
   await expect(page.getByTestId("play-stop-btn")).toHaveText("Stop");
-  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
 
   await page.getByTestId("play-stop-btn").click(); // clean up
 });
@@ -319,23 +319,25 @@ test("5-bar sheet: pager is shown", async ({ page }) => {
   await expect(page.getByTestId("pager-next")).toBeVisible();
 });
 
-test("5-bar sheet: pages advance by 2 — last page label is '5 6'", async ({ page }) => {
+test("5-bar sheet: pages advance by 1 — last page label is '4 5'", async ({ page }) => {
   await load5BarViewer(page);
   await expect(page.getByTestId("pager-bars")).toHaveText("1 2");
   await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
+  await page.getByTestId("pager-next").click();
   await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
   await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("5 6");
+  await expect(page.getByTestId("pager-bars")).toHaveText("4 5");
 });
 
 test("5-bar sheet: next is disabled on the last page", async ({ page }) => {
   await load5BarViewer(page);
-  await page.getByTestId("pager-next").click();
-  await page.getByTestId("pager-next").click();
+  // 5-bar sheet: last page starts at bar 4 (0-indexed 3), 3 clicks needed
+  for (let i = 0; i < 3; i++) await page.getByTestId("pager-next").click();
   await expect(page.getByTestId("pager-next")).toBeDisabled();
 });
 
-test("5-bar sheet: grid width equals 2 bars on every page (empty bar appended)", async ({ page }) => {
+test("5-bar sheet: grid is 5 bars wide", async ({ page }) => {
   await load5BarViewer(page);
 
   // Read cell width from the CSS custom property set on :root.
@@ -343,7 +345,7 @@ test("5-bar sheet: grid width equals 2 bars on every page (empty bar appended)",
     parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w"))
   );
   const STEPS_PER_BAR = 16;
-  const expectedGridW = 6 * STEPS_PER_BAR * cellW; // paddedBarCount=6
+  const expectedGridW = 5 * STEPS_PER_BAR * cellW; // barCount=5, no padding
 
   const gridW = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>("[data-part-id]");
@@ -352,11 +354,9 @@ test("5-bar sheet: grid width equals 2 bars on every page (empty bar appended)",
 
   expect(gridW).toBe(expectedGridW);
 
-  // Navigate to last page (bar 5) and confirm the grid width is unchanged —
-  // the 6th bar is blank but still rendered.
-  await page.getByTestId("pager-next").click();
-  await page.getByTestId("pager-next").click();
-  await expect(page.getByTestId("pager-bars")).toHaveText("5 6");
+  // Navigate to last page (bar 4–5) and confirm the grid width is unchanged.
+  for (let i = 0; i < 3; i++) await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("4 5");
 
   const gridWLastPage = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>("[data-part-id]");

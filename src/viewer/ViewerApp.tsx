@@ -47,8 +47,7 @@ export function ViewerApp() {
   }, []);
 
   const barW = cellW * STEPS_PER_BAR;
-  // Round up odd bar counts so every page is exactly BARS_PER_PAGE wide.
-  const paddedBarCount = sheet ? (sheet.barCount % 2 === 0 ? sheet.barCount : sheet.barCount + 1) : 0;
+  const paddedBarCount = sheet ? sheet.barCount : 0;
   // `page` is the 0-indexed start bar of the visible window, not a page index.
   const pageBar = page;
 
@@ -284,7 +283,7 @@ export function ViewerApp() {
             <button
               data-testid="pager-prev"
               className={styles.pagerArrow}
-              onClick={() => handlePageChange(Math.max(0, page - BARS_PER_PAGE))}
+              onClick={() => handlePageChange(Math.max(0, page - 1))}
               disabled={page === 0}
               aria-label="Previous bars"
             >
@@ -296,7 +295,7 @@ export function ViewerApp() {
             <button
               data-testid="pager-next"
               className={styles.pagerArrow}
-              onClick={() => handlePageChange(Math.min(page + BARS_PER_PAGE, paddedBarCount - BARS_PER_PAGE))}
+              onClick={() => handlePageChange(Math.min(page + 1, paddedBarCount - BARS_PER_PAGE))}
               disabled={page >= paddedBarCount - BARS_PER_PAGE}
               aria-label="Next bars"
             >
