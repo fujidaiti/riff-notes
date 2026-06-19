@@ -3,8 +3,6 @@ import { RHYTHM_NAMES, SUB_PER_STEP, VEL_LABELS } from "../../core/model/constan
 import { getInstrument } from "../../core/model/constants";
 import { pitchName } from "../../core/theory";
 
-const RESIZE_EDGE = 5;
-
 // Format a length in steps as "N", or "N+a/b" / "a/b" when fractional (the
 // sub-step part reduced; e.g. 1.25 -> "1+1/4", 0.5 -> "1/2").
 function formatLengthSteps(steps: number): string {
@@ -27,6 +25,14 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
   useEffect(() => {
     const root = scrollRef.current;
     if (!root || !enabled) return;
+
+    let cmdHeld = false;
+    const onKeyDown = (ev: KeyboardEvent) => { if (ev.key === "Meta" || ev.key === "Control") cmdHeld = true; };
+    const onKeyUp   = (ev: KeyboardEvent) => { if (ev.key === "Meta" || ev.key === "Control") cmdHeld = false; };
+    const onBlur = () => { cmdHeld = false; };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup",   onKeyUp);
+    window.addEventListener("blur",    onBlur);
 
     const tip = document.createElement("div");
     tip.style.cssText =
@@ -73,13 +79,15 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
       // Tooltip text: pitch (+ velocity/length when hovering a note).
       const noteEl = target?.closest<HTMLElement>("[data-note-id]");
 
-      // Update resize cursor when near a note's left/right edge.
+      // Update resize cursor when cmd/ctrl is held over a note.
       if (lastNoteEl && lastNoteEl !== noteEl) clearNoteCursor();
       if (noteEl && wrap.contains(noteEl)) {
-        const noteRect = noteEl.getBoundingClientRect();
-        const rel = ev.clientX - noteRect.left;
-        const isEdge = rel <= RESIZE_EDGE || rel >= noteRect.width - RESIZE_EDGE;
-        noteEl.style.cursor = isEdge ? "col-resize" : "";
+        if (cmdHeld) {
+          const noteRect = noteEl.getBoundingClientRect();
+          noteEl.style.cursor = ev.clientX - noteRect.left < noteRect.width / 2 ? "w-resize" : "e-resize";
+        } else {
+          noteEl.style.cursor = "";
+        }
         lastNoteEl = noteEl;
       }
 
@@ -121,6 +129,9 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
     return () => {
       root.removeEventListener("pointermove", onMove);
       root.removeEventListener("pointerleave", hide);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup",   onKeyUp);
+      window.removeEventListener("blur",    onBlur);
       tip.remove();
       hover.remove();
     };
