@@ -37,7 +37,7 @@ export function App() {
   useKeyboardShortcuts(state, dispatch, {
     openQuantize: () => setQuantizeOpen(true),
     openHelp: () => setHelpOpen(true),
-    onSave: () => downloadProjectJson(state.project),
+    onSave: () => void downloadProjectJson(state.project),
     onRewind: stop,
     onRecord: () => (recording.recording ? recording.stop() : setRecConfigOpen(true)),
   });
@@ -101,7 +101,7 @@ export function App() {
 
   const [overflowMenuAnchor, setOverflowMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const overflowItems: ContextMenuEntry[] = [
-    { label: "Save JSON", onClick: () => downloadProjectJson(state.project) },
+    { label: "Save JSON", onClick: () => void downloadProjectJson(state.project) },
     { label: "Load JSON", onClick: () => void loadFromFile() },
     { sep: true },
     { label: "Export sheet as MIDI", onClick: () => downloadSheetMidi(sheet) },
