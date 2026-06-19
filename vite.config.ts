@@ -7,8 +7,9 @@ import react from "@vitejs/plugin-react";
 // of the embed chunk because embed.tsx never imports from src/editor.
 export default defineConfig({
   plugins: [react()],
+  base: "/riff-notes/",
   build: {
-    outDir: "docs",
+    outDir: "dist",
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
