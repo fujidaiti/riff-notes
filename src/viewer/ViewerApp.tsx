@@ -80,6 +80,34 @@ export function ViewerApp() {
   // Hover tooltip + cell highlight (always enabled — viewer is always read-only).
   useCellHover(gridRef, cellW, cellH, true);
 
+  // Keep a ref so the rAF callback always sees the latest page without a stale closure.
+  const pageRef = useRef(page);
+  pageRef.current = page;
+
+  // Auto-advance the page when the playhead exits the visible 2-bar window.
+  useEffect(() => {
+    if (!sheet) return;
+    const barCount = sheet.barCount;
+    let rafId: number;
+    const tick = () => {
+      const step = getPlayheadStep();
+      if (step !== null) {
+        const playheadBar = Math.floor(step / STEPS_PER_BAR);
+        const cur = pageRef.current;
+        if (playheadBar < cur || playheadBar >= cur + BARS_PER_PAGE) {
+          const next = Math.max(0, Math.min(playheadBar, barCount - BARS_PER_PAGE));
+          if (next !== cur) {
+            pageRef.current = next;
+            setPage(next);
+          }
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [getPlayheadStep, sheet]);
+
   const barW = cellW * STEPS_PER_BAR;
   // `page` is the 0-indexed start bar of the visible window, not a page index.
   const pageBar = page;
