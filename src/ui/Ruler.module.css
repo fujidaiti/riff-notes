@@ -36,9 +36,6 @@
   background-position: 0 0, 0 0, 0 0;
   background-repeat: repeat-x;
 }
-.track:hover {
-  background-color: var(--ruler-bg-hover, var(--panel-hover));
-}
 .barLabel {
   position: absolute;
   top: 0;
