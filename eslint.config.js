@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 // Architectural boundary: src/core, src/ui, src/audio must never import from
 // src/editor. This is what keeps editor-only code (pointer/keyboard/MIDI/undo)
-// out of the read-only embed bundle. The viewer imports only core/ui/audio.
+// out of the read-only viewer bundle. The viewer imports only core/ui/audio.
 const noEditorImports = {
   files: ["src/core/**", "src/ui/**", "src/audio/**", "src/viewer/**"],
   rules: {
@@ -14,7 +14,7 @@ const noEditorImports = {
           {
             group: ["**/editor/**", "**/editor"],
             message:
-              "core/ui/audio/viewer must not import from editor (keeps editor code out of the embed bundle).",
+              "core/ui/audio/viewer must not import from editor (keeps editor code out of the viewer bundle).",
           },
         ],
       },
