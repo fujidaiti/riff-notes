@@ -114,6 +114,42 @@ describe("reducer mutations + history", () => {
     expect(activeSheet(s).parts[0].notes[0].vel).toBe(0); // 4 -> wraps to 0
   });
 
+  it("SET_SHEET_FIELDS removes notes beyond the new barCount when shrinking", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    // Add two notes: one in bar 1, one in bar 2 (steps 0 and 16 for 4/4 with 4 steps/beat).
+    s = reducer(s, {
+      type: "MUTATE_SHEET",
+      sheetId: id,
+      mutate: (sheet) => {
+        const p = sheet.parts[0];
+        p.notes.push({ id: "n1", partId: p.id, pitch: 60, start: 0, length: 1, vel: 2, subOffset: 0, subLength: 0 });
+        p.notes.push({ id: "n2", partId: p.id, pitch: 60, start: 16, length: 1, vel: 2, subOffset: 0, subLength: 0 });
+        sheet.barCount = 2;
+      },
+    });
+    expect(activeSheet(s).parts[0].notes).toHaveLength(2);
+    // Remove bar 2 — n2 (start=16, bar 2) should be pruned.
+    s = reducer(s, { type: "SET_SHEET_FIELDS", sheetId: id, fields: { barCount: 1 } });
+    const notes = activeSheet(s).parts[0].notes;
+    expect(notes).toHaveLength(1);
+    expect(notes[0].id).toBe("n1");
+  });
+
+  it("SET_SHEET_FIELDS does not prune notes when barCount increases", () => {
+    let s = setup();
+    const id = s.ui.activeSheetId;
+    s = reducer(s, {
+      type: "MUTATE_SHEET",
+      sheetId: id,
+      mutate: (sheet) => {
+        sheet.parts[0].notes.push({ id: "n1", partId: sheet.parts[0].id, pitch: 60, start: 0, length: 1, vel: 2, subOffset: 0, subLength: 0 });
+      },
+    });
+    s = reducer(s, { type: "SET_SHEET_FIELDS", sheetId: id, fields: { barCount: 4 } });
+    expect(activeSheet(s).parts[0].notes).toHaveLength(1);
+  });
+
   it("TOGGLE_NOTE enforces the single-part invariant", () => {
     let s = setup();
     const id = s.ui.activeSheetId;
