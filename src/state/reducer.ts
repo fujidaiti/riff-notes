@@ -1,5 +1,5 @@
 import type { Project, Sheet } from "../core/model/types";
-import { VEL_LABELS, getInstrument } from "../core/model/constants";
+import { STEPS_PER_BAR, VEL_LABELS, getInstrument } from "../core/model/constants";
 import { defaultPartMix, makePart, makeSheet } from "../core/model/factory";
 import { uid } from "../core/model/uid";
 import { quantizeNotes } from "../core/quantize";
@@ -114,7 +114,15 @@ export function reducer(state: AppState, action: Action): AppState {
     }
 
     case "SET_SHEET_FIELDS":
-      return commit(state, action.sheetId, (s) => Object.assign(s, action.fields));
+      return commit(state, action.sheetId, (s) => {
+        const prevBarCount = s.barCount;
+        Object.assign(s, action.fields);
+        // When the bar count is reduced, remove notes that now fall beyond the sheet.
+        if (typeof action.fields.barCount === "number" && s.barCount < prevBarCount) {
+          const maxStep = s.barCount * STEPS_PER_BAR;
+          for (const p of s.parts) p.notes = p.notes.filter((n) => n.start < maxStep);
+        }
+      });
 
     case "SET_SCALE":
       return commit(state, action.sheetId, (s) => {
