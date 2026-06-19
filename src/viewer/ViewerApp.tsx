@@ -220,7 +220,9 @@ export function ViewerApp() {
                   {partAnnotations.map((a) => {
                     const anchor = noteById.get(a.placement.anchorNoteId);
                     if (!anchor) return null;
-                    const x = noteFracStart(anchor) * cellW + a.placement.dx + translateX;
+                    const anchorStep = noteFracStart(anchor);
+                    if (anchorStep < pageBar * STEPS_PER_BAR || anchorStep >= (pageBar + BARS_PER_PAGE) * STEPS_PER_BAR) return null;
+                    const x = anchorStep * cellW + a.placement.dx + translateX;
                     const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
                     return (
                       <AnnotationCard
