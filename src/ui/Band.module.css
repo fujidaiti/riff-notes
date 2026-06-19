@@ -17,7 +17,7 @@
   border-right: 1px solid var(--line);
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 6;
   align-self: stretch;
   user-select: none;
 }
