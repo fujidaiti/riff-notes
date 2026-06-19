@@ -242,6 +242,7 @@ export function App() {
             value={sheet.title}
             onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { title: e.target.value } })}
           />
+          <span className={styles.spacer} />
           <label className={styles.field}>
             BPM
             <input
