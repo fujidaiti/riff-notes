@@ -298,6 +298,9 @@ export function useGridInteraction(
     // Already handled by a grid or note.
     if (target.closest("[data-part-id]")) return;
     if (isCreateModifier(ev)) return;
+    // Don't start rubber-band when pressing on interactive controls (buttons,
+    // inputs, selects, labels) in the band sidebar or elsewhere.
+    if (target.closest("button,input,select,textarea,label")) return;
     rubber.current = {
       startX: ev.clientX,
       startY: ev.clientY,
