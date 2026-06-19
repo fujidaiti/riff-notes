@@ -193,6 +193,7 @@ function AnnotationCard({
 
   return (
     <div
+      data-annot-card="1"
       className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""} ${isDragging ? styles.dragging : ""} ${cmdHeld ? styles.cmdHeld : ""}`}
       style={{ left: x, top: y, width: a.shrunkWidth, ["--annot-shrunk-width" as string]: `${a.shrunkWidth}px` } as React.CSSProperties}
       onMouseMove={readOnly ? undefined : onMouseMove}
