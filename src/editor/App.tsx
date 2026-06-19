@@ -234,14 +234,14 @@ export function App() {
             value={state.project.name}
             onChange={(e) => dispatch({ type: "SET_PROJECT_NAME", name: e.target.value })}
           />
-          <label className={styles.field}>
-            Title
-            <input
-              type="text"
-              value={sheet.title}
-              onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { title: e.target.value } })}
-            />
-          </label>
+          <span className={styles.metaSep}>—</span>
+          <input
+            className={styles.sheetTitle}
+            type="text"
+            placeholder={`Sheet ${state.project.sheets.indexOf(sheet) + 1}`}
+            value={sheet.title}
+            onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { title: e.target.value } })}
+          />
           <label className={styles.field}>
             BPM
             <input
