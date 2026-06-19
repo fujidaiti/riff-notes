@@ -67,6 +67,7 @@
 .viewport {
   overflow: hidden;
   flex: 0 0 auto;
+  box-shadow: -2px 0 0 0 black, 2px 0 0 0 black;
 }
 
 .slider {
