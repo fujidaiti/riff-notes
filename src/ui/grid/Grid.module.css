@@ -4,7 +4,8 @@
 .wrap {
   position: relative;
   background: var(--sheet-bg);
-  border: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
 .wrap::after {
   content: "";
