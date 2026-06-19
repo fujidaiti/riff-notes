@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 100vh;
-  background: var(--sheet-bg);
+  background: var(--bg);
   color: var(--ink);
 }
 
@@ -44,8 +44,7 @@
 
 .sidebar {
   flex: 0 0 auto;
-  background: var(--sheet-bg);
-  border-right: 1px solid var(--line);
+  background: var(--panel-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -118,7 +117,7 @@
   display: flex;
   justify-content: center;
   padding: 8px 0;
-  background: var(--sheet-bg);
+  background: var(--panel-bg);
   border-top: 1px solid var(--line);
   flex-shrink: 0;
 }
