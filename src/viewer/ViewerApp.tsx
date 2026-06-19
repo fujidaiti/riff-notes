@@ -47,6 +47,8 @@ export function ViewerApp() {
   }, []);
 
   const barW = cellW * STEPS_PER_BAR;
+  // Round up odd bar counts so every page is exactly BARS_PER_PAGE wide.
+  const paddedBarCount = sheet ? (sheet.barCount % 2 === 0 ? sheet.barCount : sheet.barCount + 1) : 0;
   // `page` is the 0-indexed start bar of the visible window, not a page index.
   const pageBar = page;
 
@@ -78,7 +80,7 @@ export function ViewerApp() {
   // (Mode A→B), so the engine is never interrupted mid-measure by a toggle.
   useEffect(() => {
     if (!sheet) return;
-    const barCount = sheet.barCount;
+    const totalPages = paddedBarCount;
     let rafId: number;
     const tick = () => {
       const cur = pageRef.current;
@@ -98,7 +100,7 @@ export function ViewerApp() {
               void play(cur); // switch to Mode B (seamless loop from page start)
               // isLoopingRef.current becomes true synchronously inside play()
             } else {
-              const next = Math.min(playheadBar, barCount - BARS_PER_PAGE);
+              const next = Math.min(playheadBar, totalPages - BARS_PER_PAGE);
               if (next !== cur) {
                 pageRef.current = next;
                 setPage(next);
@@ -106,7 +108,7 @@ export function ViewerApp() {
             }
           } else if (playheadBar < cur) {
             // Backward jump (e.g. engine restarted from page change).
-            const next = Math.max(0, Math.min(playheadBar, barCount - BARS_PER_PAGE));
+            const next = Math.max(0, Math.min(playheadBar, totalPages - BARS_PER_PAGE));
             if (next !== cur) {
               pageRef.current = next;
               setPage(next);
@@ -118,7 +120,7 @@ export function ViewerApp() {
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [getPlayheadStep, isLoopingRef, sheet, play]);
+  }, [getPlayheadStep, isLoopingRef, sheet, paddedBarCount, play]);
 
   // Annotations grouped by part (same logic as SheetView).
   const annotationsByPart = useMemo(() => {
@@ -168,13 +170,13 @@ export function ViewerApp() {
   }
   if (!sheet || !mix) return null;
 
-  const sheetSteps = sheet.barCount * STEPS_PER_BAR;
-  const visibleW = Math.min(BARS_PER_PAGE, sheet.barCount) * barW;
+  const sheetSteps = paddedBarCount * STEPS_PER_BAR;
+  const visibleW = Math.min(BARS_PER_PAGE, paddedBarCount) * barW;
   const translateX = -(pageBar * barW);
 
   // Bar numbers shown in the pager for the current page.
   const firstBar = pageBar + 1;
-  const lastBar = Math.min(pageBar + BARS_PER_PAGE, sheet.barCount);
+  const lastBar = Math.min(pageBar + BARS_PER_PAGE, paddedBarCount);
 
   return (
     <div className={styles.app}>
@@ -276,7 +278,7 @@ export function ViewerApp() {
           />
         </label>
 
-        {sheet.barCount > BARS_PER_PAGE && (
+        {paddedBarCount > BARS_PER_PAGE && (
           <>
             <div className={styles.toolbarSpacer} />
             <button
@@ -294,8 +296,8 @@ export function ViewerApp() {
             <button
               data-testid="pager-next"
               className={styles.pagerArrow}
-              onClick={() => handlePageChange(Math.min(page + BARS_PER_PAGE, sheet.barCount - BARS_PER_PAGE))}
-              disabled={page >= sheet.barCount - BARS_PER_PAGE}
+              onClick={() => handlePageChange(Math.min(page + BARS_PER_PAGE, paddedBarCount - BARS_PER_PAGE))}
+              disabled={page >= paddedBarCount - BARS_PER_PAGE}
               aria-label="Next bars"
             >
               ›

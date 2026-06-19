@@ -291,3 +291,65 @@ test("closing the mixer dialog hides it", async ({ page }) => {
   await page.locator("dialog").getByRole("button", { name: "Close" }).click();
   await expect(page.locator("dialog")).not.toBeVisible();
 });
+
+// ── Odd bar count: empty bar appended ────────────────────────────────────────
+
+const FIXTURE_5BAR = `${BASE}/view.html?src=${BASE}/viewer-test-5bar.json`;
+
+async function load5BarViewer(page: Page) {
+  await page.goto(FIXTURE_5BAR);
+  await page.locator("[data-note-id]").first().waitFor();
+}
+
+test("5-bar sheet: pager is shown", async ({ page }) => {
+  await load5BarViewer(page);
+  await expect(page.getByTestId("pager-prev")).toBeVisible();
+  await expect(page.getByTestId("pager-next")).toBeVisible();
+});
+
+test("5-bar sheet: pages advance by 2 — last page label is '5 6'", async ({ page }) => {
+  await load5BarViewer(page);
+  await expect(page.getByTestId("pager-bars")).toHaveText("1 2");
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("3 4");
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("5 6");
+});
+
+test("5-bar sheet: next is disabled on the last page", async ({ page }) => {
+  await load5BarViewer(page);
+  await page.getByTestId("pager-next").click();
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-next")).toBeDisabled();
+});
+
+test("5-bar sheet: grid width equals 2 bars on every page (empty bar appended)", async ({ page }) => {
+  await load5BarViewer(page);
+
+  // Read cell width from the CSS custom property set on :root.
+  const cellW = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w"))
+  );
+  const STEPS_PER_BAR = 16;
+  const expectedGridW = 6 * STEPS_PER_BAR * cellW; // paddedBarCount=6
+
+  const gridW = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("[data-part-id]");
+    return el ? el.offsetWidth : null;
+  });
+
+  expect(gridW).toBe(expectedGridW);
+
+  // Navigate to last page (bar 5) and confirm the grid width is unchanged —
+  // the 6th bar is blank but still rendered.
+  await page.getByTestId("pager-next").click();
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("5 6");
+
+  const gridWLastPage = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("[data-part-id]");
+    return el ? el.offsetWidth : null;
+  });
+
+  expect(gridWLastPage).toBe(expectedGridW);
+});
