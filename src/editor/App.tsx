@@ -114,7 +114,7 @@ export function App() {
   return (
     <div className={styles.app} onContextMenu={(e) => e.preventDefault()}>
       <div className={styles.toolbar}>
-        <button className={styles.btn} onClick={transport === "playing" ? pause : play}>
+        <button className={styles.btn} style={{ minWidth: 96 }} onClick={transport === "playing" ? pause : play}>
           {transport === "playing" ? "⏸ Pause" : transport === "paused" ? "▶ Resume" : "▶ Play"}
         </button>
         <button className={styles.btn} disabled={transport === "stopped"} onClick={stop}>
@@ -125,6 +125,7 @@ export function App() {
         </button>
         <button
           className={`${styles.btn} ${recording.recording ? styles.active : ""}`}
+          style={{ minWidth: 110 }}
           onClick={recording.recording ? recording.stop : () => setRecConfigOpen(true)}
           title="Record from a MIDI device"
         >
