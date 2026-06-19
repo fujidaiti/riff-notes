@@ -61,6 +61,7 @@ export type Action =
   | { type: "UPDATE_ANNOTATION"; sheetId: string; id: string; text: string }
   | { type: "DELETE_ANNOTATION"; sheetId: string; id: string }
   | { type: "MOVE_ANNOTATION"; sheetId: string; id: string; dx: number; dy: number } // no history (drag)
+  | { type: "RESIZE_ANNOTATION"; sheetId: string; id: string; shrunkWidth: number; dx: number } // no history (drag)
   // --- mixer (persisted but NOT recorded in undo history) ---
   | { type: "SET_PART_MIX"; sheetId: string; partId: string; patch: Partial<PartMix> }
   | { type: "SET_MASTER_MIX"; sheetId: string; patch: Partial<{ vol: number; mute: boolean }> }

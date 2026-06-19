@@ -35,6 +35,7 @@ export interface GridProps {
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
+  onAnnotationResize?: (id: string, shrunkWidth: number, dx: number) => void;
   onAnnotationDelete?: (id: string) => void;
 }
 
@@ -67,6 +68,7 @@ function GridImpl({
   onGridPointerDown,
   onAnnotationEdit,
   onAnnotationMove,
+  onAnnotationResize,
   onAnnotationDelete,
 }: GridProps) {
   const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
@@ -208,6 +210,7 @@ function GridImpl({
           onAnnotationHover={setHoveredAnnotId}
           onEdit={onAnnotationEdit}
           onMove={onAnnotationMove}
+          onResize={onAnnotationResize}
           onDelete={onAnnotationDelete}
         />
       )}

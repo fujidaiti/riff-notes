@@ -1,8 +1,11 @@
-import { useRef } from "react";
+import React, { useRef, useState } from "react";
 import type { Annotation, Part } from "../core/model/types";
 import { noteFracLength, noteFracStart } from "../core/timing";
 import { noteWidthPx } from "../core/timing";
+import { ANNOT_MIN_WIDTH, ANNOT_MAX_WIDTH } from "../core/serialize";
 import styles from "./Annotations.module.css";
+
+const RESIZE_EDGE = 14;
 
 export interface AnnotationsProps {
   part: Part;
@@ -14,6 +17,7 @@ export interface AnnotationsProps {
   onAnnotationHover?: (id: string | null) => void;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
+  onResize?: (id: string, shrunkWidth: number, dx: number) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -29,7 +33,7 @@ interface Pt {
  * geometry is analytic in the part's grid-wrap coordinate space (notes of an
  * annotation always belong to one part, by the single-part invariant).
  */
-export function Annotations({ part, annotations, cellW, cellH, readOnly = false, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onDelete }: AnnotationsProps) {
+export function Annotations({ part, annotations, cellW, cellH, readOnly = false, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onResize, onDelete }: AnnotationsProps) {
   const noteById = new Map(part.notes.map((n) => [n.id, n]));
   const centerOf = (id: string): Pt | null => {
     const n = noteById.get(id);
@@ -65,6 +69,7 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
               onHover={onAnnotationHover}
               onEdit={onEdit}
               onMove={onMove}
+              onResize={onResize}
               onDelete={onDelete}
             />
           </div>
@@ -73,6 +78,10 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
     </>
   );
 }
+
+type DragState =
+  | { mode: "move"; startX: number; startY: number; baseDx: number; baseDy: number; moved: boolean }
+  | { mode: "resize"; startX: number; startW: number; startDx: number; edge: "left" | "right" };
 
 function AnnotationCard({
   annotation: a,
@@ -83,6 +92,7 @@ function AnnotationCard({
   onHover,
   onEdit,
   onMove,
+  onResize,
   onDelete,
 }: {
   annotation: Annotation;
@@ -93,42 +103,75 @@ function AnnotationCard({
   onHover?: (id: string | null) => void;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
+  onResize?: (id: string, shrunkWidth: number, dx: number) => void;
   onDelete?: (id: string) => void;
 }) {
-  const dragState = useRef<{ startX: number; startY: number; baseDx: number; baseDy: number; moved: boolean } | null>(null);
+  const dragState = useRef<DragState | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
-  const onPointerDown = (ev: React.PointerEvent) => {
-    if (readOnly || !onMove) return;
-    ev.stopPropagation();
-    (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
-    dragState.current = { startX: ev.clientX, startY: ev.clientY, baseDx: a.placement.dx, baseDy: a.placement.dy, moved: false };
+  const onMouseMove = (ev: React.MouseEvent<HTMLDivElement>) => {
+    if (dragState.current || readOnly || !onResize) return;
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const nearEdge = ev.clientX - rect.left <= RESIZE_EDGE || rect.right - ev.clientX <= RESIZE_EDGE;
+    ev.currentTarget.style.cursor = nearEdge ? "ew-resize" : "";
   };
+
+  const onPointerDown = (ev: React.PointerEvent<HTMLDivElement>) => {
+    if (readOnly) return;
+    ev.stopPropagation();
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const relLeft = ev.clientX - rect.left;
+    const relRight = rect.right - ev.clientX;
+    if (onResize && (relLeft <= RESIZE_EDGE || relRight <= RESIZE_EDGE)) {
+      const edge = relLeft <= RESIZE_EDGE ? "left" : "right";
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      dragState.current = { mode: "resize", startX: ev.clientX, startW: a.shrunkWidth, startDx: a.placement.dx, edge };
+      setIsResizing(true);
+    } else if (onMove) {
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      dragState.current = { mode: "move", startX: ev.clientX, startY: ev.clientY, baseDx: a.placement.dx, baseDy: a.placement.dy, moved: false };
+    }
+  };
+
   const onPointerMove = (ev: React.PointerEvent) => {
     const d = dragState.current;
     if (!d) return;
-    const ddx = ev.clientX - d.startX;
-    const ddy = ev.clientY - d.startY;
-    if (!d.moved && Math.abs(ddx) < 3 && Math.abs(ddy) < 3) return;
-    d.moved = true;
-    onMove?.(a.id, d.baseDx + ddx, d.baseDy + ddy);
+    if (d.mode === "move") {
+      const ddx = ev.clientX - d.startX;
+      const ddy = ev.clientY - d.startY;
+      if (!d.moved && Math.abs(ddx) < 3 && Math.abs(ddy) < 3) return;
+      d.moved = true;
+      onMove?.(a.id, d.baseDx + ddx, d.baseDy + ddy);
+    } else {
+      const delta = ev.clientX - d.startX;
+      const rawW = d.edge === "right" ? d.startW + delta : d.startW - delta;
+      const newW = Math.max(ANNOT_MIN_WIDTH, Math.min(ANNOT_MAX_WIDTH, rawW));
+      const newDx = d.edge === "left" ? d.startDx + (d.startW - newW) : d.startDx;
+      onResize?.(a.id, newW, newDx);
+    }
   };
-  const onPointerUp = (ev: React.PointerEvent) => {
+
+  const onPointerUp = (ev: React.PointerEvent<HTMLDivElement>) => {
     const d = dragState.current;
     dragState.current = null;
-    if (d && !d.moved && onEdit) onEdit(a.id);
-    (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
+    ev.currentTarget.releasePointerCapture(ev.pointerId);
+    if (d?.mode === "resize") setIsResizing(false);
+    if (d?.mode === "move" && !d.moved && onEdit) onEdit(a.id);
   };
+
+  const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · drag edge to resize" : "Drag to move · click to edit";
 
   return (
     <div
-      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""}`}
-      style={{ left: x, top: y }}
+      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""}`}
+      style={{ left: x, top: y, width: a.shrunkWidth, ["--annot-shrunk-width" as string]: `${a.shrunkWidth}px` } as React.CSSProperties}
+      onMouseMove={readOnly ? undefined : onMouseMove}
       onPointerDown={readOnly ? undefined : onPointerDown}
       onPointerMove={readOnly ? undefined : onPointerMove}
       onPointerUp={readOnly ? undefined : onPointerUp}
       onMouseEnter={() => onHover?.(a.id)}
       onMouseLeave={() => onHover?.(null)}
-      title={readOnly ? a.text : "Drag to move · click to edit"}
+      title={title}
     >
       {a.text}
       {!readOnly && (onEdit || onDelete) && (

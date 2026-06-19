@@ -240,6 +240,15 @@ export function reducer(state: AppState, action: Action): AppState {
         if (a) a.placement = { ...a.placement, dx: action.dx, dy: action.dy };
       });
 
+    case "RESIZE_ANNOTATION":
+      return update(state, action.sheetId, (s) => {
+        const a = s.annotations.find((x) => x.id === action.id);
+        if (a) {
+          a.shrunkWidth = action.shrunkWidth;
+          a.placement = { ...a.placement, dx: action.dx };
+        }
+      });
+
     case "SET_PART_MIX":
       return update(state, action.sheetId, (s) => {
         const pm = s.mix.parts[action.partId] ?? defaultPartMix();

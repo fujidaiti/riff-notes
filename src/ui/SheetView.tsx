@@ -71,6 +71,7 @@ export interface SheetViewProps {
   onInsertPart?: (atIndex: number) => void;
   onAnnotationEdit?: (id: string) => void;
   onAnnotationMove?: (id: string, dx: number, dy: number) => void;
+  onAnnotationResize?: (id: string, shrunkWidth: number, dx: number) => void;
   onAnnotationDelete?: (id: string) => void;
 }
 
@@ -102,6 +103,7 @@ function SheetViewImpl({
   onInsertPart,
   onAnnotationEdit,
   onAnnotationMove,
+  onAnnotationResize,
   onAnnotationDelete,
 }: SheetViewProps) {
   const sheetSteps = sheet.barCount * STEPS_PER_BAR;
@@ -162,6 +164,7 @@ function SheetViewImpl({
             onPartNameChange={onPartNameChange}
             onAnnotationEdit={onAnnotationEdit}
             onAnnotationMove={onAnnotationMove}
+            onAnnotationResize={onAnnotationResize}
             onAnnotationDelete={onAnnotationDelete}
           />
         );
