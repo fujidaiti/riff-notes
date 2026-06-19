@@ -38,7 +38,7 @@ export function App() {
     openQuantize: () => setQuantizeOpen(true),
     openHelp: () => setHelpOpen(true),
     onSave: () => void downloadProjectJson(state.project),
-    onRewind: stop,
+    onRewind: () => seekTo(0),
     onRecord: () => {
       if (recording.recording) { recording.stop(); return; }
       // Infer the target part from the current selection (cell or first selected note).
