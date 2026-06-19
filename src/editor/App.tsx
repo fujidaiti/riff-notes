@@ -41,7 +41,7 @@ export function App() {
     onRewind: stop,
     onRecord: () => (recording.recording ? recording.stop() : setRecConfigOpen(true)),
   });
-  const { displaySheet, onNotePointerDown, onGridPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
+  const { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
 
   const sheetRef = useRef<HTMLDivElement>(null);
   useCellHover(sheetRef, cellW, cellH, transport === "stopped" && !recording.recording);
@@ -154,7 +154,7 @@ export function App() {
         </button>
       </div>
 
-      <div className={styles.sheet} ref={sheetRef}>
+      <div className={styles.sheet} ref={sheetRef} onPointerDown={onSheetPointerDown}>
         <SheetView
           sheet={displaySheet}
           cellW={cellW}
