@@ -114,3 +114,23 @@ select {
   border-color: var(--sheet-border);
   outline: none;
 }
+.metaSep {
+  color: var(--ink-muted);
+  padding: 0 2px;
+}
+.sheetTitle {
+  font-size: 15px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--ink);
+  min-width: 0;
+}
+.sheetTitle:hover,
+.sheetTitle:focus {
+  background: var(--input-bg);
+  border-color: var(--sheet-border);
+  outline: none;
+}
