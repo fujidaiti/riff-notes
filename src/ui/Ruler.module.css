@@ -1,7 +1,7 @@
 .ruler {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 0;
   height: 22px;
   position: sticky;
   top: 0;
@@ -15,6 +15,7 @@
   position: sticky;
   left: 0;
   background: var(--panel-bg);
+  border-right: 1px solid var(--line);
   z-index: 11;
 }
 .track {
