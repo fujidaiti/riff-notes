@@ -170,7 +170,15 @@ export function App() {
           onNoteContextMenu={onNoteContextMenu}
           onGridPointerDown={onGridPointerDown}
           onPartClick={setPartConfigId}
-          onPartRecord={(partId) => { setRecConfigPartId(partId); setRecConfigOpen(true); }}
+          onPartRecord={(partId) => {
+            if (recording.recording) {
+              // If already recording this part, stop; otherwise stop and restart for the new part.
+              recording.stop();
+              if (recording.recordingPartId !== partId) void recording.start({ partId });
+            } else {
+              void recording.start({ partId });
+            }
+          }}
           recordingPartId={recording.recordingPartId}
           onToggleMute={(partId) => {
             const mix = sheet.mix.parts[partId];
