@@ -32,6 +32,7 @@ export class AudioEngine {
   private stops: Array<() => void> = [];
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private keeper: AudioNode | null = null;
 
   private playingSheetId: string | null = null;
   private t0 = 0;
@@ -40,7 +41,15 @@ export class AudioEngine {
   private totalStepsCount = 0;
 
   private async ensureContext(masterValue: number): Promise<void> {
-    if (!this.ctx) this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      // Fire-and-forget resume on the earliest possible user interaction so the
+      // context is already running by the time the first auditionNote/play call
+      // reaches its await.
+      const warmUp = () => { void this.ctx?.resume(); };
+      window.addEventListener("pointerdown", warmUp, { once: true });
+      window.addEventListener("keydown", warmUp, { once: true });
+    }
     if (!this.master) {
       this.master = this.ctx.createGain();
       this.master.gain.value = masterValue;
@@ -52,6 +61,14 @@ export class AudioEngine {
       } catch (e) {
         console.warn("AudioContext.resume() failed:", e);
       }
+    }
+    if (!this.keeper && this.ctx.state === "running") {
+      const src = this.ctx.createConstantSource();
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain).connect(this.ctx.destination);
+      src.start();
+      this.keeper = gain;
     }
   }
 
