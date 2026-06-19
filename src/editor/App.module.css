@@ -88,12 +88,21 @@ select {
   font-size: 13px;
   color: var(--ink-soft);
 }
-.field input[type="text"] {
-  background: var(--input-bg);
+.field input,
+.field select {
+  background: transparent;
   color: var(--ink);
-  border: 1px solid var(--sheet-border);
+  border: 1px solid transparent;
   border-radius: 4px;
   padding: 3px 6px;
+}
+.field input:hover,
+.field input:focus,
+.field select:hover,
+.field select:focus {
+  background: var(--input-bg);
+  border-color: var(--sheet-border);
+  outline: none;
 }
 .hint {
   font-size: 12px;
