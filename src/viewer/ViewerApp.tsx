@@ -81,8 +81,10 @@ export function ViewerApp() {
   const { transport, repeat, setRepeat, play, stop, getPlayheadStep, isLoopingRef } =
     useViewerTransport(engine, sheet, mix, bpm, pageBar);
 
-  // Hover tooltip + cell highlight (always enabled — viewer is always read-only).
-  useCellHover(gridRef, cellW, cellH, true);
+  // Hover tooltip + cell highlight. Pass !loading so the enabled flag flips
+  // from false→true after the gridArea mounts, triggering the effect to run
+  // with a non-null ref.
+  useCellHover(gridRef, cellW, cellH, !loading);
 
   // Refs so the rAF callback always reads the latest values without stale closures.
   const pageRef = useRef(page);

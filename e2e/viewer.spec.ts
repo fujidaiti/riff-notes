@@ -225,6 +225,58 @@ test("disabling repeat while playing keeps visible bars and transport", async ({
   await page.getByTestId("play-stop-btn").click(); // clean up
 });
 
+// ── Hover tooltip ────────────────────────────────────────────────────────────
+
+test("hovering a note shows pitch, velocity, and length", async ({ page }) => {
+  await loadViewer(page);
+  // n1: pitch 60 (C4), vel 2 (mf), length 2 steps
+  const note = page.locator('div[data-note-id="n1"]');
+  const noteBox = await note.boundingBox();
+  if (!noteBox) throw new Error("note n1 not found");
+
+  await page.mouse.move(noteBox.x + noteBox.width / 2, noteBox.y + noteBox.height / 2);
+
+  const tooltip = page.locator("[data-testid='cell-tooltip']");
+  await expect(tooltip).not.toHaveCSS("display", "none");
+  await expect(tooltip).toHaveText("C4  mf  2");
+});
+
+test("hovering an empty cell shows pitch only", async ({ page }) => {
+  await loadViewer(page);
+  // part1: hi=72 (C5). Top row has no notes — hover near top-left of the grid.
+  const wrap = page.locator('[data-part-id="part1"]');
+  const box = await wrap.boundingBox();
+  if (!box) throw new Error("part1 grid not found");
+
+  await page.mouse.move(box.x + 4, box.y + 4);
+
+  const tooltip = page.locator("[data-testid='cell-tooltip']");
+  await expect(tooltip).not.toHaveCSS("display", "none");
+  await expect(tooltip).toHaveText("C5");
+});
+
+test("hover cell-highlight box appears on empty cell", async ({ page }) => {
+  await loadViewer(page);
+  const wrap = page.locator('[data-part-id="part1"]');
+  const box = await wrap.boundingBox();
+  if (!box) throw new Error("part1 grid not found");
+
+  await page.mouse.move(box.x + 4, box.y + 4);
+
+  await expect(page.locator("[data-testid='cell-hover']")).not.toHaveCSS("display", "none");
+});
+
+test("hover cell-highlight box hides when hovering a note", async ({ page }) => {
+  await loadViewer(page);
+  const note = page.locator('div[data-note-id="n1"]');
+  const noteBox = await note.boundingBox();
+  if (!noteBox) throw new Error("note n1 not found");
+
+  await page.mouse.move(noteBox.x + noteBox.width / 2, noteBox.y + noteBox.height / 2);
+
+  await expect(page.locator("[data-testid='cell-hover']")).toHaveCSS("display", "none");
+});
+
 // ── Mixer dialog ─────────────────────────────────────────────────────────────
 
 test("clicking Mix opens the mixer dialog", async ({ page }) => {
