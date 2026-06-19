@@ -1,0 +1,199 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.message {
+  padding: 24px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ── Grid area ─────────────────────────────────────────────────────────────── */
+
+.gridArea {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.row {
+  display: flex;
+  align-items: stretch;
+}
+
+.sidebarSpacer {
+  flex: 0 0 auto;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sidebar {
+  flex: 0 0 auto;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.partName {
+  font-size: 10px;
+  color: var(--ink-soft);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 100%;
+}
+
+.viewport {
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.slider {
+  will-change: transform;
+  transition: transform 0.12s ease;
+}
+
+/* ── Ruler ──────────────────────────────────────────────────────────────────── */
+
+.ruler {
+  position: relative;
+  height: 24px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+
+.barLabel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--ink-soft);
+  border-left: 1px solid var(--grid-line-soft);
+}
+
+.rulerPlayhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--playhead);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Pager (lives inside toolbar) ──────────────────────────────────────────── */
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+.pagerArrow {
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pagerArrow:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.pagerArrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pagerBars {
+  font-size: 13px;
+  color: var(--ink-soft);
+  min-width: 32px;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.toolBtn {
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+}
+.toolBtn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.active {
+  background: var(--panel-hover);
+  border-color: var(--line-strong);
+}
+
+.bpmLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: 4px;
+}
+
+.bpmInput {
+  width: 54px;
+  text-align: right;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.bpmInput:focus {
+  outline: none;
+  border-color: var(--line-strong);
+}

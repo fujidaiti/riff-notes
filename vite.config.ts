@@ -3,8 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Two entry points: the editor (index.html) and the read-only embed viewer
-// (embed.html). They share src/, and tree-shaking keeps editor-only code out
-// of the embed chunk because embed.tsx never imports from src/editor.
+// (view.html). They share src/, and tree-shaking keeps editor-only code out
+// of the view chunk because view.tsx never imports from src/editor.
 export default defineConfig({
   plugins: [react()],
   base: "/riff-notes/",
@@ -13,7 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
-        embed: resolve(__dirname, "embed.html"),
+        view: resolve(__dirname, "view.html"),
       },
     },
   },

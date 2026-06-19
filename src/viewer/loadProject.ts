@@ -1,0 +1,45 @@
+import type { Project, Sheet } from "../core/model/types";
+import { deserializeProject } from "../core/serialize";
+
+export interface LoadedProject {
+  project: Project;
+  sheet: Sheet;
+}
+
+/**
+ * Loads a project for the viewer from the URL.
+ *
+ * URL format: view.html?src=<path-to-file.json>&sheet=<sheet-id>
+ *
+ * If the page pathname ends in ".json" (SPA deployment where the server routes
+ * all *.json requests to view.html), the pathname is used as the source instead
+ * of the ?src= param. The ?sheet= param selects which sheet to display; if
+ * omitted the first sheet is shown.
+ */
+export async function loadProject(): Promise<LoadedProject> {
+  const params = new URLSearchParams(window.location.search);
+
+  let src = params.get("src");
+  if (!src) {
+    const path = window.location.pathname;
+    if (path.endsWith(".json")) src = path;
+  }
+  if (!src) {
+    throw new Error("No project specified — add ?src=file.json to the URL.");
+  }
+
+  const res = await fetch(src);
+  if (!res.ok) throw new Error(`Could not load "${src}" (HTTP ${res.status}).`);
+
+  const raw: unknown = await res.json();
+  const project = deserializeProject(raw);
+  if (!project) throw new Error("The file is not a valid Riff Notes project.");
+
+  const sheetId = params.get("sheet");
+  const sheet =
+    (sheetId ? project.sheets.find((s) => s.id === sheetId) : null) ??
+    project.sheets[0];
+  if (!sheet) throw new Error("No sheet found in the project.");
+
+  return { project, sheet };
+}

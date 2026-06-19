@@ -1,0 +1,55 @@
+.dialog {
+  border: 1px solid var(--sheet-border);
+  border-radius: 10px;
+  padding: 0;
+  background: var(--sheet-bg);
+  color: var(--ink);
+  min-width: 280px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.25);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sheet-border);
+}
+.close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-muted);
+}
+.body {
+  padding: 14px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+.row label {
+  flex: 1;
+  font-size: 13px;
+}
+.toggle {
+  border: 1px solid var(--sheet-border);
+  border-radius: 6px;
+  background: var(--sheet-bg);
+  color: var(--ink);
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.toggle.on {
+  background: var(--note-sel);
+  color: #fff;
+  border-color: var(--note-sel);
+}

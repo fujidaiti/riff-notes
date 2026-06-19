@@ -64,7 +64,7 @@
   outline-offset: -2px;
   z-index: 3;
 }
-.interactive.note:hover:not(.selected) {
+.note:hover:not(.selected) {
   outline: 2px solid var(--note-sel-outline);
   outline-offset: -2px;
   z-index: 2;
