@@ -81,8 +81,8 @@ export function ViewerApp() {
   useCellHover(gridRef, cellW, cellH, true);
 
   const barW = cellW * STEPS_PER_BAR;
-  const totalPages = sheet ? Math.ceil(sheet.barCount / BARS_PER_PAGE) : 0;
-  const pageBar = page * BARS_PER_PAGE;
+  // `page` is the 0-indexed start bar of the visible window, not a page index.
+  const pageBar = page;
 
   // Annotations grouped by part (same logic as SheetView).
   const annotationsByPart = useMemo(() => {
@@ -234,12 +234,12 @@ export function ViewerApp() {
           />
         </label>
 
-        {totalPages > 1 && (
+        {sheet.barCount > BARS_PER_PAGE && (
           <>
             <div className={styles.toolbarSpacer} />
             <button
               className={styles.pagerArrow}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => setPage((p) => Math.max(0, p - BARS_PER_PAGE))}
               disabled={page === 0}
               aria-label="Previous bars"
             >
@@ -250,8 +250,8 @@ export function ViewerApp() {
             </span>
             <button
               className={styles.pagerArrow}
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page === totalPages - 1}
+              onClick={() => setPage((p) => Math.min(p + BARS_PER_PAGE, sheet.barCount - BARS_PER_PAGE))}
+              disabled={page >= sheet.barCount - BARS_PER_PAGE}
               aria-label="Next bars"
             >
               ›
