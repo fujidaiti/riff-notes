@@ -18,6 +18,9 @@
   stroke-dasharray: 3 2;
   opacity: 0.7;
 }
+.lineActive {
+  opacity: 0.9;
+}
 .card {
   position: absolute;
   max-width: 240px;
@@ -36,6 +39,9 @@
 }
 .editable {
   cursor: grab;
+}
+.cardActive {
+  box-shadow: 0 2px 8px var(--shadow-med, rgba(0,0,0,0.2));
 }
 .card:hover {
   white-space: normal;

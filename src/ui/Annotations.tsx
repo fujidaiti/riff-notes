@@ -10,6 +10,8 @@ export interface AnnotationsProps {
   cellW: number;
   cellH: number;
   readOnly?: boolean;
+  hoveredAnnotationId?: string | null;
+  onAnnotationHover?: (id: string | null) => void;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
   onDelete?: (id: string) => void;
@@ -27,7 +29,7 @@ interface Pt {
  * geometry is analytic in the part's grid-wrap coordinate space (notes of an
  * annotation always belong to one part, by the single-part invariant).
  */
-export function Annotations({ part, annotations, cellW, cellH, readOnly = false, onEdit, onMove, onDelete }: AnnotationsProps) {
+export function Annotations({ part, annotations, cellW, cellH, readOnly = false, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onDelete }: AnnotationsProps) {
   const noteById = new Map(part.notes.map((n) => [n.id, n]));
   const centerOf = (id: string): Pt | null => {
     const n = noteById.get(id);
@@ -41,7 +43,8 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
         {annotations.map((a) => {
           const pts = a.noteIds.map(centerOf).filter((p): p is Pt => p !== null).sort((p, q) => p.x - q.x || p.y - q.y);
           if (pts.length < 2) return null;
-          return <polyline key={a.id} className={styles.line} points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
+          const active = hoveredAnnotationId === a.id;
+          return <polyline key={a.id} className={`${styles.line} ${active ? styles.lineActive : ""}`} points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
         })}
       </svg>
       {annotations.map((a) => {
@@ -55,7 +58,9 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
             annotation={a}
             x={x}
             y={y}
+            active={hoveredAnnotationId === a.id}
             readOnly={readOnly}
+            onHover={onAnnotationHover}
             onEdit={onEdit}
             onMove={onMove}
             onDelete={onDelete}
@@ -70,7 +75,9 @@ function AnnotationCard({
   annotation: a,
   x,
   y,
+  active,
   readOnly,
+  onHover,
   onEdit,
   onMove,
   onDelete,
@@ -78,7 +85,9 @@ function AnnotationCard({
   annotation: Annotation;
   x: number;
   y: number;
+  active: boolean;
   readOnly: boolean;
+  onHover?: (id: string | null) => void;
   onEdit?: (id: string) => void;
   onMove?: (id: string, dx: number, dy: number) => void;
   onDelete?: (id: string) => void;
@@ -109,11 +118,13 @@ function AnnotationCard({
 
   return (
     <div
-      className={`${styles.card} ${readOnly ? "" : styles.editable}`}
+      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""}`}
       style={{ left: x, top: y }}
       onPointerDown={readOnly ? undefined : onPointerDown}
       onPointerMove={readOnly ? undefined : onPointerMove}
       onPointerUp={readOnly ? undefined : onPointerUp}
+      onMouseEnter={() => onHover?.(a.id)}
+      onMouseLeave={() => onHover?.(null)}
       title={readOnly ? a.text : "Drag to move · click to edit"}
     >
       {a.text}
