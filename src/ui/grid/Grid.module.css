@@ -85,6 +85,7 @@
   white-space: nowrap;
   text-align: center;
   z-index: 2;
+  user-select: none;
 }
 :global([data-theme="dark"]) .label {
   color: rgba(255, 255, 255, 0.45);
