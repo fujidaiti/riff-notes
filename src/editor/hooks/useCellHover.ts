@@ -3,6 +3,8 @@ import { RHYTHM_NAMES, SUB_PER_STEP, VEL_LABELS } from "../../core/model/constan
 import { getInstrument } from "../../core/model/constants";
 import { pitchName } from "../../core/theory";
 
+const RESIZE_EDGE = 5;
+
 // Format a length in steps as "N", or "N+a/b" / "a/b" when fractional (the
 // sub-step part reduced; e.g. 1.25 -> "1+1/4", 0.5 -> "1/2").
 function formatLengthSteps(steps: number): string {
@@ -34,15 +36,30 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
       "position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid var(--note-sel-outline);border-radius:2px;z-index:1;display:none;";
     document.body.append(tip, hover);
 
+    let lastNoteEl: HTMLElement | null = null;
+
+    const clearNoteCursor = () => {
+      if (lastNoteEl) { lastNoteEl.style.cursor = ""; lastNoteEl = null; }
+    };
+
     const hide = () => {
       tip.style.display = "none";
       hover.style.display = "none";
+      clearNoteCursor();
     };
 
     const onMove = (ev: PointerEvent) => {
+      // Suppress tooltip and hover box while any pointer button is held (drag/resize).
+      if (ev.buttons > 0) {
+        tip.style.display = "none";
+        hover.style.display = "none";
+        clearNoteCursor();
+        return;
+      }
+
       const target = ev.target as HTMLElement | null;
       const wrap = target?.closest<HTMLElement>("[data-part-id]");
-      if (!wrap) return hide();
+      if (!wrap) { clearNoteCursor(); return hide(); }
       const rect = wrap.getBoundingClientRect();
       const partHi = parseInt(wrap.dataset.partHi ?? "", 10);
       const partLo = parseInt(wrap.dataset.partLo ?? "", 10);
@@ -53,15 +70,30 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
       const stepAbs = Math.floor((ev.clientX - rect.left) / cellW);
       const isRhythm = getInstrument(wrap.dataset.instrument ?? "").pitchMode === "fixed";
 
-      // Cell highlight box.
-      hover.style.display = "block";
-      hover.style.left = `${rect.left + stepAbs * cellW}px`;
-      hover.style.top = `${rect.top + rowIdx * cellH}px`;
-      hover.style.width = `${cellW + 1}px`;
-      hover.style.height = `${cellH}px`;
-
       // Tooltip text: pitch (+ velocity/length when hovering a note).
       const noteEl = target?.closest<HTMLElement>("[data-note-id]");
+
+      // Update resize cursor when near a note's left/right edge.
+      if (lastNoteEl && lastNoteEl !== noteEl) clearNoteCursor();
+      if (noteEl && wrap.contains(noteEl)) {
+        const noteRect = noteEl.getBoundingClientRect();
+        const rel = ev.clientX - noteRect.left;
+        const isEdge = rel <= RESIZE_EDGE || rel >= noteRect.width - RESIZE_EDGE;
+        noteEl.style.cursor = isEdge ? "col-resize" : "";
+        lastNoteEl = noteEl;
+      }
+
+      // Hide the cell highlight box when hovering a selected note (it already
+      // has its own selection outline) to avoid double-border clutter.
+      if (noteEl && noteEl.dataset.selected === "1") {
+        hover.style.display = "none";
+      } else {
+        hover.style.display = "block";
+        hover.style.left = `${rect.left + stepAbs * cellW}px`;
+        hover.style.top = `${rect.top + rowIdx * cellH}px`;
+        hover.style.width = `${cellW + 1}px`;
+        hover.style.height = `${cellH}px`;
+      }
       let velLabel = "";
       let lenLabel = "";
       if (noteEl && wrap.contains(noteEl)) {
