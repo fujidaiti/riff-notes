@@ -13,36 +13,6 @@ import styles from "./ViewerApp.module.css";
 
 const BARS_PER_PAGE = 2;
 
-/** rAF-driven playhead line for the ruler — never causes a React re-render. */
-function RulerPlayhead({
-  getStep,
-  cellW,
-}: {
-  getStep: () => number | null;
-  cellW: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let id: number;
-    const tick = () => {
-      const step = getStep();
-      const el = ref.current;
-      if (el) {
-        if (step == null) {
-          el.style.display = "none";
-        } else {
-          el.style.display = "block";
-          el.style.left = `${step * cellW}px`;
-        }
-      }
-      id = requestAnimationFrame(tick);
-    };
-    id = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(id);
-  }, [getStep, cellW]);
-  return <div ref={ref} className={styles.rulerPlayhead} style={{ display: "none" }} />;
-}
-
 export function ViewerApp() {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [mix, setMix] = useState<Mix | null>(null);
@@ -197,7 +167,6 @@ export function ViewerApp() {
   if (!sheet || !mix) return null;
 
   const sheetSteps = sheet.barCount * STEPS_PER_BAR;
-  const totalW = sheet.barCount * barW;
   const visibleW = Math.min(BARS_PER_PAGE, sheet.barCount) * barW;
   const translateX = -(pageBar * barW);
 
@@ -207,32 +176,8 @@ export function ViewerApp() {
 
   return (
     <div className={styles.app}>
-      {/* Grid area: ruler + part rows */}
+      {/* Grid area: part rows */}
       <div ref={gridRef} className={styles.gridArea}>
-        {/* Ruler row */}
-        <div className={styles.row}>
-          <div className={styles.sidebarSpacer} style={{ width: BAND_SIDE_W }} />
-          <div className={styles.viewport} style={{ width: visibleW }}>
-            <div
-              className={styles.slider}
-              style={{ transform: `translateX(${translateX}px)`, width: totalW }}
-            >
-              <div className={styles.ruler}>
-                {Array.from({ length: sheet.barCount }, (_, i) => (
-                  <div
-                    key={i}
-                    className={styles.barLabel}
-                    style={{ left: i * barW, width: barW }}
-                  >
-                    {i + 1}
-                  </div>
-                ))}
-                <RulerPlayhead getStep={getPlayheadStep} cellW={cellW} />
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Part rows */}
         {sheet.parts.map((part) => {
           const numRows = part.hi - part.lo + 1;
@@ -271,6 +216,7 @@ export function ViewerApp() {
 
       {/* Sticky toolbar */}
       <div className={styles.toolbar}>
+        <div className={styles.toolbarInner} style={{ width: BAND_SIDE_W + visibleW }}>
         <button
           data-testid="play-stop-btn"
           className={styles.toolBtn}
@@ -328,6 +274,7 @@ export function ViewerApp() {
             </button>
           </>
         )}
+        </div>
       </div>
 
       <ViewerMixerDialog
