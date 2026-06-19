@@ -49,6 +49,9 @@
   overflow: visible;
   z-index: 6;
 }
+.overlay:has(.card:hover) {
+  z-index: 7;
+}
 .cardActions {
   display: none;
   gap: 2px;
