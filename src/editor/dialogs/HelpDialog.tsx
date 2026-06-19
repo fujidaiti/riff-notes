@@ -3,7 +3,7 @@ import { Dialog } from "./Dialog";
 
 export function HelpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Keyboard shortcuts">
+    <Dialog open={open} onClose={onClose} title="Keyboard & Mouse Shortcuts">
       <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
         <tbody>
           {SHORTCUTS.map((s) => (
