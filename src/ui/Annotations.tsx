@@ -49,15 +49,14 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
           })}
         </svg>
       </div>
-      <div className={styles.cardsOverlay}>
-        {annotations.map((a) => {
-          const anchor = noteById.get(a.placement.anchorNoteId);
-          if (!anchor) return null;
-          const x = noteFracStart(anchor) * cellW + a.placement.dx;
-          const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
-          return (
+      {annotations.map((a) => {
+        const anchor = noteById.get(a.placement.anchorNoteId);
+        if (!anchor) return null;
+        const x = noteFracStart(anchor) * cellW + a.placement.dx;
+        const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
+        return (
+          <div key={a.id} className={styles.cardWrapper}>
             <AnnotationCard
-              key={a.id}
               annotation={a}
               x={x}
               y={y}
@@ -68,9 +67,9 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
               onMove={onMove}
               onDelete={onDelete}
             />
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </>
   );
 }
