@@ -1,11 +1,11 @@
 .overlay,
-.cardsOverlay {
+.cardWrapper {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 5;
 }
-.cardsOverlay:has(.card:hover) {
+.cardWrapper:has(.card:hover) {
   z-index: 7;
 }
 .svg {
