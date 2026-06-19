@@ -1,0 +1,176 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100vh;
+  background: transparent;
+  color: var(--ink);
+}
+
+.message {
+  padding: 24px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ── Grid area ─────────────────────────────────────────────────────────────── */
+
+.gridArea {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  --sheet-bg: transparent;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.annotCardOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.sidebar {
+  flex: 0 0 auto;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.partName {
+  font-size: 10px;
+  color: var(--ink-soft);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 100%;
+}
+
+.viewport {
+  overflow: hidden;
+  flex: 0 0 auto;
+  box-shadow: -2px 0 0 0 black, 2px 0 0 0 black;
+}
+
+.slider {
+  will-change: transform;
+  transition: transform 0.12s ease;
+}
+
+/* ── Pager (lives inside toolbar) ──────────────────────────────────────────── */
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+.pagerArrow {
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pagerArrow:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.pagerArrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pagerBars {
+  font-size: 13px;
+  color: var(--ink-soft);
+  min-width: 32px;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  background: transparent;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.toolbarInner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolBtn {
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+}
+.toolBtn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.active {
+  background: var(--panel-hover);
+  border-color: var(--line-strong);
+}
+
+.bpmLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: 4px;
+}
+
+.bpmInput {
+  width: 54px;
+  text-align: right;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.bpmInput:focus {
+  outline: none;
+  border-color: var(--line-strong);
+}

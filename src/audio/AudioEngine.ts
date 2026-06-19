@@ -1,4 +1,4 @@
-import type { Note, Part, Sheet } from "../core/model/types";
+import type { Mix, Note, Part, Sheet } from "../core/model/types";
 import { RHYTHM_KEYS } from "../core/model/constants";
 import { isRhythmPart, totalSteps } from "../core/model/factory";
 import { effectiveMasterValue, effectivePartGain } from "../core/mixer";
@@ -35,6 +35,9 @@ export class AudioEngine {
   private keeper: AudioNode | null = null;
 
   private playingSheetId: string | null = null;
+  // Tracks the most-recent mix pushed via syncMix so the repeat loop restarts
+  // with the user's current mixer state rather than the snapshot from play().
+  private liveMix: Mix | null = null;
   private t0 = 0;
   private startStep = 0;
   private secPerStep = 0;
@@ -110,6 +113,7 @@ export class AudioEngine {
   /** Push live mixer changes (mute/solo/volume) to the running graph. */
   syncMix(sheet: Sheet): void {
     if (!this.ctx) return;
+    this.liveMix = sheet.mix;
     if (this.master) this.master.gain.setTargetAtTime(effectiveMasterValue(sheet.mix), this.ctx.currentTime, 0.01);
     for (const p of sheet.parts) {
       this.partGains.get(p.id)?.gain.setTargetAtTime(effectivePartGain(sheet.mix, p.id), this.ctx.currentTime, 0.01);
@@ -310,7 +314,8 @@ export class AudioEngine {
     this.stopTimer = setTimeout(() => {
       if (this.playingSheetId !== myId) return;
       if (opts.repeat) {
-        this.playInternal(sheet, opts, endStepTime);
+        const latestSheet = this.liveMix ? { ...sheet, mix: this.liveMix } : sheet;
+        this.playInternal(latestSheet, opts, endStepTime);
       } else {
         const remainingMs = Math.max(100, (endTime - ctx.currentTime) * 1000 + 100);
         this.stopTimer = setTimeout(() => {
@@ -336,6 +341,7 @@ export class AudioEngine {
   stop(): void {
     this.teardown();
     this.playingSheetId = null;
+    this.liveMix = null;
   }
 
   get isPlaying(): boolean {

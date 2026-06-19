@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Riff Notes — View Debug</title>
+    <style>
+      html, body {
+        height: 100%;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .controls label {
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        gap: 4px;
+      }
+      .controls input {
+        padding: 4px 6px;
+        font: inherit;
+      }
+      iframe {
+        border: 1px solid #ccc;
+        display: block;
+        margin: 0 auto;
+      }
+      .swatches {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .swatches button {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        padding: 0;
+      }
+      .swatches button.active {
+        border-color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="frame" src="../view.html"></iframe>
+    <div class="controls">
+      <label>
+        width
+        <input id="width" type="number" value="800" min="0" />
+      </label>
+      <label>
+        height
+        <input id="height" type="number" value="600" min="0" />
+      </label>
+      <label>
+        file
+        <input id="file" type="text" value="" placeholder="project" />
+      </label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <script>
+      const widthInput = document.getElementById("width");
+      const heightInput = document.getElementById("height");
+      const fileInput = document.getElementById("file");
+      const frame = document.getElementById("frame");
+
+      function updateSize() {
+        frame.width = widthInput.value;
+        frame.height = heightInput.value;
+      }
+
+      function updateSrc() {
+        const file = fileInput.value.trim();
+        frame.src = file ? `../view.html?src=${encodeURIComponent(file)}.json` : `../view.html`;
+      }
+
+      widthInput.addEventListener("change", updateSize);
+      heightInput.addEventListener("change", updateSize);
+      fileInput.addEventListener("change", updateSrc);
+
+      const BG_COLORS = ["#ffffff", "#e0e0e0", "#aaaaaa", "#555555", "#1a1a1a"];
+      const swatchContainer = document.getElementById("swatches");
+      let activeSwatch = null;
+
+      BG_COLORS.forEach((color) => {
+        const btn = document.createElement("button");
+        btn.style.background = color;
+        btn.title = color;
+        btn.addEventListener("click", () => {
+          document.body.style.background = color;
+          if (activeSwatch) activeSwatch.classList.remove("active");
+          btn.classList.add("active");
+          activeSwatch = btn;
+        });
+        swatchContainer.appendChild(btn);
+      });
+
+      updateSize();
+      updateSrc();
+    </script>
+  </body>
+</html>

@@ -28,9 +28,17 @@ export interface GridProps {
   /** Annotations whose anchor note belongs to this part. */
   annotations?: Annotation[];
   annotationsVisible?: boolean;
+  /** When false, annotation connector lines are drawn but cards are suppressed (viewer renders them in a separate overlay). */
+  renderAnnotationCards?: boolean;
   /** When true (the embed case), no interaction handlers are attached. */
   readOnly?: boolean;
+  /** Controlled hover state — when provided, Grid uses this instead of internal state. */
+  hoveredAnnotationId?: string | null;
+  /** Called when the hovered annotation changes (controlled or uncontrolled). */
+  onAnnotationHover?: (id: string | null) => void;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
+  /** Fires on pointer-down even when readOnly — use for audition-on-click in the viewer. */
+  onNoteClick?: (note: Note) => void;
   onNoteContextMenu?: (note: Note, ev: ReactMouseEvent) => void;
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
   onAnnotationEdit?: (id: string) => void;
@@ -60,8 +68,12 @@ function GridImpl({
   getPlayheadStep,
   annotations,
   annotationsVisible = true,
+  renderAnnotationCards = true,
   readOnly = false,
+  hoveredAnnotationId: externalHoveredAnnotId,
+  onAnnotationHover,
   onNotePointerDown,
+  onNoteClick,
   onNoteContextMenu,
   onGridPointerDown,
   onAnnotationEdit,
@@ -69,7 +81,9 @@ function GridImpl({
   onAnnotationResize,
   onAnnotationDelete,
 }: GridProps) {
-  const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
+  const [internalHoveredAnnotId, setInternalHoveredAnnotId] = useState<string | null>(null);
+  const hoveredAnnotId = externalHoveredAnnotId !== undefined ? externalHoveredAnnotId : internalHoveredAnnotId;
+  const setHoveredAnnotId = onAnnotationHover ?? setInternalHoveredAnnotId;
 
   const numRows = part.hi - part.lo + 1;
   const rhythm = isRhythmPart(part);
@@ -124,7 +138,7 @@ function GridImpl({
         const annotIds = noteAnnotIds.get(n.id);
         const cls = [
           styles.note,
-          !readOnly && styles.interactive,
+          (!readOnly || !!onNoteClick) && styles.interactive,
           rhythm && drumClass(part, n.pitch),
           noteScaleClass(scaleSet, part, n.pitch) === "in-scale" && styles.inScale,
           selectedNoteIds?.has(n.id) && styles.selected,
@@ -147,7 +161,13 @@ function GridImpl({
             data-vel={n.vel}
             data-len={noteFracLength(n)}
             data-selected={selectedNoteIds?.has(n.id) ? "1" : undefined}
-            onPointerDown={readOnly ? undefined : (ev) => onNotePointerDown?.(n, ev, regionAt(ev))}
+            onPointerDown={
+              readOnly
+                ? onNoteClick
+                  ? (ev) => { ev.preventDefault(); onNoteClick(n); }
+                  : undefined
+                : (ev) => onNotePointerDown?.(n, ev, regionAt(ev))
+            }
             onContextMenu={
               readOnly
                 ? undefined
@@ -202,6 +222,7 @@ function GridImpl({
           cellW={cellW}
           cellH={cellH}
           readOnly={readOnly}
+          renderCards={renderAnnotationCards}
           hoveredAnnotationId={hoveredAnnotId}
           onAnnotationHover={setHoveredAnnotId}
           onEdit={onAnnotationEdit}

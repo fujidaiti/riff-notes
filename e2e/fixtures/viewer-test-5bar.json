@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "name": "5-Bar Test",
+  "sheets": [
+    {
+      "id": "sheet1",
+      "title": "5-Bar Sheet",
+      "notes": "",
+      "bpm": 120,
+      "scale": { "root": 0, "mode": "major" },
+      "barCount": 5,
+      "annotations": [],
+      "mix": {
+        "master": { "vol": 0.8, "mute": false },
+        "parts": {
+          "part1": { "vol": 0.8, "mute": false, "solo": false }
+        }
+      },
+      "parts": [
+        {
+          "id": "part1",
+          "name": "Piano",
+          "instrument": "epiano",
+          "lo": 60,
+          "hi": 72,
+          "notes": [
+            { "id": "n1", "partId": "part1", "pitch": 60, "start": 0,  "length": 2, "vel": 2, "subOffset": 0, "subLength": 0 },
+            { "id": "n2", "partId": "part1", "pitch": 64, "start": 16, "length": 2, "vel": 2, "subOffset": 0, "subLength": 0 },
+            { "id": "n3", "partId": "part1", "pitch": 67, "start": 64, "length": 2, "vel": 2, "subOffset": 0, "subLength": 0 }
+          ]
+        }
+      ]
+    }
+  ]
+}
