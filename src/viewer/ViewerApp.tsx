@@ -25,6 +25,7 @@ export function ViewerApp() {
   const [mixerOpen, setMixerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
 
   const [engine] = useState(() => new AudioEngine());
   const { cellW, cellH } = useCellSize();
@@ -212,6 +213,8 @@ export function ViewerApp() {
                     annotations={partAnnotations}
                     renderAnnotationCards={false}
                     getPlayheadStep={getPlayheadStep}
+                    hoveredAnnotationId={hoveredAnnotId}
+                    onAnnotationHover={setHoveredAnnotId}
                   />
                 </div>
               </div>
@@ -231,8 +234,9 @@ export function ViewerApp() {
                         annotation={a}
                         x={x}
                         y={y}
-                        active={false}
+                        active={hoveredAnnotId === a.id}
                         readOnly
+                        onHover={setHoveredAnnotId}
                       />
                     );
                   })}

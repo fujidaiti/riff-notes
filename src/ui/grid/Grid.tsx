@@ -32,6 +32,10 @@ export interface GridProps {
   renderAnnotationCards?: boolean;
   /** When true (the embed case), no interaction handlers are attached. */
   readOnly?: boolean;
+  /** Controlled hover state — when provided, Grid uses this instead of internal state. */
+  hoveredAnnotationId?: string | null;
+  /** Called when the hovered annotation changes (controlled or uncontrolled). */
+  onAnnotationHover?: (id: string | null) => void;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
   onNoteContextMenu?: (note: Note, ev: ReactMouseEvent) => void;
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
@@ -64,6 +68,8 @@ function GridImpl({
   annotationsVisible = true,
   renderAnnotationCards = true,
   readOnly = false,
+  hoveredAnnotationId: externalHoveredAnnotId,
+  onAnnotationHover,
   onNotePointerDown,
   onNoteContextMenu,
   onGridPointerDown,
@@ -72,7 +78,9 @@ function GridImpl({
   onAnnotationResize,
   onAnnotationDelete,
 }: GridProps) {
-  const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
+  const [internalHoveredAnnotId, setInternalHoveredAnnotId] = useState<string | null>(null);
+  const hoveredAnnotId = externalHoveredAnnotId !== undefined ? externalHoveredAnnotId : internalHoveredAnnotId;
+  const setHoveredAnnotId = onAnnotationHover ?? setInternalHoveredAnnotId;
 
   const numRows = part.hi - part.lo + 1;
   const rhythm = isRhythmPart(part);
