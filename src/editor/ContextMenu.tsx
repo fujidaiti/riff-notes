@@ -25,7 +25,11 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 
   useEffect(() => {
     const close = (ev: MouseEvent | KeyboardEvent) => {
-      if ("key" in ev && ev.key !== "Escape") return;
+      if ("key" in ev) {
+        if (ev.key !== "Escape") return;
+      } else {
+        if (ref.current?.contains(ev.target as Node)) return;
+      }
       onClose();
     };
     document.addEventListener("pointerdown", close, true);
@@ -44,7 +48,6 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       ref={ref}
       className={styles.menu}
       style={style}
-      onPointerDown={(ev) => ev.stopPropagation()}
     >
       {items.map((item, i) =>
         "sep" in item ? (

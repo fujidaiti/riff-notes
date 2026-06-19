@@ -33,19 +33,21 @@ export interface BandProps extends BandGridProps {
 
 function PartMenu({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => void }) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
+    const close = (ev: PointerEvent) => {
+      if (rootRef.current?.contains(ev.target as Node)) return;
+      setOpen(false);
+    };
     document.addEventListener("pointerdown", close, true);
     return () => document.removeEventListener("pointerdown", close, true);
   }, [open]);
 
   return (
-    <div className={styles.menu} onPointerDown={(ev) => ev.stopPropagation()}>
+    <div ref={rootRef} className={styles.menu}>
       <button
-        ref={btnRef}
         className={styles.menuBtn}
         title="Part menu"
         onClick={() => setOpen((o) => !o)}
