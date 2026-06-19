@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { Annotation, Note, Part, Scale } from "../../core/model/types";
 import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
@@ -69,9 +69,28 @@ function GridImpl({
   onAnnotationMove,
   onAnnotationDelete,
 }: GridProps) {
+  const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
+
   const numRows = part.hi - part.lo + 1;
   const rhythm = isRhythmPart(part);
   const scaleSet = inScaleSet(scale);
+
+  // Build a map from noteId → annotation ids for hover wiring.
+  const noteAnnotIds = new Map<string, string[]>();
+  if (annotations) {
+    for (const a of annotations) {
+      for (const nId of a.noteIds) {
+        const arr = noteAnnotIds.get(nId) ?? [];
+        arr.push(a.id);
+        noteAnnotIds.set(nId, arr);
+      }
+    }
+  }
+  // Note ids that belong to the currently hovered annotation.
+  const annotHighlightedNoteIds =
+    hoveredAnnotId && annotations
+      ? new Set(annotations.find((a) => a.id === hoveredAnnotId)?.noteIds ?? [])
+      : null;
 
   const wrapStyle: CSSProperties = {
     width: cellW * sheetSteps,
@@ -104,12 +123,14 @@ function GridImpl({
       ))}
 
       {visibleNotes.map((n) => {
+        const annotIds = noteAnnotIds.get(n.id);
         const cls = [
           styles.note,
           !readOnly && styles.interactive,
           rhythm && drumClass(part, n.pitch),
           noteScaleClass(scaleSet, part, n.pitch) === "in-scale" && styles.inScale,
           selectedNoteIds?.has(n.id) && styles.selected,
+          annotHighlightedNoteIds?.has(n.id) && styles.annotActive,
         ]
           .filter(Boolean)
           .join(" ");
@@ -138,6 +159,8 @@ function GridImpl({
                     onNoteContextMenu?.(n, ev);
                   }
             }
+            onMouseEnter={annotIds ? () => setHoveredAnnotId(annotIds[0]) : undefined}
+            onMouseLeave={annotIds ? () => setHoveredAnnotId(null) : undefined}
           />
         );
       })}
@@ -181,6 +204,8 @@ function GridImpl({
           cellW={cellW}
           cellH={cellH}
           readOnly={readOnly}
+          hoveredAnnotationId={hoveredAnnotId}
+          onAnnotationHover={setHoveredAnnotId}
           onEdit={onAnnotationEdit}
           onMove={onAnnotationMove}
           onDelete={onAnnotationDelete}
