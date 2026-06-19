@@ -36,6 +36,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: auto;
+  user-select: none;
 }
 .editable {
   cursor: grab;
