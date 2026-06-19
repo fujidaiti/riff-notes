@@ -32,6 +32,7 @@ export class AudioEngine {
   private stops: Array<() => void> = [];
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private keeper: AudioNode | null = null;
 
   private playingSheetId: string | null = null;
   private t0 = 0;
@@ -39,14 +40,36 @@ export class AudioEngine {
   private secPerStep = 0;
   private totalStepsCount = 0;
 
-  private ensureContext(masterValue: number): void {
-    if (!this.ctx) this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+  private async ensureContext(masterValue: number): Promise<void> {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      // Fire-and-forget resume on the earliest possible user interaction so the
+      // context is already running by the time the first auditionNote/play call
+      // reaches its await.
+      const warmUp = () => { void this.ctx?.resume(); };
+      window.addEventListener("pointerdown", warmUp, { once: true });
+      window.addEventListener("keydown", warmUp, { once: true });
+    }
     if (!this.master) {
       this.master = this.ctx.createGain();
       this.master.gain.value = masterValue;
       this.master.connect(this.ctx.destination);
     }
-    if (this.ctx.state === "suspended") void this.ctx.resume();
+    if (this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch (e) {
+        console.warn("AudioContext.resume() failed:", e);
+      }
+    }
+    if (!this.keeper && this.ctx.state === "running") {
+      const src = this.ctx.createConstantSource();
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain).connect(this.ctx.destination);
+      src.start();
+      this.keeper = gain;
+    }
   }
 
   private getNoiseBuffer(ctx: AudioContext): AudioBuffer {
@@ -205,8 +228,8 @@ export class AudioEngine {
   }
 
   /** A short metronome click; accented on the downbeat. */
-  click(accent: boolean): void {
-    this.ensureContext(1);
+  async click(accent: boolean): Promise<void> {
+    await this.ensureContext(1);
     const ctx = this.ctx!;
     const when = ctx.currentTime + 0.001;
     const osc = ctx.createOscillator();
@@ -222,8 +245,8 @@ export class AudioEngine {
   }
 
   /** Audition a single note immediately (e.g. on click). */
-  auditionNote(sheet: Sheet, note: Note): void {
-    this.ensureContext(effectiveMasterValue(sheet.mix));
+  async auditionNote(sheet: Sheet, note: Note): Promise<void> {
+    await this.ensureContext(effectiveMasterValue(sheet.mix));
     this.ensurePartGains(sheet);
     const secPerStep = 60 / sheet.bpm / 4;
     const dur = secPerStep * 0.95;
@@ -238,8 +261,8 @@ export class AudioEngine {
     }
   }
 
-  play(sheet: Sheet, opts: PlayOptions = {}): void {
-    this.ensureContext(effectiveMasterValue(sheet.mix));
+  async play(sheet: Sheet, opts: PlayOptions = {}): Promise<void> {
+    await this.ensureContext(effectiveMasterValue(sheet.mix));
     const ctx = this.ctx!;
     this.playInternal(sheet, opts, ctx.currentTime + 0.05);
   }

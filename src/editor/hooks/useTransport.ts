@@ -20,9 +20,9 @@ export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { re
   const ref = useRef({ sheet, repeat, transport: "stopped" as TransportState });
   ref.current = { sheet, repeat, transport };
 
-  const play = useCallback(() => {
+  const play = useCallback(async () => {
     const fromStep = cursorStep.current;
-    engine.play(ref.current.sheet, {
+    await engine.play(ref.current.sheet, {
       fromStep,
       repeat: ref.current.repeat,
       onEnd: () => {
@@ -48,11 +48,11 @@ export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { re
     setTransport("stopped");
   }, [engine]);
 
-  const seekTo = useCallback((step: number) => {
+  const seekTo = useCallback(async (step: number) => {
     cursorStep.current = step;
     setDisplayCursor(step);
     if (ref.current.transport === "playing") {
-      engine.play(ref.current.sheet, {
+      await engine.play(ref.current.sheet, {
         fromStep: step,
         repeat: ref.current.repeat,
         onEnd: () => {
