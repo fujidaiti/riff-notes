@@ -6,6 +6,8 @@ import { useCellSize } from "../ui/useCellSize";
 import { useCellHover } from "../ui/useCellHover";
 import { BAND_SIDE_W } from "../ui/Band";
 import { Grid } from "../ui/grid/Grid";
+import { AnnotationCard } from "../ui/Annotations";
+import { noteFracStart } from "../core/timing";
 import { loadProject } from "./loadProject";
 import { useViewerTransport } from "./useViewerTransport";
 import { ViewerMixerDialog } from "./ViewerMixerDialog";
@@ -181,6 +183,8 @@ export function ViewerApp() {
         {/* Part rows */}
         {sheet.parts.map((part) => {
           const numRows = part.hi - part.lo + 1;
+          const partAnnotations = annotationsByPart.get(part.id);
+          const noteById = new Map(part.notes.map((n) => [n.id, n]));
           return (
             <div key={part.id} className={styles.row}>
               <div
@@ -204,11 +208,33 @@ export function ViewerApp() {
                     cellW={cellW}
                     cellH={cellH}
                     readOnly
-                    annotations={annotationsByPart.get(part.id)}
+                    annotations={partAnnotations}
+                    renderAnnotationCards={false}
                     getPlayheadStep={getPlayheadStep}
                   />
                 </div>
               </div>
+              {/* Annotation cards rendered outside the clipping viewport */}
+              {partAnnotations && partAnnotations.length > 0 && (
+                <div className={styles.annotCardOverlay} style={{ left: BAND_SIDE_W }}>
+                  {partAnnotations.map((a) => {
+                    const anchor = noteById.get(a.placement.anchorNoteId);
+                    if (!anchor) return null;
+                    const x = noteFracStart(anchor) * cellW + a.placement.dx + translateX;
+                    const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
+                    return (
+                      <AnnotationCard
+                        key={a.id}
+                        annotation={a}
+                        x={x}
+                        y={y}
+                        active={false}
+                        readOnly
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

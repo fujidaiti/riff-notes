@@ -28,6 +28,8 @@ export interface GridProps {
   /** Annotations whose anchor note belongs to this part. */
   annotations?: Annotation[];
   annotationsVisible?: boolean;
+  /** When false, annotation connector lines are drawn but cards are suppressed (viewer renders them in a separate overlay). */
+  renderAnnotationCards?: boolean;
   /** When true (the embed case), no interaction handlers are attached. */
   readOnly?: boolean;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
@@ -60,6 +62,7 @@ function GridImpl({
   getPlayheadStep,
   annotations,
   annotationsVisible = true,
+  renderAnnotationCards = true,
   readOnly = false,
   onNotePointerDown,
   onNoteContextMenu,
@@ -202,6 +205,7 @@ function GridImpl({
           cellW={cellW}
           cellH={cellH}
           readOnly={readOnly}
+          renderCards={renderAnnotationCards}
           hoveredAnnotationId={hoveredAnnotId}
           onAnnotationHover={setHoveredAnnotId}
           onEdit={onAnnotationEdit}

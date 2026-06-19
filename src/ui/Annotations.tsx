@@ -12,6 +12,8 @@ export interface AnnotationsProps {
   cellW: number;
   cellH: number;
   readOnly?: boolean;
+  /** When false, only SVG connector lines are rendered; cards are suppressed. */
+  renderCards?: boolean;
   hoveredAnnotationId?: string | null;
   onAnnotationHover?: (id: string | null) => void;
   onEdit?: (id: string) => void;
@@ -32,7 +34,7 @@ interface Pt {
  * geometry is analytic in the part's grid-wrap coordinate space (notes of an
  * annotation always belong to one part, by the single-part invariant).
  */
-export function Annotations({ part, annotations, cellW, cellH, readOnly = false, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onResize, onDelete }: AnnotationsProps) {
+export function Annotations({ part, annotations, cellW, cellH, readOnly = false, renderCards = true, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onResize, onDelete }: AnnotationsProps) {
   const noteById = new Map(part.notes.map((n) => [n.id, n]));
   const centerOf = (id: string): Pt | null => {
     const n = noteById.get(id);
@@ -52,7 +54,7 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
           })}
         </svg>
       </div>
-      {annotations.map((a) => {
+      {renderCards && annotations.map((a) => {
         const anchor = noteById.get(a.placement.anchorNoteId);
         if (!anchor) return null;
         const x = noteFracStart(anchor) * cellW + a.placement.dx;
@@ -82,7 +84,7 @@ type DragState =
   | { mode: "move"; startX: number; startY: number; baseDx: number; baseDy: number; moved: boolean }
   | { mode: "resize"; startX: number; startW: number; startDx: number; edge: "left" | "right" };
 
-function AnnotationCard({
+export function AnnotationCard({
   annotation: a,
   x,
   y,

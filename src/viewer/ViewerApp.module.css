@@ -28,8 +28,18 @@
 }
 
 .row {
+  position: relative;
   display: flex;
   align-items: stretch;
+}
+
+.annotCardOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .sidebar {
