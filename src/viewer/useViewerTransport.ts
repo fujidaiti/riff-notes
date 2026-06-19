@@ -24,9 +24,10 @@ export function useViewerTransport(
 
   const merged = (): Sheet => ({ ...ref.current.sheet!, mix: ref.current.mix! });
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (fromStep = 0) => {
     if (!ref.current.sheet || !ref.current.mix) return;
     await engine.play(merged(), {
+      fromStep,
       bpmOverride: ref.current.bpm,
       repeat: ref.current.repeat,
       onEnd: () => setTransport("stopped"),

@@ -128,6 +128,15 @@ export function ViewerApp() {
     return map;
   }, [sheet]);
 
+  // Manual page change: update page immediately and restart playback if active.
+  const handlePageChange = useCallback((newPage: number) => {
+    pageRef.current = newPage;
+    setPage(newPage);
+    if (transport === "playing") {
+      void play(newPage * STEPS_PER_BAR);
+    }
+  }, [transport, play]);
+
   const handleBpmChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setBpmRaw(e.target.value);
   }, []);
@@ -228,7 +237,7 @@ export function ViewerApp() {
       <div className={styles.toolbar}>
         <button
           className={styles.toolBtn}
-          onClick={play}
+          onClick={() => void play(pageBar * STEPS_PER_BAR)}
           disabled={transport === "playing"}
         >
           Play
@@ -267,7 +276,7 @@ export function ViewerApp() {
             <div className={styles.toolbarSpacer} />
             <button
               className={styles.pagerArrow}
-              onClick={() => setPage((p) => Math.max(0, p - BARS_PER_PAGE))}
+              onClick={() => handlePageChange(Math.max(0, page - BARS_PER_PAGE))}
               disabled={page === 0}
               aria-label="Previous bars"
             >
@@ -278,7 +287,7 @@ export function ViewerApp() {
             </span>
             <button
               className={styles.pagerArrow}
-              onClick={() => setPage((p) => Math.min(p + BARS_PER_PAGE, sheet.barCount - BARS_PER_PAGE))}
+              onClick={() => handlePageChange(Math.min(page + BARS_PER_PAGE, sheet.barCount - BARS_PER_PAGE))}
               disabled={page >= sheet.barCount - BARS_PER_PAGE}
               aria-label="Next bars"
             >
