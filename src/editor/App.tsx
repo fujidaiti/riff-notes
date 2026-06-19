@@ -131,15 +131,15 @@ export function App() {
           {recording.phase === "count-in" ? "● Count-in…" : recording.recording ? "● Recording" : "● Record"}
         </button>
         <span style={{ width: 12 }} />
+        <button className={styles.btn} onClick={() => setMixerOpen(true)}>
+          Mixer
+        </button>
+        <span style={{ width: 12 }} />
         <button className={styles.btn} disabled={!canUndo} onClick={() => dispatch({ type: "UNDO" })} title="Undo (Cmd+Z)">
           Undo
         </button>
         <button className={styles.btn} disabled={!canRedo} onClick={() => dispatch({ type: "REDO" })} title="Redo (Cmd+Shift+Z)">
           Redo
-        </button>
-        <span style={{ width: 12 }} />
-        <button className={styles.btn} onClick={() => setMixerOpen(true)}>
-          Mixer
         </button>
         <span className={styles.spacer} />
         <button
