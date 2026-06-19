@@ -74,4 +74,6 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: system-ui, -apple-system, sans-serif;
+  /* Prevent the browser's horizontal swipe-to-go-back navigation gesture. */
+  overscroll-behavior-x: none;
 }
