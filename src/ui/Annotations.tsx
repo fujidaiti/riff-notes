@@ -108,6 +108,7 @@ function AnnotationCard({
 }) {
   const dragState = useRef<DragState | null>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const onMouseMove = (ev: React.MouseEvent<HTMLDivElement>) => {
     if (dragState.current || readOnly || !onResize) return;
@@ -140,6 +141,7 @@ function AnnotationCard({
       const ddx = ev.clientX - d.startX;
       const ddy = ev.clientY - d.startY;
       if (!d.moved && Math.abs(ddx) < 3 && Math.abs(ddy) < 3) return;
+      if (!d.moved) setIsDragging(true);
       d.moved = true;
       onMove?.(a.id, d.baseDx + ddx, d.baseDy + ddy);
     } else {
@@ -156,14 +158,17 @@ function AnnotationCard({
     dragState.current = null;
     ev.currentTarget.releasePointerCapture(ev.pointerId);
     if (d?.mode === "resize") setIsResizing(false);
-    if (d?.mode === "move" && !d.moved && onEdit) onEdit(a.id);
+    if (d?.mode === "move") {
+      setIsDragging(false);
+      if (!d.moved && onEdit) onEdit(a.id);
+    }
   };
 
   const title = readOnly ? a.text : onResize ? "Drag to move · click to edit · drag edge to resize" : "Drag to move · click to edit";
 
   return (
     <div
-      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""}`}
+      className={`${styles.card} ${readOnly ? "" : styles.editable} ${active ? styles.cardActive : ""} ${isResizing ? styles.resizing : ""} ${isDragging ? styles.dragging : ""}`}
       style={{ left: x, top: y, width: a.shrunkWidth, ["--annot-shrunk-width" as string]: `${a.shrunkWidth}px` } as React.CSSProperties}
       onMouseMove={readOnly ? undefined : onMouseMove}
       onPointerDown={readOnly ? undefined : onPointerDown}
