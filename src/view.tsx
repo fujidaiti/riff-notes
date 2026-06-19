@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./ui/theme.css";
+import "./viewer/viewer.css";
 import { ViewerApp } from "./viewer/ViewerApp";
 
 // Read-only viewer entry (iframe target for blog embeds). Only imports from

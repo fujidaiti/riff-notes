@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./ui/theme.css";
+import "./viewer/viewer.css";
 import { EmbedApp } from "./viewer/EmbedApp";
 
 // Read-only viewer bootstrap (iframe target). Imports only from core/ui/viewer
