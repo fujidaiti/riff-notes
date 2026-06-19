@@ -14,7 +14,7 @@ const mod = IS_MAC ? "⌘" : "Ctrl";
 export const SHORTCUTS: Shortcut[] = [
   // Transport
   { keys: "Space", description: "Play / pause; stop recording if active" },
-  { keys: "Enter", description: "Rewind to start" },
+  { keys: "Enter", description: "Rewind to start; restart if playing" },
   { keys: "R", description: "Record into the selected part (or open Rec dialog); stop if recording" },
   // Mouse — empty cell
   { keys: "Click empty cell", description: "Set paste target; clears note selection" },
