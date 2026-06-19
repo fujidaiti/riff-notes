@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Mix, Sheet } from "../core/model/types";
+import type { Mix, Note, Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
 import { AudioEngine } from "../audio/AudioEngine";
 import { useCellSize } from "../ui/useCellSize";
@@ -138,6 +138,11 @@ export function ViewerApp() {
     return map;
   }, [sheet]);
 
+  const handleNoteClick = useCallback((note: Note) => {
+    if (!sheet) return;
+    void engine.auditionNote(sheet, note);
+  }, [engine, sheet]);
+
   // Manual page change: update page immediately and restart playback if active.
   const handlePageChange = useCallback((newPage: number) => {
     pageRef.current = newPage;
@@ -215,6 +220,7 @@ export function ViewerApp() {
                     getPlayheadStep={getPlayheadStep}
                     hoveredAnnotationId={hoveredAnnotId}
                     onAnnotationHover={setHoveredAnnotId}
+                    onNoteClick={handleNoteClick}
                   />
                 </div>
               </div>

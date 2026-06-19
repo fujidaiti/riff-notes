@@ -37,6 +37,8 @@ export interface GridProps {
   /** Called when the hovered annotation changes (controlled or uncontrolled). */
   onAnnotationHover?: (id: string | null) => void;
   onNotePointerDown?: (note: Note, ev: ReactPointerEvent, region: NoteRegion) => void;
+  /** Fires on pointer-down even when readOnly — use for audition-on-click in the viewer. */
+  onNoteClick?: (note: Note) => void;
   onNoteContextMenu?: (note: Note, ev: ReactMouseEvent) => void;
   onGridPointerDown?: (ev: ReactPointerEvent) => void;
   onAnnotationEdit?: (id: string) => void;
@@ -71,6 +73,7 @@ function GridImpl({
   hoveredAnnotationId: externalHoveredAnnotId,
   onAnnotationHover,
   onNotePointerDown,
+  onNoteClick,
   onNoteContextMenu,
   onGridPointerDown,
   onAnnotationEdit,
@@ -135,7 +138,7 @@ function GridImpl({
         const annotIds = noteAnnotIds.get(n.id);
         const cls = [
           styles.note,
-          !readOnly && styles.interactive,
+          (!readOnly || !!onNoteClick) && styles.interactive,
           rhythm && drumClass(part, n.pitch),
           noteScaleClass(scaleSet, part, n.pitch) === "in-scale" && styles.inScale,
           selectedNoteIds?.has(n.id) && styles.selected,
@@ -158,7 +161,13 @@ function GridImpl({
             data-vel={n.vel}
             data-len={noteFracLength(n)}
             data-selected={selectedNoteIds?.has(n.id) ? "1" : undefined}
-            onPointerDown={readOnly ? undefined : (ev) => onNotePointerDown?.(n, ev, regionAt(ev))}
+            onPointerDown={
+              readOnly
+                ? onNoteClick
+                  ? (ev) => { ev.preventDefault(); onNoteClick(n); }
+                  : undefined
+                : (ev) => onNotePointerDown?.(n, ev, regionAt(ev))
+            }
             onContextMenu={
               readOnly
                 ? undefined
