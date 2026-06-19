@@ -214,10 +214,10 @@ export function useGridInteraction(
     } else if (!selected.has(note.id)) {
       selected = new Set([note.id]);
       dsp({ type: "SET_SELECTION", sheetId: sh.id, noteIds: selected });
-      eng?.auditionNote(sh, note);
+      void eng?.auditionNote(sh, note);
     } else {
       // Note already selected — still audition it on click.
-      eng?.auditionNote(sh, note);
+      void eng?.auditionNote(sh, note);
     }
 
     const groupIds = selected.has(note.id) ? selected : new Set([note.id]);
@@ -268,7 +268,7 @@ export function useGridInteraction(
         mutate: (s) => void s.parts.find((p) => p.id === part.id)?.notes.push(note),
         selectNoteIds: new Set([id]),
       });
-      eng?.auditionNote(sh, note);
+      void eng?.auditionNote(sh, note);
       return;
     }
 

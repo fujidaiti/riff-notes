@@ -39,14 +39,20 @@ export class AudioEngine {
   private secPerStep = 0;
   private totalStepsCount = 0;
 
-  private ensureContext(masterValue: number): void {
+  private async ensureContext(masterValue: number): Promise<void> {
     if (!this.ctx) this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     if (!this.master) {
       this.master = this.ctx.createGain();
       this.master.gain.value = masterValue;
       this.master.connect(this.ctx.destination);
     }
-    if (this.ctx.state === "suspended") void this.ctx.resume();
+    if (this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch (e) {
+        console.warn("AudioContext.resume() failed:", e);
+      }
+    }
   }
 
   private getNoiseBuffer(ctx: AudioContext): AudioBuffer {
@@ -205,8 +211,8 @@ export class AudioEngine {
   }
 
   /** A short metronome click; accented on the downbeat. */
-  click(accent: boolean): void {
-    this.ensureContext(1);
+  async click(accent: boolean): Promise<void> {
+    await this.ensureContext(1);
     const ctx = this.ctx!;
     const when = ctx.currentTime + 0.001;
     const osc = ctx.createOscillator();
@@ -222,8 +228,8 @@ export class AudioEngine {
   }
 
   /** Audition a single note immediately (e.g. on click). */
-  auditionNote(sheet: Sheet, note: Note): void {
-    this.ensureContext(effectiveMasterValue(sheet.mix));
+  async auditionNote(sheet: Sheet, note: Note): Promise<void> {
+    await this.ensureContext(effectiveMasterValue(sheet.mix));
     this.ensurePartGains(sheet);
     const secPerStep = 60 / sheet.bpm / 4;
     const dur = secPerStep * 0.95;
@@ -238,8 +244,8 @@ export class AudioEngine {
     }
   }
 
-  play(sheet: Sheet, opts: PlayOptions = {}): void {
-    this.ensureContext(effectiveMasterValue(sheet.mix));
+  async play(sheet: Sheet, opts: PlayOptions = {}): Promise<void> {
+    await this.ensureContext(effectiveMasterValue(sheet.mix));
     const ctx = this.ctx!;
     this.playInternal(sheet, opts, ctx.currentTime + 0.05);
   }

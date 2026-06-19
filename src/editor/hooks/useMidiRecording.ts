@@ -196,10 +196,10 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       barCountRef.current = sh.barCount;
       const beatDur = secPerStep.current * 4 * 1000; // one beat = 4 sixteenth steps
 
-      const beginRecording = () => {
+      const beginRecording = async () => {
         setPhase("recording");
         t0.current = performance.now();
-        if (o.playBacking) engine.play(sh, { fromStep: 0, bpmOverride: o.bpmOverride, silentPartId: o.partId });
+        if (o.playBacking) await engine.play(sh, { fromStep: 0, bpmOverride: o.bpmOverride, silentPartId: o.partId });
         recStep.current = () => {
           const cur = (performance.now() - t0.current) / 1000 / secPerStep.current;
           const total = barCountRef.current * STEPS_PER_BAR;
@@ -211,7 +211,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
         };
         let beat = 0;
         metro.current = setInterval(() => {
-          engine.click(beat % 4 === 0);
+          void engine.click(beat % 4 === 0);
           beat++;
           // Auto-append a bar as the take reaches the current last bar.
           if (o.autoAppendBar) {
@@ -229,16 +229,16 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       // One snapshot for the whole take, then a one-bar (4-beat) count-in.
       dispatch({ type: "PUSH_HISTORY" });
       setPhase("count-in");
-      engine.click(true);
+      await engine.click(true);
       let beat = 1;
       countIn.current = setInterval(() => {
         if (beat >= 4) {
           if (countIn.current) clearInterval(countIn.current);
           countIn.current = null;
-          beginRecording();
+          void beginRecording();
           return;
         }
-        engine.click(false);
+        void engine.click(false);
         beat++;
       }, beatDur);
     },
