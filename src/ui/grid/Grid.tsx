@@ -127,6 +127,7 @@ function GridImpl({
             data-note-id={n.id}
             data-vel={n.vel}
             data-len={noteFracLength(n)}
+            data-selected={selectedNoteIds?.has(n.id) ? "1" : undefined}
             onPointerDown={readOnly ? undefined : (ev) => onNotePointerDown?.(n, ev, regionAt(ev))}
             onContextMenu={
               readOnly
