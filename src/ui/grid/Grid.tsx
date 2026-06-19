@@ -39,8 +39,6 @@ export interface GridProps {
   onAnnotationDelete?: (id: string) => void;
 }
 
-const RESIZE_EDGE = 5;
-
 function drumClass(part: Part, pitch: number): string {
   const key = RHYTHM_KEYS[part.hi - pitch];
   if (key === "hihat") return styles.drumHihat;
@@ -103,11 +101,9 @@ function GridImpl({
   const labels = !rhythm && showLabels ? computeLabelPlacements(part, sheetSteps, cellW, cellH) : [];
 
   const regionAt = (ev: ReactPointerEvent): NoteRegion => {
+    if (!ev.metaKey && !ev.ctrlKey) return "body";
     const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    const rel = ev.clientX - rect.left;
-    if (rel <= RESIZE_EDGE) return "resize-l";
-    if (rel >= rect.width - RESIZE_EDGE) return "resize-r";
-    return "body";
+    return ev.clientX - rect.left < rect.width / 2 ? "resize-l" : "resize-r";
   };
 
   return (

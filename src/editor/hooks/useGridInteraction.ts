@@ -137,7 +137,6 @@ export function useGridInteraction(
       const dy = ev.clientY - d.startY;
       if (!d.moved && Math.abs(dx) < CLICK_MAX_MOVE && Math.abs(dy) < CLICK_MAX_MOVE) return;
       d.moved = true;
-      d.subGranular = isCreateModifier(ev);
       const patches = computeFor(d, dx, d.mode === "move" ? dy : 0);
       setPreview(patches);
       // Step-highlight: show a vertical line at the snapped step position.
