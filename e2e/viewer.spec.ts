@@ -1,11 +1,24 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 
 const BASE = "/riff-notes";
-const FIXTURE_URL = `${BASE}/view.html?src=${BASE}/viewer-test.json`;
+
+function fixtureJson(name: string) {
+  return readFileSync(resolve(__dirname, "fixtures", name), "utf-8");
+}
+
+async function routeFixture(page: Page, name: string) {
+  const body = fixtureJson(name);
+  await page.route(`**/${name}`, (route) =>
+    route.fulfill({ contentType: "application/json", body })
+  );
+}
 
 /** Navigate to the viewer and wait until at least one note is rendered. */
 async function loadViewer(page: Page) {
-  await page.goto(FIXTURE_URL);
+  await routeFixture(page, "viewer-test.json");
+  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test.json`);
   await page.locator("[data-note-id]").first().waitFor();
 }
 
@@ -294,10 +307,9 @@ test("closing the mixer dialog hides it", async ({ page }) => {
 
 // ── Odd bar count: empty bar appended ────────────────────────────────────────
 
-const FIXTURE_5BAR = `${BASE}/view.html?src=${BASE}/viewer-test-5bar.json`;
-
 async function load5BarViewer(page: Page) {
-  await page.goto(FIXTURE_5BAR);
+  await routeFixture(page, "viewer-test-5bar.json");
+  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test-5bar.json`);
   await page.locator("[data-note-id]").first().waitFor();
 }
 
