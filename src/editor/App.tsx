@@ -19,7 +19,6 @@ import { AnnotationDialog } from "./dialogs/AnnotationDialog";
 import { downloadProjectJson, downloadSheetMidi, pickProjectJson } from "./io";
 import { useTheme } from "./useTheme";
 import { ContextMenu, type ContextMenuEntry } from "./ContextMenu";
-import { getSavedAt } from "../state/persistence";
 import styles from "./App.module.css";
 
 export function App() {
@@ -93,12 +92,6 @@ export function App() {
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
 
-  const [savedAt, setSavedAt] = useState<number | null>(() => getSavedAt());
-  useEffect(() => {
-    const id = setTimeout(() => setSavedAt(Date.now()), 400);
-    return () => clearTimeout(id);
-  }, [state.project]);
-
   const { label: themeLabel, cycle: cycleTheme } = useTheme();
 
   const loadFromFile = async () => {
@@ -121,13 +114,6 @@ export function App() {
   return (
     <div className={styles.app}>
       <div className={styles.toolbar}>
-        <input
-          className={styles.projectName}
-          type="text"
-          placeholder="Project name"
-          value={state.project.name}
-          onChange={(e) => dispatch({ type: "SET_PROJECT_NAME", name: e.target.value })}
-        />
         <button className={styles.btn} onClick={transport === "playing" ? pause : play}>
           {transport === "playing" ? "⏸ Pause" : transport === "paused" ? "▶ Resume" : "▶ Play"}
         </button>
@@ -155,16 +141,7 @@ export function App() {
         <button className={styles.btn} onClick={() => setMixerOpen(true)}>
           Mixer
         </button>
-        <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano" })}>
-          + Part
-        </button>
-        <button className={styles.btn} onClick={() => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "drum" })}>
-          + Drums
-        </button>
         <span className={styles.spacer} />
-        <span className={styles.savedAt}>
-          {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Not saved yet"}
-        </span>
         <button
           className={styles.btn}
           title="More actions"
@@ -242,6 +219,13 @@ export function App() {
           </button>
         </div>
         <div className={styles.meta}>
+          <input
+            className={styles.projectName}
+            type="text"
+            placeholder="Project name"
+            value={state.project.name}
+            onChange={(e) => dispatch({ type: "SET_PROJECT_NAME", name: e.target.value })}
+          />
           <label className={styles.field}>
             Title
             <input
@@ -261,29 +245,6 @@ export function App() {
                 const bpm = Math.max(20, Math.min(300, parseInt(e.target.value, 10) || sheet.bpm));
                 dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { bpm } });
               }}
-            />
-          </label>
-          <label className={styles.field}>
-            Bars
-            <input
-              type="text"
-              inputMode="numeric"
-              style={{ width: 40 }}
-              value={sheet.barCount}
-              onChange={(e) => {
-                const barCount = Math.max(1, parseInt(e.target.value, 10) || 1);
-                dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount } });
-              }}
-            />
-          </label>
-          <label className={styles.field}>
-            Notes
-            <input
-              type="text"
-              placeholder="Sheet notes"
-              style={{ width: 180 }}
-              value={sheet.notes ?? ""}
-              onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { notes: e.target.value } })}
             />
           </label>
           <label className={styles.field}>

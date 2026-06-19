@@ -114,8 +114,3 @@ select {
   border-color: var(--sheet-border);
   outline: none;
 }
-.savedAt {
-  font-size: 12px;
-  color: var(--ink-muted);
-  white-space: nowrap;
-}
