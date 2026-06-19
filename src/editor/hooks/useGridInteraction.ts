@@ -216,6 +216,9 @@ export function useGridInteraction(
       selected = new Set([note.id]);
       dsp({ type: "SET_SELECTION", sheetId: sh.id, noteIds: selected });
       eng?.auditionNote(sh, note);
+    } else {
+      // Note already selected — still audition it on click.
+      eng?.auditionNote(sh, note);
     }
 
     const groupIds = selected.has(note.id) ? selected : new Set([note.id]);
