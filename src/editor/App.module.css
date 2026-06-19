@@ -68,6 +68,10 @@ select {
   opacity: 0.5;
   cursor: default;
 }
+.btn.active {
+  background: var(--play-tint, var(--panel-hover));
+  border-color: var(--line-strong, var(--sheet-border));
+}
 .field {
   display: inline-flex;
   align-items: center;
