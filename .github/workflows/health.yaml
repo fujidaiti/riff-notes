@@ -67,3 +67,27 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+  artifacts:
+    name: Artifacts (docs/ freshness)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Rebuild
+        run: npm run build
+
+      - name: Check docs/ is up to date
+        run: |
+          if ! git diff --quiet -- docs/; then
+            echo "docs/ is out of date. Run 'npm run build' and commit the result."
+            git diff -- docs/
+            exit 1
+          fi
