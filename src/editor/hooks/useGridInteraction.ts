@@ -236,7 +236,7 @@ export function useGridInteraction(
       startY: ev.clientY,
       moved: false,
       subGranular: isCreateModifier(ev),
-      createMod: isCreateModifier(ev),
+      createMod: ev.metaKey || ev.ctrlKey,
       groupIds,
       stepHighlight: null,
       clickedNoteId: note.id,
