@@ -237,17 +237,9 @@ export function ViewerApp() {
       <div className={styles.toolbar}>
         <button
           className={styles.toolBtn}
-          onClick={() => void play(pageBar * STEPS_PER_BAR)}
-          disabled={transport === "playing"}
+          onClick={transport === "playing" ? stop : () => void play(pageBar * STEPS_PER_BAR)}
         >
-          Play
-        </button>
-        <button
-          className={styles.toolBtn}
-          onClick={stop}
-          disabled={transport === "stopped"}
-        >
-          Stop
+          {transport === "playing" ? "Stop" : "Play"}
         </button>
         <button
           className={`${styles.toolBtn} ${repeat ? styles.active : ""}`}
