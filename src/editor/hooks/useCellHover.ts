@@ -35,9 +35,11 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
     window.addEventListener("blur",    onBlur);
 
     const tip = document.createElement("div");
+    tip.dataset.testid = "cell-tooltip";
     tip.style.cssText =
       "position:fixed;pointer-events:none;background:var(--tooltip-bg);border:1px solid var(--line);border-radius:4px;box-shadow:0 2px 6px var(--shadow-soft);padding:3px 6px;font:11px/1.3 system-ui;color:var(--tooltip-ink);z-index:9999;white-space:nowrap;display:none;";
     const hover = document.createElement("div");
+    hover.dataset.testid = "cell-hover";
     hover.style.cssText =
       "position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid var(--note-sel-outline);border-radius:2px;z-index:1;display:none;";
     document.body.append(tip, hover);
@@ -91,9 +93,10 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
         lastNoteEl = noteEl;
       }
 
-      // Hide the cell highlight box when hovering a selected note (it already
-      // has its own selection outline) to avoid double-border clutter.
-      if (noteEl && noteEl.dataset.selected === "1") {
+      // Hide the cell highlight box when hovering any note or an annotation card;
+      // both already provide their own visual indicator (CSS outline / card UI).
+      const annotCardEl = target?.closest("[data-annot-card]");
+      if (noteEl || annotCardEl) {
         hover.style.display = "none";
       } else {
         hover.style.display = "block";
@@ -102,6 +105,8 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
         hover.style.width = `${cellW + 1}px`;
         hover.style.height = `${cellH}px`;
       }
+      if (annotCardEl) { tip.style.display = "none"; return; }
+
       let velLabel = "";
       let lenLabel = "";
       if (noteEl && wrap.contains(noteEl)) {
