@@ -9,6 +9,10 @@ import { uid } from "./model/uid";
 // clean break from the legacy format, so this starts at version 1 under a new
 // storage key; bump the version and add a migration branch on breaking changes.
 export const SCHEMA_VERSION = 1;
+
+// The legacy single-file app used version 14 with an identical payload shape,
+// so we accept it during Load JSON to preserve backward compatibility.
+export const LEGACY_SCHEMA_VERSION = 14;
 export const STORAGE_KEY = "riff-notes:project";
 
 export const ANNOT_MIN_WIDTH = 24;
@@ -172,7 +176,7 @@ function deserializeAnnotations(raw: unknown): Annotation[] {
 /** Parse a persisted document into a Project, or null if invalid/incompatible. */
 export function deserializeProject(doc: unknown): Project | null {
   if (!isObj(doc) || !Array.isArray(doc.sheets) || doc.sheets.length === 0) return null;
-  if (doc.version !== SCHEMA_VERSION) return null;
+  if (doc.version !== SCHEMA_VERSION && doc.version !== LEGACY_SCHEMA_VERSION) return null;
 
   const sheets: Sheet[] = (doc.sheets as Raw[]).map((s) => {
     const barCount = Math.max(1, Number.isInteger(s.barCount) ? (s.barCount as number) : 1);

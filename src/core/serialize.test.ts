@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { SCHEMA_VERSION, deserializeProject, serializeProject } from "./serialize";
+import { LEGACY_SCHEMA_VERSION, SCHEMA_VERSION, deserializeProject, serializeProject } from "./serialize";
 import { makeSheet } from "./model/factory";
 import { resetUidCounter } from "./model/uid";
 import type { Project } from "./model/types";
@@ -38,9 +38,16 @@ describe("serialize/deserialize round-trip", () => {
 });
 
 describe("deserialize validation", () => {
-  it("rejects a mismatched schema version", () => {
+  it("rejects an unknown schema version", () => {
     const doc = serializeProject(sampleProject());
     expect(deserializeProject({ ...doc, version: 999 })).toBeNull();
+  });
+
+  it("accepts the legacy schema version " + LEGACY_SCHEMA_VERSION, () => {
+    const doc = serializeProject(sampleProject());
+    const result = deserializeProject({ ...doc, version: LEGACY_SCHEMA_VERSION });
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe("Proj");
   });
   it("rejects malformed input", () => {
     expect(deserializeProject(null)).toBeNull();

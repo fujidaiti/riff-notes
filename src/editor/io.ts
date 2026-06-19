@@ -2,13 +2,36 @@ import type { Project, Sheet } from "../core/model/types";
 import { deserializeProject, serializeProject } from "../core/serialize";
 import { buildSheetMidi } from "../core/midi";
 
-/** Download the project as a JSON file. */
-export function downloadProjectJson(project: Project): void {
-  const blob = new Blob([JSON.stringify(serializeProject(project), null, 2)], { type: "application/json" });
+/** Save the project as a JSON file, using the Save As picker on Chromium. */
+export async function downloadProjectJson(project: Project): Promise<void> {
+  const json = JSON.stringify(serializeProject(project), null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const filename = `${project.name || "riff-notes"}.json`;
+
+  const picker = (window as Window & { showSaveFilePicker?: (opts: unknown) => Promise<{ createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }> }> }).showSaveFilePicker;
+  if (typeof picker === "function") {
+    try {
+      const handle = await picker({
+        suggestedName: filename,
+        types: [{ description: "JSON file", accept: { "application/json": [".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err: unknown) {
+      // User cancelled (AbortError) — fall through to nothing. Any other error: alert.
+      if ((err as { name?: string }).name === "AbortError") return;
+      alert(`Failed to save JSON: ${(err as Error).message}`);
+      return;
+    }
+  }
+
+  // Fallback for Firefox / Safari: trigger a plain download.
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${project.name || "riff-notes"}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
