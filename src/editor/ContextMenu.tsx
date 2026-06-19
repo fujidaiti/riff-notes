@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styles from "./ContextMenu.module.css";
 
 export interface ContextMenuItem {
@@ -22,6 +22,7 @@ export interface ContextMenuProps {
 
 export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: x, top: y });
 
   useEffect(() => {
     const close = (ev: MouseEvent | KeyboardEvent) => {
@@ -40,8 +41,17 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     };
   }, [onClose]);
 
-  // Clamp to viewport after mount.
-  const style: React.CSSProperties = { position: "fixed", left: x, top: y };
+  // Clamp to viewport after the menu has been measured.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const left = Math.min(x, window.innerWidth - width - 4);
+    const top = Math.min(y, window.innerHeight - height - 4);
+    setPos({ left: Math.max(4, left), top: Math.max(4, top) });
+  }, [x, y]);
+
+  const style: React.CSSProperties = { position: "fixed", left: pos.left, top: pos.top };
 
   return (
     <div
