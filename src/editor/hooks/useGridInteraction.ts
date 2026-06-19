@@ -289,6 +289,27 @@ export function useGridInteraction(
     };
   }, []);
 
+  // Starts a rubber-band from any position in the sheet container (including
+  // the gaps between parts) when the click did not land on a part grid. The
+  // grid's own onGridPointerDown handles clicks inside a grid and takes
+  // precedence because Note/Grid pointerdown handlers call stopPropagation.
+  const onSheetPointerDown = useCallback((ev: React.PointerEvent) => {
+    const target = ev.target as HTMLElement;
+    // Already handled by a grid or note.
+    if (target.closest("[data-part-id]")) return;
+    if (isCreateModifier(ev)) return;
+    rubber.current = {
+      startX: ev.clientX,
+      startY: ev.clientY,
+      additive: ev.shiftKey,
+      base: ev.shiftKey ? new Set(cfg.current.selection.noteIds) : new Set(),
+      cell: null,
+      moved: false,
+      overlay: null,
+      lockedPartId: null,
+    };
+  }, []);
+
   const displaySheet: Sheet = preview ? applyPatches(cloneSheet(sheet), preview) : sheet;
-  return { displaySheet, onNotePointerDown, onGridPointerDown };
+  return { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown };
 }
