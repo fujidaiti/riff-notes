@@ -38,36 +38,40 @@ export function Annotations({ part, annotations, cellW, cellH, readOnly = false,
   };
 
   return (
-    <div className={styles.overlay}>
-      <svg className={styles.svg}>
+    <>
+      <div className={styles.overlay}>
+        <svg className={styles.svg}>
+          {annotations.map((a) => {
+            const pts = a.noteIds.map(centerOf).filter((p): p is Pt => p !== null).sort((p, q) => p.x - q.x || p.y - q.y);
+            if (pts.length < 2) return null;
+            const active = hoveredAnnotationId === a.id;
+            return <polyline key={a.id} className={`${styles.line} ${active ? styles.lineActive : ""}`} points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
+          })}
+        </svg>
+      </div>
+      <div className={styles.cardsOverlay}>
         {annotations.map((a) => {
-          const pts = a.noteIds.map(centerOf).filter((p): p is Pt => p !== null).sort((p, q) => p.x - q.x || p.y - q.y);
-          if (pts.length < 2) return null;
-          const active = hoveredAnnotationId === a.id;
-          return <polyline key={a.id} className={`${styles.line} ${active ? styles.lineActive : ""}`} points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
+          const anchor = noteById.get(a.placement.anchorNoteId);
+          if (!anchor) return null;
+          const x = noteFracStart(anchor) * cellW + a.placement.dx;
+          const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
+          return (
+            <AnnotationCard
+              key={a.id}
+              annotation={a}
+              x={x}
+              y={y}
+              active={hoveredAnnotationId === a.id}
+              readOnly={readOnly}
+              onHover={onAnnotationHover}
+              onEdit={onEdit}
+              onMove={onMove}
+              onDelete={onDelete}
+            />
+          );
         })}
-      </svg>
-      {annotations.map((a) => {
-        const anchor = noteById.get(a.placement.anchorNoteId);
-        if (!anchor) return null;
-        const x = noteFracStart(anchor) * cellW + a.placement.dx;
-        const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
-        return (
-          <AnnotationCard
-            key={a.id}
-            annotation={a}
-            x={x}
-            y={y}
-            active={hoveredAnnotationId === a.id}
-            readOnly={readOnly}
-            onHover={onAnnotationHover}
-            onEdit={onEdit}
-            onMove={onMove}
-            onDelete={onDelete}
-          />
-        );
-      })}
-    </div>
+      </div>
+    </>
   );
 }
 

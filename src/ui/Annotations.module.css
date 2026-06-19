@@ -1,8 +1,12 @@
-.overlay {
+.overlay,
+.cardsOverlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 5;
+}
+.cardsOverlay:has(.card:hover) {
+  z-index: 7;
 }
 .svg {
   position: absolute;
@@ -48,9 +52,6 @@
   white-space: normal;
   overflow: visible;
   z-index: 6;
-}
-.overlay:has(.card:hover) {
-  z-index: 7;
 }
 .cardActions {
   display: none;
