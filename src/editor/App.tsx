@@ -177,105 +177,6 @@ export function App() {
         </button>
       </div>
 
-      <div className={styles.tabstrip}>
-        {state.project.sheets.map((s) => (
-          <span
-            key={s.id}
-            className={`${styles.tab} ${s.id === state.ui.activeSheetId ? styles.active : ""}`}
-            onClick={() => dispatch({ type: "SET_ACTIVE_SHEET", sheetId: s.id })}
-          >
-            {s.id === state.ui.activeSheetId && transport !== "stopped" && (
-              <span className={styles.tabPlaying}>{transport === "playing" ? "▶" : "⏸"}</span>
-            )}
-            {s.title}
-            {state.project.sheets.length > 1 && (
-              <button
-                className={styles.tabClose}
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  dispatch({ type: "DELETE_SHEET", sheetId: s.id });
-                }}
-              >
-                ×
-              </button>
-            )}
-          </span>
-        ))}
-        <button className={styles.btn} onClick={() => dispatch({ type: "ADD_SHEET" })}>
-          +
-        </button>
-      </div>
-
-      <div className={styles.meta}>
-        <label className={styles.field}>
-          Title
-          <input
-            type="text"
-            value={sheet.title}
-            onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { title: e.target.value } })}
-          />
-        </label>
-        <label className={styles.field}>
-          BPM
-          <input
-            type="text"
-            inputMode="numeric"
-            style={{ width: 48 }}
-            value={sheet.bpm}
-            onChange={(e) => {
-              const bpm = Math.max(20, Math.min(300, parseInt(e.target.value, 10) || sheet.bpm));
-              dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { bpm } });
-            }}
-          />
-        </label>
-        <label className={styles.field}>
-          Bars
-          <input
-            type="text"
-            inputMode="numeric"
-            style={{ width: 40 }}
-            value={sheet.barCount}
-            onChange={(e) => {
-              const barCount = Math.max(1, parseInt(e.target.value, 10) || 1);
-              dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount } });
-            }}
-          />
-        </label>
-        <label className={styles.field}>
-          Notes
-          <input
-            type="text"
-            placeholder="Sheet notes"
-            style={{ width: 180 }}
-            value={sheet.notes ?? ""}
-            onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { notes: e.target.value } })}
-          />
-        </label>
-        <label className={styles.field}>
-          Key
-          <select
-            value={sheet.scale.root}
-            onChange={(e) => dispatch({ type: "SET_SCALE", sheetId: sheet.id, scale: { ...sheet.scale, root: Number(e.target.value) } })}
-          >
-            {PITCH_NAMES.map((n, i) => (
-              <option key={n} value={i}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <select
-            value={sheet.scale.mode}
-            onChange={(e) => dispatch({ type: "SET_SCALE", sheetId: sheet.id, scale: { ...sheet.scale, mode: e.target.value } })}
-          >
-            {SCALE_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
       <div className={styles.sheet} ref={sheetRef}>
         <SheetView
           sheet={displaySheet}
@@ -309,6 +210,106 @@ export function App() {
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
           onAnnotationDelete={(id) => dispatch({ type: "DELETE_ANNOTATION", sheetId: sheet.id, id })}
         />
+      </div>
+
+      <div className={styles.footer}>
+        <div className={styles.tabstrip}>
+          {state.project.sheets.map((s) => (
+            <span
+              key={s.id}
+              className={`${styles.tab} ${s.id === state.ui.activeSheetId ? styles.active : ""}`}
+              onClick={() => dispatch({ type: "SET_ACTIVE_SHEET", sheetId: s.id })}
+            >
+              {s.id === state.ui.activeSheetId && transport !== "stopped" && (
+                <span className={styles.tabPlaying}>{transport === "playing" ? "▶" : "⏸"}</span>
+              )}
+              {s.title}
+              {state.project.sheets.length > 1 && (
+                <button
+                  className={styles.tabClose}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    dispatch({ type: "DELETE_SHEET", sheetId: s.id });
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+          <button className={styles.btn} onClick={() => dispatch({ type: "ADD_SHEET" })}>
+            +
+          </button>
+        </div>
+        <div className={styles.meta}>
+          <label className={styles.field}>
+            Title
+            <input
+              type="text"
+              value={sheet.title}
+              onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { title: e.target.value } })}
+            />
+          </label>
+          <label className={styles.field}>
+            BPM
+            <input
+              type="text"
+              inputMode="numeric"
+              style={{ width: 48 }}
+              value={sheet.bpm}
+              onChange={(e) => {
+                const bpm = Math.max(20, Math.min(300, parseInt(e.target.value, 10) || sheet.bpm));
+                dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { bpm } });
+              }}
+            />
+          </label>
+          <label className={styles.field}>
+            Bars
+            <input
+              type="text"
+              inputMode="numeric"
+              style={{ width: 40 }}
+              value={sheet.barCount}
+              onChange={(e) => {
+                const barCount = Math.max(1, parseInt(e.target.value, 10) || 1);
+                dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { barCount } });
+              }}
+            />
+          </label>
+          <label className={styles.field}>
+            Notes
+            <input
+              type="text"
+              placeholder="Sheet notes"
+              style={{ width: 180 }}
+              value={sheet.notes ?? ""}
+              onChange={(e) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { notes: e.target.value } })}
+            />
+          </label>
+          <label className={styles.field}>
+            Key
+            <select
+              value={sheet.scale.root}
+              onChange={(e) => dispatch({ type: "SET_SCALE", sheetId: sheet.id, scale: { ...sheet.scale, root: Number(e.target.value) } })}
+            >
+              {PITCH_NAMES.map((n, i) => (
+                <option key={n} value={i}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sheet.scale.mode}
+              onChange={(e) => dispatch({ type: "SET_SCALE", sheetId: sheet.id, scale: { ...sheet.scale, mode: e.target.value } })}
+            >
+              {SCALE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <MixerDialog sheet={sheet} open={mixerOpen} onClose={() => setMixerOpen(false)} />

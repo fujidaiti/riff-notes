@@ -10,10 +10,19 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--sheet-border);
 }
 .toolbar {
   background: var(--panel-bg);
+  border-bottom: 1px solid var(--sheet-border);
+}
+.footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--sheet-border);
+  background: var(--panel-bg);
+}
+.footer .tabstrip,
+.footer .meta {
+  border-bottom: 1px solid var(--sheet-border);
 }
 .spacer {
   flex: 1;
