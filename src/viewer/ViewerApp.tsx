@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Mix, Note, Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
-import { barWidth, stepToX } from "../core/grid-layout";
+import { barWidth, gridTotalWidth, stepToX } from "../core/grid-layout";
 import { AudioEngine } from "../audio/AudioEngine";
 import { useCellSize } from "../ui/useCellSize";
 import { useCellHover } from "../ui/useCellHover";
@@ -177,7 +177,7 @@ export function ViewerApp() {
   if (!sheet || !mix) return null;
 
   const sheetSteps = paddedBarCount * STEPS_PER_BAR;
-  const visibleW = Math.min(BARS_PER_PAGE, paddedBarCount) * barW;
+  const visibleW = gridTotalWidth(Math.min(BARS_PER_PAGE, paddedBarCount) * STEPS_PER_BAR, layout);
   const translateX = -(pageBar * barW);
 
   // Bar numbers shown in the pager for the current page.
