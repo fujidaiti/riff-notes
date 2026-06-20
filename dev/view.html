@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Riff Notes — View Debug</title>
     <style>
-      html, body {
+      html,
+      body {
         height: 100%;
       }
       body {
@@ -65,15 +66,15 @@
     <div class="controls">
       <label>
         width
-        <input id="width" type="number" value="800" min="0" />
+        <input id="width" type="number" value="900" min="0" />
       </label>
       <label>
         height
-        <input id="height" type="number" value="600" min="0" />
+        <input id="height" type="number" value="800" min="0" />
       </label>
       <label>
         file
-        <input id="file" type="text" value="" placeholder="project" />
+        <input id="file" type="text" value="sample" placeholder="project" />
       </label>
       <div class="swatches" id="swatches"></div>
     </div>
@@ -91,7 +92,9 @@
 
       function updateSrc() {
         const file = fileInput.value.trim();
-        frame.src = file ? `../view.html?src=${encodeURIComponent(file)}.json` : `../view.html`;
+        frame.src = file
+          ? `../view.html?src=${encodeURIComponent(file)}.json`
+          : `../view.html`;
       }
 
       widthInput.addEventListener("change", updateSize);
