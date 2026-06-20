@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { Part, Sheet } from "../core/model/types";
 
 /** Width of the part label sidebar — must match the .side CSS width in Band.module.css. */
-export const BAND_SIDE_W = 36;
+export const BAND_SIDE_W = 48;
 import { Grid, type GridProps } from "./grid/Grid";
 import styles from "./Band.module.css";
 
@@ -73,48 +73,50 @@ function BandImpl({ sheet, part, sheetSteps, layout, cellH, onPartClick, onPartR
   return (
     <div className={styles.band}>
       <div className={styles.side}>
-        <div className={styles.sideTop}>
-          {(onPartClick || onPartDelete) && (
-            <PartMenu
-              onEdit={onPartClick ? () => onPartClick(part.id) : undefined}
-              onDelete={onPartDelete ? () => onPartDelete(part.id) : undefined}
-            />
-          )}
-          {onPartRecord && (
-            <button
-              className={`${styles.recBtn} ${isRecording ? styles.recActive : ""}`}
-              title={isRecording ? "Recording…" : "Record into this part"}
-              onClick={(ev) => {
-                ev.stopPropagation();
-                onPartRecord(part.id);
-              }}
-            >
-              ●
-            </button>
-          )}
-        </div>
-        {(onToggleMute || onToggleSolo) && (
-          <div className={styles.mixBtns}>
-            {onToggleMute && (
-              <button
-                className={`${styles.mixBtn} ${muted ? styles.mixActive : ""}`}
-                title={muted ? "Unmute" : "Mute"}
-                onClick={(ev) => { ev.stopPropagation(); onToggleMute(part.id); }}
-              >
-                M
-              </button>
+        <div className={styles.sideBtns}>
+          <div className={styles.sideTop}>
+            {(onPartClick || onPartDelete) && (
+              <PartMenu
+                onEdit={onPartClick ? () => onPartClick(part.id) : undefined}
+                onDelete={onPartDelete ? () => onPartDelete(part.id) : undefined}
+              />
             )}
-            {onToggleSolo && (
+            {onPartRecord && (
               <button
-                className={`${styles.mixBtn} ${soloed ? styles.mixActive : ""}`}
-                title={soloed ? "Unsolo" : "Solo"}
-                onClick={(ev) => { ev.stopPropagation(); onToggleSolo(part.id); }}
+                className={`${styles.recBtn} ${isRecording ? styles.recActive : ""}`}
+                title={isRecording ? "Recording…" : "Record into this part"}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onPartRecord(part.id);
+                }}
               >
-                S
+                ●
               </button>
             )}
           </div>
-        )}
+          {(onToggleMute || onToggleSolo) && (
+            <div className={styles.mixBtns}>
+              {onToggleMute && (
+                <button
+                  className={`${styles.mixBtn} ${muted ? styles.mixActive : ""}`}
+                  title={muted ? "Unmute" : "Mute"}
+                  onClick={(ev) => { ev.stopPropagation(); onToggleMute(part.id); }}
+                >
+                  M
+                </button>
+              )}
+              {onToggleSolo && (
+                <button
+                  className={`${styles.mixBtn} ${soloed ? styles.mixActive : ""}`}
+                  title={soloed ? "Unsolo" : "Solo"}
+                  onClick={(ev) => { ev.stopPropagation(); onToggleSolo(part.id); }}
+                >
+                  S
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         {onPartNameChange ? (
           <input
             className={styles.nameInput}
