@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { Part, Sheet } from "../core/model/types";
 
 /** Width of the part label sidebar — must match the .side CSS width in Band.module.css. */
-export const BAND_SIDE_W = 48;
+export const BAND_SIDE_W = 60;
 import { Grid, type GridProps } from "./grid/Grid";
 import styles from "./Band.module.css";
 

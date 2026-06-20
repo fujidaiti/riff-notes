@@ -6,15 +6,16 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--panel-bg);
+  background: var(--bg);
   border-bottom: 1px solid var(--sheet-border);
   margin-bottom: 4px;
 }
 .spacer {
   flex: 0 0 auto;
   position: sticky;
-  left: 0;
-  background: var(--panel-bg);
+  left: -16px;
+  margin-left: -16px;
+  background: var(--bg);
   border-right: 1px solid var(--line);
   z-index: 11;
 }
