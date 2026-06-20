@@ -8,7 +8,7 @@ import { useCellSize } from "../ui/useCellSize";
 import { useGridInteraction } from "./hooks/useGridInteraction";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTransport } from "./hooks/useTransport";
-import { useMidiRecording } from "./hooks/useMidiRecording";
+import { DEFAULT_RECORD_CONFIG, recordOptionsFromConfig, useMidiRecording } from "./hooks/useMidiRecording";
 import { useCellHover } from "./hooks/useCellHover";
 import { RecConfigDialog } from "./dialogs/RecConfigDialog";
 import { MixerDialog } from "./dialogs/MixerDialog";
@@ -34,6 +34,11 @@ export function App() {
 
   const recording = useMidiRecording(engine, sheet, dispatch);
   const { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep } = useTransport(engine, sheet, recording);
+  const [recConfig, setRecConfig] = useState(DEFAULT_RECORD_CONFIG);
+  const startRecording = useCallback(
+    (partId: string) => recording.start({ partId, ...recordOptionsFromConfig(recConfig) }),
+    [recording, recConfig],
+  );
   useKeyboardShortcuts(state, dispatch, {
     openQuantize: () => setQuantizeOpen(true),
     openHelp: () => setHelpOpen(true),
@@ -48,7 +53,7 @@ export function App() {
         partId = sheet.parts.find((p) => p.notes.some((n) => n.id === firstId))?.id ?? null;
       }
       if (partId) {
-        void recording.start({ partId });
+        void startRecording(partId);
       } else {
         setRecConfigOpen(true);
       }
@@ -188,9 +193,9 @@ export function App() {
             if (recording.recording) {
               // If already recording this part, stop; otherwise stop and restart for the new part.
               recording.stop();
-              if (recording.recordingPartId !== partId) void recording.start({ partId });
+              if (recording.recordingPartId !== partId) void startRecording(partId);
             } else {
-              void recording.start({ partId });
+              void startRecording(partId);
             }
           }}
           recordingPartId={recording.recordingPartId}
@@ -302,7 +307,7 @@ export function App() {
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
-      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start(o)} defaultPartId={recConfigPartId} />
+      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start(o)} defaultPartId={recConfigPartId} config={recConfig} onConfigChange={setRecConfig} />
       {noteCtxMenu && (
         <ContextMenu
           x={noteCtxMenu.x}
