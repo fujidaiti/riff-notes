@@ -212,7 +212,7 @@ function GridImpl({
               left: stepToX(selectedCell.step, layout),
               top: (part.hi - selectedCell.pitch) * cellH,
               width: cellW,
-              height: cellH - 1,
+              height: cellH,
             }}
           />
         )}
