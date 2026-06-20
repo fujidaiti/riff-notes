@@ -128,6 +128,7 @@ export function App() {
     { label: "Save JSON", onClick: () => void downloadProjectJson(state.project) },
     { label: "Load JSON", onClick: () => void loadFromFile() },
     { sep: true },
+    { label: "Copy sheet ID", onClick: () => void navigator.clipboard.writeText(sheet.id) },
     { label: "Export sheet as MIDI", onClick: () => downloadSheetMidi(sheet) },
     { label: "Import from MIDI", onClick: () => void importFromMidi() },
     { sep: true },
