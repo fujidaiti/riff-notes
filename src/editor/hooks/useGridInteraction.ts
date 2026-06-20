@@ -13,6 +13,11 @@ import { isCreateModifier } from "../platform";
 
 const CLICK_MAX_MOVE = 3;
 
+function blurActiveInput() {
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.blur();
+}
+
 interface DragState {
   mode: "move" | "resize-l" | "resize-r";
   origins: DragOrigin[];
@@ -199,6 +204,7 @@ export function useGridInteraction(
   }, [computeFor]);
 
   const onNotePointerDown = useCallback((note: Note, ev: React.PointerEvent, region: NoteRegion) => {
+    blurActiveInput();
     ev.preventDefault();
     ev.stopPropagation(); // prevent bubbling to grid, which would start a rubber-band simultaneously
     const { sheet: sh, selection: sel, dispatch: dsp, engine: eng } = cfg.current;
@@ -260,6 +266,7 @@ export function useGridInteraction(
     if (step < 0 || step >= sheetSteps) return;
 
     if (isCreateModifier(ev)) {
+      blurActiveInput();
       ev.preventDefault();
       const lo = isRhythmPart(part) ? 0 : PIANO_MIN;
       const hi = isRhythmPart(part) ? 2 : PIANO_MAX;
@@ -281,6 +288,7 @@ export function useGridInteraction(
     // current selection as the additive base.
     // Prevent the browser from text-selecting button labels, annotation text,
     // and pitch labels as the pointer drags across the sheet.
+    blurActiveInput();
     ev.preventDefault();
     const inRange = pitch >= part.lo && pitch <= part.hi;
     rubber.current = {
@@ -304,8 +312,11 @@ export function useGridInteraction(
     // Already handled by a grid or note.
     if (target.closest("[data-part-id]")) return;
     if (isCreateModifier(ev)) return;
+    // Let focusable elements (e.g. the part name input) receive focus normally.
+    if (target.closest("input, textarea, select")) return;
     // Prevent the browser from text-selecting button labels, annotation text,
     // and pitch labels as the pointer drags across the sheet.
+    blurActiveInput();
     ev.preventDefault();
     rubber.current = {
       startX: ev.clientX,
