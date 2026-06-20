@@ -12,28 +12,30 @@ function PartGap({ onInsert }: { onInsert: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      style={{ height: 4, display: "flex", alignItems: "center" }}
+      style={{ height: 4 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <button
-        style={{
-          opacity: hovered ? 1 : 0,
-          transition: "opacity 0.15s",
-          border: "1px dashed var(--sheet-border)",
-          background: "var(--sheet-bg)",
-          color: "var(--ink-soft)",
-          borderRadius: 4,
-          fontSize: 11,
-          cursor: "pointer",
-          padding: "1px 8px",
-          lineHeight: 1,
-        }}
-        onClick={onInsert}
-        title="Insert part here"
-      >
-        + Part
-      </button>
+      <div style={{ position: "sticky", left: 0, width: "fit-content", height: "100%", display: "flex", alignItems: "center" }}>
+        <button
+          style={{
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.15s",
+            border: "1px dashed var(--sheet-border)",
+            background: "var(--sheet-bg)",
+            color: "var(--ink-soft)",
+            borderRadius: 4,
+            fontSize: 11,
+            cursor: "pointer",
+            padding: "1px 8px",
+            lineHeight: 1,
+          }}
+          onClick={onInsert}
+          title="Insert part here"
+        >
+          + Part
+        </button>
+      </div>
     </div>
   );
 }
