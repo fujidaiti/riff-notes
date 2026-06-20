@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Pre-commit hook: runs unit and e2e tests when relevant source files change.
+#
+# Enable once per clone with:
+#   git config core.hooksPath .githooks
+
+set -e
+
+# Files staged for this commit (added/copied/modified/renamed).
+changed=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$changed" ]; then
+  exit 0
+fi
+
+# Patterns that should trigger the test suites.
+# - TypeScript / TSX sources and tests
+# - Config that affects build/test behavior
+# - Lockfile / package manifest
+# - The hook itself
+pattern='\.(ts|tsx|cts|mts|js|jsx|cjs|mjs|css|html|json)$|^(package(-lock)?\.json|tsconfig.*\.json|vite\.config\..*|vitest\.config\..*|playwright\.config\..*|eslint\.config\..*|\.githooks/pre-commit)$'
+
+relevant=$(printf '%s\n' "$changed" | grep -E "$pattern" || true)
+
+if [ -z "$relevant" ]; then
+  echo "pre-commit: no TS/related files changed, skipping tests."
+  exit 0
+fi
+
+npm test --silent
+npm run test:e2e --silent
+
