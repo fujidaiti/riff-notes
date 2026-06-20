@@ -93,6 +93,7 @@ export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { re
   }, [engine, play, pause]);
 
   const getPlayheadStep = useCallback(() => engine.currentStep(), [engine]);
+  const getCursorStep = useCallback(() => cursorStep.current, []);
 
-  return { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep };
+  return { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep, getCursorStep };
 }

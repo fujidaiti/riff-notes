@@ -33,11 +33,11 @@ export function App() {
   const engine = engineRef.current;
 
   const recording = useMidiRecording(engine, sheet, dispatch);
-  const { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep } = useTransport(engine, sheet, recording);
+  const { transport, repeat, setRepeat, play, pause, stop, seekTo, displayCursor, getPlayheadStep, getCursorStep } = useTransport(engine, sheet, recording);
   const [recConfig, setRecConfig] = useState(DEFAULT_RECORD_CONFIG);
   const startRecording = useCallback(
-    (partId: string) => recording.start({ partId, ...recordOptionsFromConfig(recConfig) }),
-    [recording, recConfig],
+    (partId: string) => recording.start({ partId, fromStep: getCursorStep(), ...recordOptionsFromConfig(recConfig) }),
+    [recording, recConfig, getCursorStep],
   );
   useKeyboardShortcuts(state, dispatch, {
     openQuantize: () => setQuantizeOpen(true),
@@ -307,7 +307,7 @@ export function App() {
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AnnotationDialog sheetId={sheet.id} annotation={editAnn} open={editAnn !== null} onClose={() => setEditAnnId(null)} />
-      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start(o)} defaultPartId={recConfigPartId} config={recConfig} onConfigChange={setRecConfig} />
+      <RecConfigDialog sheet={sheet} open={recConfigOpen} onClose={() => { setRecConfigOpen(false); setRecConfigPartId(null); }} onStart={(o) => void recording.start({ ...o, fromStep: getCursorStep() })} defaultPartId={recConfigPartId} config={recConfig} onConfigChange={setRecConfig} />
       {noteCtxMenu && (
         <ContextMenu
           x={noteCtxMenu.x}

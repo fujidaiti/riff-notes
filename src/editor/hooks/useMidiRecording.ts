@@ -56,6 +56,8 @@ export interface RecordOptions {
   autoAppendBar?: boolean;
   /** Play the rest of the arrangement (armed part silenced) as a backing track. */
   playBacking?: boolean;
+  /** Step at which to punch in the take. Defaults to 0. */
+  fromStep?: number;
 }
 
 // Minimal Web MIDI typings (the DOM lib doesn't always ship them).
@@ -100,6 +102,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
     autoExpandRange: false,
     autoAppendBar: false,
     playBacking: false,
+    fromStep: 0,
   });
   const t0 = useRef(0);
   const secPerStep = useRef(0);
@@ -222,6 +225,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
         autoExpandRange: options.autoExpandRange ?? false,
         autoAppendBar: options.autoAppendBar ?? false,
         playBacking: options.playBacking ?? false,
+        fromStep: Math.max(0, options.fromStep ?? 0),
       };
       const o = opts.current;
       const bpm = o.bpmOverride > 0 ? o.bpmOverride : sh.bpm;
@@ -232,9 +236,9 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
       const beginRecording = async () => {
         setPhase("recording");
         t0.current = performance.now();
-        if (o.playBacking) await engine.play(sh, { fromStep: 0, bpmOverride: o.bpmOverride, silentPartId: o.partId });
+        if (o.playBacking) await engine.play(sh, { fromStep: o.fromStep, bpmOverride: o.bpmOverride, silentPartId: o.partId });
         recStep.current = () => {
-          const cur = (performance.now() - t0.current) / 1000 / secPerStep.current;
+          const cur = o.fromStep + (performance.now() - t0.current) / 1000 / secPerStep.current;
           const total = barCountRef.current * STEPS_PER_BAR;
           if (!o.autoAppendBar && cur >= total) {
             stop();
@@ -248,7 +252,7 @@ export function useMidiRecording(engine: AudioEngine, sheet: Sheet, dispatch: (a
           beat++;
           // Auto-append a bar as the take reaches the current last bar.
           if (o.autoAppendBar) {
-            const cur = (performance.now() - t0.current) / 1000 / secPerStep.current;
+            const cur = o.fromStep + (performance.now() - t0.current) / 1000 / secPerStep.current;
             if (cur >= (barCountRef.current - 1) * STEPS_PER_BAR) {
               barCountRef.current += 1;
               const target = barCountRef.current;
