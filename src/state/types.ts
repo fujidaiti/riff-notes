@@ -50,6 +50,7 @@ export type Action =
   | { type: "SET_SHEET_FIELDS"; sheetId: string; fields: Partial<Pick<Sheet, "title" | "notes" | "bpm" | "barCount">> }
   | { type: "SET_SCALE"; sheetId: string; scale: Scale }
   | { type: "ADD_SHEET" }
+  | { type: "IMPORT_SHEET"; sheet: Sheet }
   | { type: "DELETE_SHEET"; sheetId: string }
   | { type: "ADD_PART"; sheetId: string; instrument: InstrumentId; insertAt?: number }
   | { type: "DELETE_PART"; sheetId: string; partId: string }

@@ -136,6 +136,12 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, project, history, ui: { ...state.ui, activeSheetId: sheet.id } };
     }
 
+    case "IMPORT_SHEET": {
+      const history = record(state.history, state.project);
+      const project = { ...state.project, sheets: [...state.project.sheets, action.sheet] };
+      return { ...state, project, history, ui: { ...state.ui, activeSheetId: action.sheet.id } };
+    }
+
     case "DELETE_SHEET": {
       if (state.project.sheets.length <= 1) return state;
       const history = record(state.history, state.project);

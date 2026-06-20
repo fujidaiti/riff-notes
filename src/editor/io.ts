@@ -1,6 +1,6 @@
 import type { Project, Sheet } from "../core/model/types";
 import { deserializeProject, serializeProject } from "../core/serialize";
-import { buildSheetMidi } from "../core/midi";
+import { buildSheetMidi, parseMidiToSheet } from "../core/midi";
 
 /** Save the project as a JSON file, using the Save As picker on Chromium. */
 export async function downloadProjectJson(project: Project): Promise<void> {
@@ -47,6 +47,29 @@ export function downloadSheetMidi(sheet: Sheet): void {
   a.download = `${safe}.mid`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Prompt for a MIDI file and parse it into a Sheet (null if cancelled or invalid). */
+export function pickMidiFile(): Promise<{ sheet: Sheet; name: string } | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".mid,.midi,audio/midi,audio/x-midi";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (!(reader.result instanceof ArrayBuffer)) return resolve(null);
+        const name = file.name.replace(/\.(mid|midi)$/i, "") || "Imported Sheet";
+        const sheet = parseMidiToSheet(new Uint8Array(reader.result), name);
+        resolve(sheet ? { sheet, name } : null);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsArrayBuffer(file);
+    };
+    input.click();
+  });
 }
 
 /** Prompt for a JSON file and parse it into a Project (null if invalid). */

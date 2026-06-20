@@ -16,7 +16,7 @@ import { PartConfigDialog } from "./dialogs/PartConfigDialog";
 import { QuantizeDialog } from "./dialogs/QuantizeDialog";
 import { HelpDialog } from "./dialogs/HelpDialog";
 import { AnnotationDialog } from "./dialogs/AnnotationDialog";
-import { downloadProjectJson, downloadSheetMidi, pickProjectJson } from "./io";
+import { downloadProjectJson, downloadSheetMidi, pickMidiFile, pickProjectJson } from "./io";
 import { useTheme } from "./useTheme";
 import { ContextMenu, type ContextMenuEntry } from "./ContextMenu";
 import styles from "./App.module.css";
@@ -117,12 +117,19 @@ export function App() {
     if (project) dispatch({ type: "LOAD_PROJECT", project });
   };
 
+  const importFromMidi = async () => {
+    const result = await pickMidiFile();
+    if (!result) return;
+    dispatch({ type: "IMPORT_SHEET", sheet: result.sheet });
+  };
+
   const [overflowMenuAnchor, setOverflowMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const overflowItems: ContextMenuEntry[] = [
     { label: "Save JSON", onClick: () => void downloadProjectJson(state.project) },
     { label: "Load JSON", onClick: () => void loadFromFile() },
     { sep: true },
     { label: "Export sheet as MIDI", onClick: () => downloadSheetMidi(sheet) },
+    { label: "Import from MIDI", onClick: () => void importFromMidi() },
     { sep: true },
     { label: `Theme: ${themeLabel}`, onClick: cycleTheme },
     { sep: true },

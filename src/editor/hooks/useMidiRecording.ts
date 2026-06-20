@@ -4,6 +4,7 @@ import { STEPS_PER_BAR, SUB_PER_STEP } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { uid } from "../../core/model/uid";
 import { subToStart } from "../../core/timing";
+import { midiVelToIdx } from "../../core/midi";
 import type { AudioEngine } from "../../audio/AudioEngine";
 import type { Action } from "../../state/types";
 
@@ -72,14 +73,6 @@ interface MidiAccess {
   inputs: Map<string, MidiInput>;
 }
 type RequestMIDIAccess = () => Promise<MidiAccess>;
-
-function midiVelToIdx(v: number): number {
-  if (v <= 30) return 0;
-  if (v <= 55) return 1;
-  if (v <= 80) return 2;
-  if (v <= 105) return 3;
-  return 4;
-}
 
 /**
  * Web-MIDI recording into a part. A one-bar metronome count-in precedes a

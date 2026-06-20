@@ -36,6 +36,15 @@ describe("reducer mutations + history", () => {
     expect(next.project).not.toBe(before);
   });
 
+  it("IMPORT_SHEET appends the sheet, navigates to it, and records history", () => {
+    let s = setup();
+    const imported = { ...s.project.sheets[0], id: "imported-id", title: "Imported" };
+    s = reducer(s, { type: "IMPORT_SHEET", sheet: imported });
+    expect(s.project.sheets).toHaveLength(2);
+    expect(s.ui.activeSheetId).toBe("imported-id");
+    expect(s.history.past).toHaveLength(1);
+  });
+
   it("ADD_SHEET and DELETE_SHEET adjust the project and active sheet", () => {
     let s = setup();
     s = reducer(s, { type: "ADD_SHEET" });
