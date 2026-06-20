@@ -4,7 +4,7 @@ import { DEFAULT_VEL, PIANO_MAX, PIANO_MIN, STEPS_PER_BAR } from "../../core/mod
 import { isRhythmPart } from "../../core/model/factory";
 import { uid } from "../../core/model/uid";
 import { computeMove, computeResizeLeft, computeResizeRight, type DragMetrics, type DragOrigin, type NotePatch } from "../../core/drag";
-import { type GridLayout, stepToX, xToStepFloor } from "../../core/grid-layout";
+import { type GridLayout, sepWidthBefore, stepToX, xToStepFloor } from "../../core/grid-layout";
 import { dropForeignPart } from "../../core/selection";
 import type { AudioEngine } from "../../audio/AudioEngine";
 import type { Action, SheetSelection } from "../../state/types";
@@ -148,11 +148,14 @@ export function useGridInteraction(
         if (snapStep != null && gridEl) {
           if (!d.stepHighlight) {
             const el = document.createElement("div");
-            el.style.cssText = "position:absolute;top:0;width:2px;height:100%;background:var(--note-sel,#2b6cb0);opacity:0.7;pointer-events:none;z-index:8;";
+            el.style.cssText = "position:absolute;top:0;height:100%;background:var(--note-sel,#2b6cb0);opacity:0.7;pointer-events:none;z-index:8;";
             gridEl.appendChild(el);
             d.stepHighlight = el;
           }
-          d.stepHighlight.style.left = `${stepToX(snapStep, cfg.current.layout)}px`;
+          const lo = cfg.current.layout;
+          const sepW = sepWidthBefore(snapStep, lo);
+          d.stepHighlight.style.left = `${stepToX(snapStep, lo) - sepW}px`;
+          d.stepHighlight.style.width = `${sepW}px`;
         }
       }
     };

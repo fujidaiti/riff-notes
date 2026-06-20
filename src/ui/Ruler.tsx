@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { STEPS_PER_BAR } from "../core/model/constants";
-import { type GridLayout, barWidth, gridTotalWidth, stepToX, xToStepFloor } from "../core/grid-layout";
+import { type GridLayout, barWidth, gridTotalWidth, sepWidthBefore, stepToX, xToStepFloor } from "../core/grid-layout";
 import { SeparatorLayer } from "./grid/SeparatorLayer";
 import styles from "./Ruler.module.css";
 
@@ -17,7 +17,14 @@ function RulerPlayhead({ getStep, layout }: { getStep: () => number | null; layo
           el.style.display = "none";
         } else {
           el.style.display = "block";
-          el.style.left = `${stepToX(step, layout)}px`;
+          if (Number.isInteger(step)) {
+            const sepW = Math.max(3, sepWidthBefore(step, layout));
+            el.style.left = `${stepToX(step, layout) - sepW}px`;
+            el.style.width = `${sepW}px`;
+          } else {
+            el.style.left = `${stepToX(step, layout)}px`;
+            el.style.width = "3px";
+          }
         }
       }
       rafId = requestAnimationFrame(tick);
@@ -70,9 +77,10 @@ export function Ruler({ barCount, layout, sidebarWidth, cursorStep, getPlayheadS
             {i + 1}
           </div>
         ))}
-        {cursorStep != null && (
-          <div className={styles.cursor} style={{ left: stepToX(cursorStep, layout) }} />
-        )}
+        {cursorStep != null && (() => {
+          const sepW = Math.max(3, sepWidthBefore(cursorStep, layout));
+          return <div className={styles.cursor} style={{ left: stepToX(cursorStep, layout) - sepW, width: sepW }} />;
+        })()}
         {getPlayheadStep && <RulerPlayhead getStep={getPlayheadStep} layout={layout} />}
       </div>
       {(onAddBar || onRemoveBar) && (

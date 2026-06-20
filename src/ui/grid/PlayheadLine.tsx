@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { GridLayout } from "../../core/grid-layout";
-import { stepToX } from "../../core/grid-layout";
+import { sepWidthBefore, stepToX } from "../../core/grid-layout";
 import styles from "./Grid.module.css";
 
 export interface PlayheadLineProps {
@@ -27,7 +27,14 @@ export function PlayheadLine({ getStep, layout }: PlayheadLineProps) {
           el.style.display = "none";
         } else {
           el.style.display = "block";
-          el.style.left = `${stepToX(step, layout)}px`;
+          if (Number.isInteger(step)) {
+            const sepW = Math.max(3, sepWidthBefore(step, layout));
+            el.style.left = `${stepToX(step, layout) - sepW}px`;
+            el.style.width = `${sepW}px`;
+          } else {
+            el.style.left = `${stepToX(step, layout)}px`;
+            el.style.width = "3px";
+          }
         }
       }
       raf = requestAnimationFrame(tick);
