@@ -125,6 +125,7 @@ function BandImpl({ sheet, part, sheetSteps, layout, cellH, onPartClick, onPartR
             title="Part name"
             onClick={(ev) => ev.stopPropagation()}
             onChange={(ev) => onPartNameChange(part.id, ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === "Escape") ev.currentTarget.blur(); }}
           />
         ) : (
           <span className={styles.name}>{part.name}</span>

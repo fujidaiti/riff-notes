@@ -95,7 +95,7 @@
   left: 0;
   top: 100%;
   z-index: 20;
-  background: var(--sheet-bg);
+  background: var(--input-bg);
   border: 1px solid var(--sheet-border);
   border-radius: 6px;
   box-shadow: 0 4px 12px var(--shadow-soft);
