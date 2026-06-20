@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { RHYTHM_NAMES, SUB_PER_STEP, VEL_LABELS, getInstrument } from "../core/model/constants";
+import { type GridLayout, stepToX, xToStepFloor } from "../core/grid-layout";
 import { pitchName } from "../core/theory";
 
 // Format a length in steps as "N", or "N+a/b" / "a/b" when fractional (the
@@ -20,7 +21,8 @@ function formatLengthSteps(steps: number): string {
  * appended to body, moved on pointermove) so cursor tracking never re-renders
  * React. Active only while `enabled` (suppressed during playback/recording).
  */
-export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cellW: number, cellH: number, enabled: boolean) {
+export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, layout: GridLayout, cellH: number, enabled: boolean) {
+  const { cellW } = layout;
   useEffect(() => {
     const root = scrollRef.current;
     if (!root || !enabled) return;
@@ -74,7 +76,7 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
       const rowIdx = Math.floor((ev.clientY - rect.top) / cellH);
       if (rowIdx < 0 || rowIdx >= numRows) return hide();
       const pitch = partHi - rowIdx;
-      const stepAbs = Math.floor((ev.clientX - rect.left) / cellW);
+      const stepAbs = xToStepFloor(ev.clientX - rect.left, layout, 9999);
       const isRhythm = getInstrument(wrap.dataset.instrument ?? "").pitchMode === "fixed";
 
       // Tooltip text: pitch (+ velocity/length when hovering a note).
@@ -99,9 +101,9 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
         hover.style.display = "none";
       } else {
         hover.style.display = "block";
-        hover.style.left = `${rect.left + stepAbs * cellW}px`;
+        hover.style.left = `${rect.left + stepToX(stepAbs, layout)}px`;
         hover.style.top = `${rect.top + rowIdx * cellH}px`;
-        hover.style.width = `${cellW + 1}px`;
+        hover.style.width = `${cellW}px`;
         hover.style.height = `${cellH}px`;
       }
       if (annotCardEl) { tip.style.display = "none"; return; }
@@ -139,5 +141,5 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, cel
       tip.remove();
       hover.remove();
     };
-  }, [scrollRef, cellW, cellH, enabled]);
+  }, [scrollRef, layout, cellW, cellH, enabled]);
 }

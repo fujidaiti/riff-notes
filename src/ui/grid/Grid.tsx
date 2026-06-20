@@ -3,11 +3,13 @@ import type { Annotation, Note, Part, Scale } from "../../core/model/types";
 import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { inScaleSet, noteScaleClass } from "../../core/theory";
-import { noteFracLength, noteFracStart, noteWidthPx } from "../../core/timing";
+import { noteFracLength, noteFracStart } from "../../core/timing";
+import { type GridLayout, gridTotalWidth, stepToX } from "../../core/grid-layout";
 import { computeLabelPlacements } from "../../core/labels";
 import type { CellSelection } from "../../state/types";
 import { Annotations } from "../Annotations";
 import { PlayheadLine } from "./PlayheadLine";
+import { SeparatorLayer } from "./SeparatorLayer";
 import styles from "./Grid.module.css";
 
 export type NoteRegion = "body" | "resize-l" | "resize-r";
@@ -17,7 +19,7 @@ export interface GridProps {
   /** barCount * STEPS_PER_BAR. */
   sheetSteps: number;
   scale: Scale;
-  cellW: number;
+  layout: GridLayout;
   cellH: number;
   selectedNoteIds?: ReadonlySet<string>;
   selectedCell?: CellSelection | null;
@@ -59,7 +61,7 @@ function GridImpl({
   part,
   sheetSteps,
   scale,
-  cellW,
+  layout,
   cellH,
   selectedNoteIds,
   selectedCell,
@@ -107,18 +109,20 @@ function GridImpl({
       : null;
 
   const wrapStyle: CSSProperties = {
-    width: cellW * sheetSteps,
+    width: gridTotalWidth(sheetSteps, layout),
     height: cellH * numRows,
   };
 
   const visibleNotes = part.notes.filter((n) => n.pitch >= part.lo && n.pitch <= part.hi);
-  const labels = !rhythm && showLabels ? computeLabelPlacements(part, sheetSteps, cellW, cellH) : [];
+  const labels = !rhythm && showLabels ? computeLabelPlacements(part, sheetSteps, layout, cellH) : [];
 
   const regionAt = (ev: ReactPointerEvent): NoteRegion => {
     if (!ev.metaKey && !ev.ctrlKey) return "body";
     const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
     return ev.clientX - rect.left < rect.width / 2 ? "resize-l" : "resize-r";
   };
+
+  const { cellW } = layout;
 
   return (
     <div
@@ -130,6 +134,8 @@ function GridImpl({
       data-instrument={part.instrument}
       onPointerDown={readOnly ? undefined : onGridPointerDown}
     >
+      <SeparatorLayer totalSteps={sheetSteps} layout={layout} />
+
       {Array.from({ length: numRows }, (_, i) => (
         <div key={i} className={styles.row} />
       ))}
@@ -147,9 +153,9 @@ function GridImpl({
           .filter(Boolean)
           .join(" ");
         const style: CSSProperties = {
-          left: noteFracStart(n) * cellW,
+          left: stepToX(noteFracStart(n), layout),
           top: (part.hi - n.pitch) * cellH,
-          width: noteWidthPx(noteFracLength(n), cellW),
+          width: noteFracLength(n) * cellW,
           ["--vel-opacity" as string]: VEL_OPACITY[n.vel],
         };
         return (
@@ -203,23 +209,23 @@ function GridImpl({
           <div
             className={styles.cellSelected}
             style={{
-              left: selectedCell.step * cellW,
+              left: stepToX(selectedCell.step, layout),
               top: (part.hi - selectedCell.pitch) * cellH,
-              width: cellW + 1,
+              width: cellW,
               height: cellH - 1,
             }}
           />
         )}
 
-      {playheadStep != null && <div className={styles.playhead} style={{ left: playheadStep * cellW }} />}
+      {playheadStep != null && <div className={styles.playhead} style={{ left: stepToX(playheadStep, layout) }} />}
 
-      {getPlayheadStep && <PlayheadLine getStep={getPlayheadStep} cellW={cellW} />}
+      {getPlayheadStep && <PlayheadLine getStep={getPlayheadStep} layout={layout} />}
 
       {annotations && annotations.length > 0 && annotationsVisible && (
         <Annotations
           part={part}
           annotations={annotations}
-          cellW={cellW}
+          layout={layout}
           cellH={cellH}
           readOnly={readOnly}
           renderCards={renderAnnotationCards}

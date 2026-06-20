@@ -24,7 +24,7 @@ import styles from "./App.module.css";
 export function App() {
   const state = useAppState();
   const dispatch = useDispatch();
-  const { cellW, cellH } = useCellSize();
+  const { cellH, layout } = useCellSize();
   const sheet = activeSheet(state);
   const selection = state.ui.selection[sheet.id] ?? { noteIds: new Set<string>(), cell: null };
 
@@ -54,10 +54,10 @@ export function App() {
       }
     },
   });
-  const { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown } = useGridInteraction(sheet, selection, dispatch, cellW, cellH, engine);
+  const { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown } = useGridInteraction(sheet, selection, dispatch, layout, cellH, engine);
 
   const sheetRef = useRef<HTMLDivElement>(null);
-  useCellHover(sheetRef, cellW, cellH, transport === "stopped" && !recording.recording);
+  useCellHover(sheetRef, layout, cellH, transport === "stopped" && !recording.recording);
 
   const [recConfigOpen, setRecConfigOpen] = useState(false);
   const [recConfigPartId, setRecConfigPartId] = useState<string | null>(null);
@@ -171,7 +171,7 @@ export function App() {
       <div className={styles.sheet} ref={sheetRef} onPointerDown={onSheetPointerDown}>
         <SheetView
           sheet={displaySheet}
-          cellW={cellW}
+          layout={layout}
           cellH={cellH}
           selection={selection}
           annotationsVisible={state.ui.annotationsVisible}

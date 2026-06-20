@@ -2,11 +2,6 @@ import type { Note, Sheet } from "./model/types";
 import { SUB_PER_STEP } from "./model/constants";
 import { totalSteps } from "./model/factory";
 
-/** Pixel width of a note `length` steps long, given a cell width. */
-export function noteWidthPx(length: number, cellW: number): number {
-  return length * cellW + 1;
-}
-
 /** Absolute fractional step position, including the syncopation sub-offset. */
 export function noteFracStart(n: Note): number {
   return n.start + (n.subOffset || 0) / SUB_PER_STEP;

@@ -1,3 +1,4 @@
+import { type GridLayout, stepToX, xToStep } from "./grid-layout";
 import { SUB_PER_STEP } from "./model/constants";
 import { subToLength, subToStart } from "./timing";
 
@@ -15,7 +16,7 @@ export interface DragOrigin {
 }
 
 export interface DragMetrics {
-  cellW: number;
+  layout: GridLayout;
   cellH: number;
   /** Total steps in the sheet (barCount * STEPS_PER_BAR). */
   sheetSteps: number;
@@ -41,8 +42,9 @@ const lenSub = (o: DragOrigin) => o.length * SUB_PER_STEP + o.subLength;
  * group is clamped together so no note leaves the sheet or the part range.
  */
 export function computeMove(items: DragOrigin[], dx: number, dy: number, m: DragMetrics, subGranular: boolean): Map<string, NotePatch> {
-  const subPx = m.cellW / SUB_PER_STEP;
-  let dSub = Math.round(dx / subPx);
+  const refFrac = absSub(items[0]) / SUB_PER_STEP;
+  const targetFrac = xToStep(stepToX(refFrac, m.layout) + dx, m.layout, m.sheetSteps);
+  let dSub = Math.round((targetFrac - refFrac) * SUB_PER_STEP);
   if (!subGranular) dSub = Math.round(dSub / SUB_PER_STEP) * SUB_PER_STEP;
   const dRows = Math.round(dy / m.cellH);
   const sheetSub = m.sheetSteps * SUB_PER_STEP;
@@ -70,8 +72,9 @@ export function computeMove(items: DragOrigin[], dx: number, dy: number, m: Drag
 
 /** Resize the right edge (length) of a group by a pixel delta. */
 export function computeResizeRight(items: DragOrigin[], dx: number, m: DragMetrics, subGranular: boolean): Map<string, NotePatch> {
-  const subPx = m.cellW / SUB_PER_STEP;
-  const dSub = Math.round(dx / subPx);
+  const refFrac = (absSub(items[0]) + lenSub(items[0])) / SUB_PER_STEP;
+  const targetFrac = xToStep(stepToX(refFrac, m.layout) + dx, m.layout, m.sheetSteps);
+  const dSub = Math.round((targetFrac - refFrac) * SUB_PER_STEP);
   const sheetSub = m.sheetSteps * SUB_PER_STEP;
 
   let minLen = Infinity;
@@ -94,8 +97,9 @@ export function computeResizeRight(items: DragOrigin[], dx: number, m: DragMetri
 
 /** Resize the left edge (start + length) of a group by a pixel delta. */
 export function computeResizeLeft(items: DragOrigin[], dx: number, m: DragMetrics, subGranular: boolean): Map<string, NotePatch> {
-  const subPx = m.cellW / SUB_PER_STEP;
-  const dSub = Math.round(dx / subPx);
+  const refFrac = absSub(items[0]) / SUB_PER_STEP;
+  const targetFrac = xToStep(stepToX(refFrac, m.layout) + dx, m.layout, m.sheetSteps);
+  const dSub = Math.round((targetFrac - refFrac) * SUB_PER_STEP);
 
   let minLen = Infinity;
   let dsLo = -Infinity;

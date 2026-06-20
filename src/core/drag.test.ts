@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { computeMove, computeResizeLeft, computeResizeRight, type DragMetrics, type DragOrigin } from "./drag";
+import { layoutFromCellW } from "./grid-layout";
 
-const metrics: DragMetrics = { cellW: 20, cellH: 20, sheetSteps: 16, partLo: 60, partHi: 72 };
+const metrics: DragMetrics = { layout: layoutFromCellW(20), cellH: 20, sheetSteps: 16, partLo: 60, partHi: 72 };
 
 const origin = (over: Partial<DragOrigin> = {}): DragOrigin => ({
   id: "n",

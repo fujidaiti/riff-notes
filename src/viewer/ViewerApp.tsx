@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Mix, Note, Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
+import { barWidth, stepToX } from "../core/grid-layout";
 import { AudioEngine } from "../audio/AudioEngine";
 import { useCellSize } from "../ui/useCellSize";
 import { useCellHover } from "../ui/useCellHover";
@@ -28,7 +29,7 @@ export function ViewerApp() {
   const [hoveredAnnotId, setHoveredAnnotId] = useState<string | null>(null);
 
   const [engine] = useState(() => new AudioEngine());
-  const { cellW, cellH } = useCellSize();
+  const { cellH, layout } = useCellSize();
 
   // Ref attached to the grid area so useCellHover can track pointer events.
   const gridRef = useRef<HTMLDivElement>(null);
@@ -47,7 +48,7 @@ export function ViewerApp() {
       .finally(() => setLoading(false));
   }, []);
 
-  const barW = cellW * STEPS_PER_BAR;
+  const barW = barWidth(layout);
   const paddedBarCount = sheet ? sheet.barCount : 0;
   // `page` is the 0-indexed start bar of the visible window, not a page index.
   const pageBar = page;
@@ -58,7 +59,7 @@ export function ViewerApp() {
   // Hover tooltip + cell highlight. Pass !loading so the enabled flag flips
   // from false→true after the gridArea mounts, triggering the effect to run
   // with a non-null ref.
-  useCellHover(gridRef, cellW, cellH, !loading);
+  useCellHover(gridRef, layout, cellH, !loading);
 
   // Refs so the rAF callback always reads the latest values without stale closures.
   const pageRef = useRef(page);
@@ -212,7 +213,7 @@ export function ViewerApp() {
                     part={part}
                     sheetSteps={sheetSteps}
                     scale={sheet.scale}
-                    cellW={cellW}
+                    layout={layout}
                     cellH={cellH}
                     readOnly
                     annotations={partAnnotations}
@@ -232,7 +233,7 @@ export function ViewerApp() {
                     if (!anchor) return null;
                     const anchorStep = noteFracStart(anchor);
                     if (anchorStep < pageBar * STEPS_PER_BAR || anchorStep >= (pageBar + BARS_PER_PAGE) * STEPS_PER_BAR) return null;
-                    const x = anchorStep * cellW + a.placement.dx + translateX;
+                    const x = stepToX(anchorStep, layout) + a.placement.dx + translateX;
                     const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
                     return (
                       <AnnotationCard

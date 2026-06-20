@@ -4,6 +4,7 @@ import { DEFAULT_VEL, PIANO_MAX, PIANO_MIN, STEPS_PER_BAR } from "../../core/mod
 import { isRhythmPart } from "../../core/model/factory";
 import { uid } from "../../core/model/uid";
 import { computeMove, computeResizeLeft, computeResizeRight, type DragMetrics, type DragOrigin, type NotePatch } from "../../core/drag";
+import { type GridLayout, stepToX, xToStepFloor } from "../../core/grid-layout";
 import { dropForeignPart } from "../../core/selection";
 import type { AudioEngine } from "../../audio/AudioEngine";
 import type { Action, SheetSelection } from "../../state/types";
@@ -103,19 +104,19 @@ export function useGridInteraction(
   sheet: Sheet,
   selection: SheetSelection,
   dispatch: (a: Action) => void,
-  cellW: number,
+  layout: GridLayout,
   cellH: number,
   engine?: AudioEngine,
 ) {
   const [preview, setPreview] = useState<Map<string, NotePatch> | null>(null);
   const drag = useRef<DragState | null>(null);
   const rubber = useRef<RubberState | null>(null);
-  const cfg = useRef({ sheet, selection, dispatch, cellW, cellH, engine });
-  cfg.current = { sheet, selection, dispatch, cellW, cellH, engine };
+  const cfg = useRef({ sheet, selection, dispatch, layout, cellH, engine });
+  cfg.current = { sheet, selection, dispatch, layout, cellH, engine };
 
   const computeFor = useCallback((d: DragState, dx: number, dy: number): Map<string, NotePatch> => {
-    const { cellW: cw, cellH: ch, sheet: sh } = cfg.current;
-    const m: DragMetrics = { cellW: cw, cellH: ch, sheetSteps: sh.barCount * STEPS_PER_BAR, partLo: d.part.lo, partHi: d.part.hi };
+    const { layout: lo, cellH: ch, sheet: sh } = cfg.current;
+    const m: DragMetrics = { layout: lo, cellH: ch, sheetSteps: sh.barCount * STEPS_PER_BAR, partLo: d.part.lo, partHi: d.part.hi };
     if (d.mode === "move") return computeMove(d.origins, dx, dy, m, d.subGranular);
     if (d.mode === "resize-r") return computeResizeRight(d.origins, dx, m, d.subGranular);
     return computeResizeLeft(d.origins, dx, m, d.subGranular);
@@ -151,7 +152,7 @@ export function useGridInteraction(
             gridEl.appendChild(el);
             d.stepHighlight = el;
           }
-          d.stepHighlight.style.left = `${snapStep * cfg.current.cellW}px`;
+          d.stepHighlight.style.left = `${stepToX(snapStep, cfg.current.layout)}px`;
         }
       }
     };
@@ -245,13 +246,13 @@ export function useGridInteraction(
   }, []);
 
   const onGridPointerDown = useCallback((ev: React.PointerEvent) => {
-    const { sheet: sh, dispatch: dsp, cellW: cw, cellH: ch, engine: eng } = cfg.current;
+    const { sheet: sh, dispatch: dsp, layout: lo, cellH: ch, engine: eng } = cfg.current;
     const wrap = ev.currentTarget as HTMLElement;
     const part = sh.parts.find((p) => p.id === wrap.dataset.partId);
     if (!part) return;
     const sheetSteps = sh.barCount * STEPS_PER_BAR;
     const rect = wrap.getBoundingClientRect();
-    const step = Math.floor((ev.clientX - rect.left) / cw);
+    const step = xToStepFloor(ev.clientX - rect.left, lo, sheetSteps);
     const pitch = part.hi - Math.floor((ev.clientY - rect.top) / ch);
     if (step < 0 || step >= sheetSteps) return;
 

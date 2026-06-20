@@ -6,13 +6,15 @@ export const BAND_SIDE_W = 36;
 import { Grid, type GridProps } from "./grid/Grid";
 import styles from "./Band.module.css";
 
-type BandGridProps = Omit<GridProps, "part" | "sheetSteps" | "scale" | "cellW" | "cellH">;
+import type { GridLayout } from "../core/grid-layout";
+
+type BandGridProps = Omit<GridProps, "part" | "sheetSteps" | "scale" | "layout" | "cellH">;
 
 export interface BandProps extends BandGridProps {
   sheet: Sheet;
   part: Part;
   sheetSteps: number;
-  cellW: number;
+  layout: GridLayout;
   cellH: number;
   /** Editor-only: open this part's settings. Omitted in the read-only viewer. */
   onPartClick?: (partId: string) => void;
@@ -64,7 +66,7 @@ function PartMenu({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => 
   );
 }
 
-function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, onPartNameChange, ...gridProps }: BandProps) {
+function BandImpl({ sheet, part, sheetSteps, layout, cellH, onPartClick, onPartRecord, isRecording, onToggleMute, onToggleSolo, onPartDelete, onPartNameChange, ...gridProps }: BandProps) {
   const mix = sheet.mix.parts[part.id];
   const muted = mix?.mute ?? false;
   const soloed = mix?.solo ?? false;
@@ -127,7 +129,7 @@ function BandImpl({ sheet, part, sheetSteps, cellW, cellH, onPartClick, onPartRe
         )}
       </div>
       <div className={styles.scroll}>
-        <Grid part={part} sheetSteps={sheetSteps} scale={sheet.scale} cellW={cellW} cellH={cellH} {...gridProps} />
+        <Grid part={part} sheetSteps={sheetSteps} scale={sheet.scale} layout={layout} cellH={cellH} {...gridProps} />
       </div>
     </div>
   );

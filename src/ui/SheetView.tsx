@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import type { Sheet } from "../core/model/types";
 import { STEPS_PER_BAR } from "../core/model/constants";
+import type { GridLayout } from "../core/grid-layout";
 import { Band, BAND_SIDE_W } from "./Band";
 import { Ruler } from "./Ruler";
 import type { GridProps, NoteRegion } from "./grid/Grid";
@@ -39,7 +40,7 @@ function PartGap({ onInsert }: { onInsert: () => void }) {
 
 export interface SheetViewProps {
   sheet: Sheet;
-  cellW: number;
+  layout: GridLayout;
   cellH: number;
   /** Selection per part is derived from this; omit for a read-only render. */
   selection?: SheetSelection;
@@ -78,7 +79,7 @@ export interface SheetViewProps {
 /** Stack of part lanes for one sheet. Shared by the editor and the viewer. */
 function SheetViewImpl({
   sheet,
-  cellW,
+  layout,
   cellH,
   selection,
   showLabels,
@@ -125,7 +126,7 @@ function SheetViewImpl({
       {onSeek && (
         <Ruler
           barCount={sheet.barCount}
-          cellW={cellW}
+          layout={layout}
           sidebarWidth={BAND_SIDE_W}
           cursorStep={cursorStep}
           getPlayheadStep={getPlayheadStep}
@@ -142,7 +143,7 @@ function SheetViewImpl({
             sheet={sheet}
             part={part}
             sheetSteps={sheetSteps}
-            cellW={cellW}
+            layout={layout}
             cellH={cellH}
             selectedNoteIds={selection?.noteIds}
             selectedCell={cell}
