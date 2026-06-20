@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { RHYTHM_NAMES, SUB_PER_STEP, VEL_LABELS, getInstrument } from "../core/model/constants";
+import { RHYTHM_NAMES, SCALES, SUB_PER_STEP, VEL_LABELS, getInstrument } from "../core/model/constants";
 import { type GridLayout, stepToX, xToStepFloor } from "../core/grid-layout";
 import { pitchName } from "../core/theory";
 
@@ -105,6 +105,17 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, lay
         hover.style.top = `${rect.top + rowIdx * cellH}px`;
         hover.style.width = `${cellW}px`;
         hover.style.height = `${cellH}px`;
+
+        if (!isRhythm) {
+          const root = parseInt(wrap.dataset.scaleRoot ?? "0", 10);
+          const mode = wrap.dataset.scaleMode ?? "major";
+          const intervals = SCALES[mode] ?? SCALES.major;
+          const scaleSet = new Set(intervals.map((i: number) => (i + root) % 12));
+          const pc = ((pitch % 12) + 12) % 12;
+          hover.style.borderRadius = scaleSet.has(pc) ? "0" : "9999px";
+        } else {
+          hover.style.borderRadius = "0";
+        }
       }
       if (annotCardEl) { tip.style.display = "none"; return; }
 

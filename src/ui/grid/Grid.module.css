@@ -29,8 +29,12 @@
   opacity: var(--vel-opacity, 1);
   z-index: -1;
 }
-.inScale::before {
+.whiteKey::before {
   background: var(--note-in-scale);
+}
+.note.outOfScale,
+.note.outOfScale::before {
+  border-radius: 9999px;
 }
 .drumHihat::before {
   background: #e3c44a;
@@ -83,6 +87,9 @@
   border: 2px solid var(--note-sel-outline);
   pointer-events: none;
   z-index: 1;
+}
+.cellSelected.outOfScale {
+  border-radius: 9999px;
 }
 
 .playhead {

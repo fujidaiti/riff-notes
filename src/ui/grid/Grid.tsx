@@ -2,7 +2,7 @@ import { memo, useState, type CSSProperties, type MouseEvent as ReactMouseEvent,
 import type { Annotation, Note, Part, Scale } from "../../core/model/types";
 import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
-import { inScaleSet, noteScaleClass } from "../../core/theory";
+import { inScaleSet, isBlackKey, noteScaleClass } from "../../core/theory";
 import { noteFracLength, noteFracStart } from "../../core/timing";
 import { type GridLayout, gridTotalWidth, noteWidthPx, sepWidthBefore, stepToX } from "../../core/grid-layout";
 import { computeLabelPlacements } from "../../core/labels";
@@ -132,6 +132,8 @@ function GridImpl({
       data-part-hi={part.hi}
       data-part-lo={part.lo}
       data-instrument={part.instrument}
+      data-scale-root={scale.root}
+      data-scale-mode={scale.mode}
       onPointerDown={readOnly ? undefined : onGridPointerDown}
     >
       <SeparatorLayer totalSteps={sheetSteps} layout={layout} />
@@ -146,7 +148,8 @@ function GridImpl({
           styles.note,
           (!readOnly || !!onNoteClick) && styles.interactive,
           rhythm && drumClass(part, n.pitch),
-          noteScaleClass(scaleSet, part, n.pitch) === "in-scale" && styles.inScale,
+          !rhythm && !isBlackKey(n.pitch) && styles.whiteKey,
+          !rhythm && noteScaleClass(scaleSet, part, n.pitch) !== "in-scale" && styles.outOfScale,
           selectedNoteIds?.has(n.id) && styles.selected,
           annotHighlightedNoteIds?.has(n.id) && styles.annotActive,
         ]
@@ -207,7 +210,10 @@ function GridImpl({
         selectedCell.step >= 0 &&
         selectedCell.step < sheetSteps && (
           <div
-            className={styles.cellSelected}
+            className={[
+              styles.cellSelected,
+              !rhythm && noteScaleClass(scaleSet, part, selectedCell.pitch) !== "in-scale" && styles.outOfScale,
+            ].filter(Boolean).join(" ")}
             style={{
               left: stepToX(selectedCell.step, layout),
               top: (part.hi - selectedCell.pitch) * cellH,

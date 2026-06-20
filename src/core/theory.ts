@@ -21,6 +21,13 @@ export function inScaleSet(scale: Scale): Set<number> {
   return new Set(intervals.map((i) => (i + scale.root) % 12));
 }
 
+const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
+
+/** True if the MIDI pitch corresponds to a black piano key (Db, Eb, F#, Ab, Bb). */
+export function isBlackKey(pitch: number): boolean {
+  return BLACK_KEY_PCS.has(((pitch % 12) + 12) % 12);
+}
+
 /**
  * Whether a pitch in a part is in-scale. Drum (rhythm) parts have no scale
  * coloring. Returns a semantic token rather than a CSS class so core stays
