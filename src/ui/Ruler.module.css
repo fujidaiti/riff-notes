@@ -25,16 +25,6 @@
   cursor: crosshair;
   user-select: none;
   background-color: var(--sheet-bg);
-  background-image:
-    linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
-    linear-gradient(to right, var(--ruler-tick, var(--line)) 1px, transparent 1px),
-    linear-gradient(to right, var(--ruler-tick-soft, var(--line-soft)) 1px, transparent 1px);
-  background-size:
-    calc(var(--cell-w) * 16) 100%,
-    calc(var(--cell-w) * 4) 100%,
-    var(--cell-w) 100%;
-  background-position: 0 0, 0 0, 0 0;
-  background-repeat: repeat-x;
 }
 .barLabel {
   position: absolute;
@@ -45,8 +35,8 @@
   padding-left: 4px;
   font-size: 11px;
   color: var(--ink-muted);
-  border-left: 1px solid var(--sheet-border);
   box-sizing: border-box;
+  z-index: 1;
 }
 .barActions {
   display: flex;

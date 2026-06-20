@@ -1,6 +1,7 @@
 import type { Part } from "./model/types";
 import { PITCH_NAMES, STEPS_PER_BAR } from "./model/constants";
-import { noteFracLength, noteFracStart, noteWidthPx } from "./timing";
+import { type GridLayout, gridTotalWidth, stepToX } from "./grid-layout";
+import { noteFracLength, noteFracStart } from "./timing";
 
 export const LABEL_W = 14;
 export const LABEL_H = 12;
@@ -37,8 +38,8 @@ interface Box {
  * Suppressed notes still participate in collision avoidance so rendered labels
  * never overlap an unlabeled note.
  */
-export function computeLabelPlacements(part: Part, sheetSteps: number, cellW: number, cellH: number): LabelPlacement[] {
-  const wrapW = sheetSteps * cellW;
+export function computeLabelPlacements(part: Part, sheetSteps: number, layout: GridLayout, cellH: number): LabelPlacement[] {
+  const wrapW = gridTotalWidth(sheetSteps, layout);
   const wrapH = (part.hi - part.lo + 1) * cellH;
 
   const boxes: Box[] = part.notes
@@ -47,9 +48,9 @@ export function computeLabelPlacements(part: Part, sheetSteps: number, cellW: nu
       noteId: n.id,
       pitch: n.pitch,
       start: n.start,
-      x: noteFracStart(n) * cellW,
+      x: stepToX(noteFracStart(n), layout),
       y: (part.hi - n.pitch) * cellH,
-      w: noteWidthPx(noteFracLength(n), cellW),
+      w: noteFracLength(n) * layout.cellW,
       h: cellH,
     }));
   boxes.sort((a, b) => a.x - b.x || b.pitch - a.pitch);

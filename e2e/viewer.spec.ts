@@ -340,12 +340,15 @@ test("5-bar sheet: next is disabled on the last page", async ({ page }) => {
 test("5-bar sheet: grid is 5 bars wide", async ({ page }) => {
   await load5BarViewer(page);
 
-  // Read cell width from the CSS custom property set on :root.
-  const cellW = await page.evaluate(() =>
-    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w"))
-  );
-  const STEPS_PER_BAR = 16;
-  const expectedGridW = 5 * STEPS_PER_BAR * cellW; // barCount=5, no padding
+  // Read cell width and separator widths from the DOM to compute the expected total.
+  const expectedGridW = await page.evaluate(() => {
+    const cellW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell-w")) || 22;
+    const totalSteps = 5 * 16; // barCount=5
+    const nBars  = Math.floor(totalSteps / 16);
+    const nBeats = Math.floor(totalSteps / 4) - nBars;
+    const nSteps = totalSteps - Math.floor(totalSteps / 4);
+    return 8 + totalSteps * cellW + nBars * 8 + nBeats * 4 + nSteps * 1; // stepToX(totalSteps)
+  });
 
   const gridW = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>("[data-part-id]");

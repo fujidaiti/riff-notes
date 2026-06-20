@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { STEPS_PER_BAR } from "../core/model/constants";
+import { type GridLayout, barWidth, gridTotalWidth, stepToX, xToStepFloor } from "../core/grid-layout";
+import { SeparatorLayer } from "./grid/SeparatorLayer";
 import styles from "./Ruler.module.css";
 
 /** Animated playhead tick inside the ruler — rAF-driven, no React re-renders. */
-function RulerPlayhead({ getStep, cellW }: { getStep: () => number | null; cellW: number }) {
+function RulerPlayhead({ getStep, layout }: { getStep: () => number | null; layout: GridLayout }) {
   const lineRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let rafId: number;
@@ -15,20 +17,20 @@ function RulerPlayhead({ getStep, cellW }: { getStep: () => number | null; cellW
           el.style.display = "none";
         } else {
           el.style.display = "block";
-          el.style.left = `${step * cellW}px`;
+          el.style.left = `${stepToX(step, layout)}px`;
         }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [getStep, cellW]);
+  }, [getStep, layout]);
   return <div ref={lineRef} className={styles.playhead} style={{ display: "none" }} />;
 }
 
 export interface RulerProps {
   barCount: number;
-  cellW: number;
+  layout: GridLayout;
   /** Must match the Band sidebar width so bar numbers align with grid columns. */
   sidebarWidth: number;
   /** Step the cursor is at when stopped or paused (shown as a start marker). */
@@ -42,15 +44,16 @@ export interface RulerProps {
   onRemoveBar?: () => void;
 }
 
-export function Ruler({ barCount, cellW, sidebarWidth, cursorStep, getPlayheadStep, onSeek, onAddBar, onRemoveBar }: RulerProps) {
-  const barW = cellW * STEPS_PER_BAR;
-  const totalW = barCount * barW;
+export function Ruler({ barCount, layout, sidebarWidth, cursorStep, getPlayheadStep, onSeek, onAddBar, onRemoveBar }: RulerProps) {
+  const totalSteps = barCount * STEPS_PER_BAR;
+  const bw = barWidth(layout);
+  const totalW = gridTotalWidth(totalSteps, layout);
 
   const handleClick = (ev: React.MouseEvent<HTMLDivElement>) => {
     if (!onSeek) return;
     const rect = ev.currentTarget.getBoundingClientRect();
-    const step = Math.floor((ev.clientX - rect.left) / cellW);
-    onSeek(Math.max(0, Math.min(step, barCount * STEPS_PER_BAR - 1)));
+    const step = xToStepFloor(ev.clientX - rect.left, layout, totalSteps);
+    onSeek(Math.max(0, Math.min(step, totalSteps - 1)));
   };
 
   return (
@@ -61,15 +64,16 @@ export function Ruler({ barCount, cellW, sidebarWidth, cursorStep, getPlayheadSt
         style={{ width: totalW }}
         onClick={handleClick}
       >
+        <SeparatorLayer totalSteps={totalSteps} layout={layout} />
         {Array.from({ length: barCount }, (_, i) => (
-          <div key={i} className={styles.barLabel} style={{ left: i * barW, width: barW }}>
+          <div key={i} className={styles.barLabel} style={{ left: stepToX(i * STEPS_PER_BAR, layout), width: bw }}>
             {i + 1}
           </div>
         ))}
         {cursorStep != null && (
-          <div className={styles.cursor} style={{ left: cursorStep * cellW }} />
+          <div className={styles.cursor} style={{ left: stepToX(cursorStep, layout) }} />
         )}
-        {getPlayheadStep && <RulerPlayhead getStep={getPlayheadStep} cellW={cellW} />}
+        {getPlayheadStep && <RulerPlayhead getStep={getPlayheadStep} layout={layout} />}
       </div>
       {(onAddBar || onRemoveBar) && (
         <div className={styles.barActions}>

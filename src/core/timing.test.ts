@@ -4,7 +4,6 @@ import {
   noteFracStart,
   noteLengthSub,
   noteStartSub,
-  noteWidthPx,
   shiftNoteSubOffset,
   subToLength,
   subToStart,
@@ -30,9 +29,6 @@ describe("fractional helpers", () => {
   });
   it("noteFracLength adds the sub-length", () => {
     expect(noteFracLength(note({ length: 2, subLength: 1 }))).toBe(2.25);
-  });
-  it("noteWidthPx is length*cellW + 1", () => {
-    expect(noteWidthPx(2, 22)).toBe(45);
   });
   it("sub accessors", () => {
     expect(noteStartSub(note({ start: 2, subOffset: 3 }))).toBe(11);

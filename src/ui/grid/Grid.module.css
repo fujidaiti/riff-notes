@@ -1,23 +1,9 @@
 /* The bar grid. Notes are absolutely positioned inside .wrap; the grid lines
-   are drawn by a CSS-gradient ::after so there is one element per note, not one
-   per cell. Identical in the editor and the read-only viewer. */
+   are rendered by SeparatorLayer (a flex row of bar/beat/step separator divs).
+   Identical in the editor and the read-only viewer. */
 .wrap {
   position: relative;
   background: var(--sheet-bg);
-}
-.wrap::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, var(--line-strong) 1px, transparent 1px),
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to right, var(--grid-line-soft) 1px, transparent 1px);
-  background-size:
-    calc(var(--cell-w) * 16) 100%,
-    calc(var(--cell-w) * 4) 100%,
-    var(--cell-w) 100%;
 }
 
 .row {

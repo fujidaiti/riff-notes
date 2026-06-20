@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
+import { type GridLayout, makeLayout } from "../core/grid-layout";
 
 export interface CellSize {
   cellW: number;
   cellH: number;
+  layout: GridLayout;
 }
 
 function read(): CellSize {
-  if (typeof window === "undefined") return { cellW: 22, cellH: 22 };
+  if (typeof window === "undefined") {
+    return { cellW: 22, cellH: 22, layout: makeLayout(22) };
+  }
   const cs = getComputedStyle(document.documentElement);
   const cellW = parseFloat(cs.getPropertyValue("--cell-w")) || 22;
   const cellH = parseFloat(cs.getPropertyValue("--cell-h")) || 22;
-  return { cellW, cellH };
+  return { cellW, cellH, layout: makeLayout(cellW) };
 }
 
 /**

@@ -1,0 +1,13 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.barSep  { background: var(--line-strong); height: 100%; flex: 0 0 auto; }
+.beatSep { background: var(--grid-line); height: 100%; flex: 0 0 auto; }
+.stepSep { background: var(--grid-line-soft); height: 100%; flex: 0 0 auto; }
+.cell    { height: 100%; flex: 0 0 auto; }
