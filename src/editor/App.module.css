@@ -60,6 +60,7 @@
   overflow: auto;
   padding: 16px;
   overscroll-behavior-x: none;
+  --sheet-bg: transparent;
 }
 button,
 input,
