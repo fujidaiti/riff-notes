@@ -260,15 +260,9 @@ export function App() {
           <span className={styles.spacer} />
           <label className={styles.field}>
             BPM
-            <input
-              type="text"
-              inputMode="numeric"
-              style={{ width: 48 }}
-              value={sheet.bpm}
-              onChange={(e) => {
-                const bpm = Math.max(20, Math.min(300, parseInt(e.target.value, 10) || sheet.bpm));
-                dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { bpm } });
-              }}
+            <BpmInput
+              bpm={sheet.bpm}
+              onCommit={(bpm) => dispatch({ type: "SET_SHEET_FIELDS", sheetId: sheet.id, fields: { bpm } })}
             />
           </label>
           <label className={styles.field}>
@@ -328,3 +322,43 @@ export function App() {
     </div>
   );
 }
+
+function BpmInput({ bpm, onCommit }: { bpm: number; onCommit: (bpm: number) => void }) {
+  const [draft, setDraft] = useState(String(bpm));
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setDraft(String(bpm));
+  }, [bpm, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = parseInt(draft, 10);
+    if (Number.isNaN(parsed)) {
+      setDraft(String(bpm));
+      return;
+    }
+    const clamped = Math.max(20, Math.min(300, parsed));
+    setDraft(String(clamped));
+    if (clamped !== bpm) onCommit(clamped);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      style={{ width: 48 }}
+      data-testid="bpm-input"
+      value={draft}
+      onFocus={() => setEditing(true)}
+      onChange={(e) => {
+        setEditing(true);
+        setDraft(e.target.value.replace(/[^0-9]/g, ""));
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+    />
+  );
+}
+
