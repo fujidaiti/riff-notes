@@ -1,0 +1,4628 @@
+{
+  "version": 1,
+  "name": "Smile Meditation",
+  "sheets": [
+    {
+      "id": "4-ibdw",
+      "title": "intro",
+      "notes": "",
+      "bpm": 103,
+      "scale": {
+        "root": 3,
+        "mode": "major"
+      },
+      "barCount": 3,
+      "parts": [
+        {
+          "id": "3-ibdw",
+          "name": "Woody",
+          "lo": 55,
+          "hi": 65,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "1e-ljmf",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 0,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1f-ljmi",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 0,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1g-ljmj",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 0,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1h-lk2j",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 4,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1i-lk2m",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 4,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1j-lk2p",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 4,
+              "length": 2,
+              "vel": 0,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1k-lki4",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 8,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1l-lki9",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 8,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1m-lkie",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 8,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1n-lkxa",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 12,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1o-lkxh",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 12,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1p-lkxo",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 12,
+              "length": 2,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1q-llcg",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1r-llcl",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1s-llco",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1t-llsp",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1u-llsr",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1v-llst",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1w-lm8r",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1x-lm8v",
+              "partId": "3-ibdw",
+              "pitch": 63,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1y-lm8y",
+              "partId": "3-ibdw",
+              "pitch": 60,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1z-lmot",
+              "partId": "3-ibdw",
+              "pitch": 65,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "20-lmoy",
+              "partId": "3-ibdw",
+              "pitch": 59,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "21-lmp3",
+              "partId": "3-ibdw",
+              "pitch": 56,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3w-soly",
+              "partId": "3-ibdw",
+              "pitch": 58,
+              "start": 32,
+              "length": 8,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3x-soly",
+              "partId": "3-ibdw",
+              "pitch": 55,
+              "start": 32,
+              "length": 8,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3y-soly",
+              "partId": "3-ibdw",
+              "pitch": 62,
+              "start": 32,
+              "length": 8,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        }
+      ],
+      "mix": {
+        "master": {
+          "vol": 1,
+          "mute": false
+        },
+        "parts": {
+          "3-ibdw": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          }
+        }
+      },
+      "annotations": []
+    },
+    {
+      "id": "3z-wnhq",
+      "title": "verse",
+      "notes": "",
+      "bpm": 103,
+      "scale": {
+        "root": 3,
+        "mode": "major"
+      },
+      "barCount": 4,
+      "parts": [
+        {
+          "id": "3y-wnhq",
+          "name": "Woody",
+          "lo": 53,
+          "hi": 65,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "5c-z6a9",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5d-z6ai",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5e-z6ak",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5f-z6q6",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5g-z6qd",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5h-z6qj",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5i-z74p",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5j-z751",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5k-z757",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5l-z7kk",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5m-z7kq",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5n-z7ks",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5o-z7z3",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5p-z7z6",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5q-z7za",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5r-z8f9",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5s-z8fe",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5t-z8fi",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5u-z8v4",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5v-z8v7",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5w-z8v9",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5x-z9bf",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5y-z9bj",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5z-z9bv",
+              "partId": "3y-wnhq",
+              "pitch": 60,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "60-z9rt",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 32,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "61-z9s0",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 32,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "62-z9s2",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 32,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "63-za70",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 36,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "64-za75",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 36,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "65-za7f",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 36,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "66-zak1",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 40,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "67-zak6",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 40,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "68-zakb",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 40,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "69-zazq",
+              "partId": "3y-wnhq",
+              "pitch": 58,
+              "start": 44,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6a-zazu",
+              "partId": "3y-wnhq",
+              "pitch": 55,
+              "start": 44,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6b-zazw",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 44,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6c-zbet",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 48,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6d-zbev",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 48,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6e-zbf4",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 48,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6f-zbui",
+              "partId": "3y-wnhq",
+              "pitch": 62,
+              "start": 52,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6g-zbuk",
+              "partId": "3y-wnhq",
+              "pitch": 53,
+              "start": 52,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6h-zbum",
+              "partId": "3y-wnhq",
+              "pitch": 57,
+              "start": 52,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6i-zcb6",
+              "partId": "3y-wnhq",
+              "pitch": 63,
+              "start": 56,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6j-zcb8",
+              "partId": "3y-wnhq",
+              "pitch": 56,
+              "start": 56,
+              "length": 4,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6k-zcbx",
+              "partId": "3y-wnhq",
+              "pitch": 60,
+              "start": 56,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6l-zcqg",
+              "partId": "3y-wnhq",
+              "pitch": 56,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6m-zcqr",
+              "partId": "3y-wnhq",
+              "pitch": 65,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6n-zcr2",
+              "partId": "3y-wnhq",
+              "pitch": 59,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "h-7tgq",
+          "name": "Joe",
+          "lo": 27,
+          "hi": 44,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "i-8j48",
+              "partId": "h-7tgq",
+              "pitch": 27,
+              "start": 7,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "j-8j48",
+              "partId": "h-7tgq",
+              "pitch": 39,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "k-8j48",
+              "partId": "h-7tgq",
+              "pitch": 39,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "l-8j48",
+              "partId": "h-7tgq",
+              "pitch": 41,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "m-8j48",
+              "partId": "h-7tgq",
+              "pitch": 41,
+              "start": 24,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "n-8j48",
+              "partId": "h-7tgq",
+              "pitch": 41,
+              "start": 28,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "o-8j48",
+              "partId": "h-7tgq",
+              "pitch": 27,
+              "start": 39,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "p-8j48",
+              "partId": "h-7tgq",
+              "pitch": 39,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "q-8j48",
+              "partId": "h-7tgq",
+              "pitch": 39,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "r-8j48",
+              "partId": "h-7tgq",
+              "pitch": 41,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "s-8j48",
+              "partId": "h-7tgq",
+              "pitch": 44,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "t-8j48",
+              "partId": "h-7tgq",
+              "pitch": 44,
+              "start": 60,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "6h-c6s2",
+          "name": "Jack",
+          "lo": 0,
+          "hi": 2,
+          "instrument": "drum",
+          "notes": [
+            {
+              "id": "7w-eb6w",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "7x-ecdx",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 4,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "7y-ed0m",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "7z-edrw",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 12,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "80-eed6",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "81-eeyz",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 20,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "82-ehyt",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "83-eigf",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "84-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "85-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 36,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "86-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "87-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 44,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "88-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "89-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 1,
+              "start": 52,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8a-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8b-elg8",
+              "partId": "6h-c6s2",
+              "pitch": 0,
+              "start": 60,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        }
+      ],
+      "mix": {
+        "master": {
+          "vol": 1,
+          "mute": false
+        },
+        "parts": {
+          "3y-wnhq": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "h-7tgq": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "6h-c6s2": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          }
+        }
+      },
+      "annotations": []
+    },
+    {
+      "id": "4-d7ju",
+      "title": "pre-chorus",
+      "notes": "",
+      "bpm": 103,
+      "scale": {
+        "root": 3,
+        "mode": "major"
+      },
+      "barCount": 4,
+      "parts": [
+        {
+          "id": "3-d7ju",
+          "name": "Part 1",
+          "lo": 53,
+          "hi": 65,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "1p-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 56,
+              "start": 32,
+              "length": 3,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1q-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 63,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1r-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 60,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1s-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 56,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1t-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 63,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1u-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 60,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1v-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 56,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1w-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 63,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1x-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 60,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1y-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 56,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1z-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 63,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "20-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 60,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "21-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "22-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "23-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "24-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 50,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "25-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 50,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "26-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 50,
+              "length": 0,
+              "vel": 1,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "27-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "28-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "29-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "2a-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "2b-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "2c-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "2d-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 63,
+              "start": 56,
+              "length": 3,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2e-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2f-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2g-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 59,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2h-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 65,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2i-ml2a",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "41-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 58,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "42-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "43-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "44-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 58,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "45-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "46-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 4,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "47-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 58,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "48-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "49-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4a-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 58,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4b-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4c-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 55,
+              "start": 12,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4d-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 57,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4e-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 53,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4f-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4g-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 53,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4h-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 57,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4i-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4j-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 53,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4k-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 62,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4l-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 57,
+              "start": 24,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4m-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 53,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4n-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 57,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4o-nsoi",
+              "partId": "3-d7ju",
+              "pitch": 60,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "2-0w94",
+          "name": "Joe",
+          "lo": 27,
+          "hi": 44,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "u-cjsc",
+              "partId": "2-0w94",
+              "pitch": 27,
+              "start": 7,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "v-cjsc",
+              "partId": "2-0w94",
+              "pitch": 39,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "w-cjsc",
+              "partId": "2-0w94",
+              "pitch": 39,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "x-cjsc",
+              "partId": "2-0w94",
+              "pitch": 41,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "y-cjsc",
+              "partId": "2-0w94",
+              "pitch": 41,
+              "start": 24,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "z-cjsc",
+              "partId": "2-0w94",
+              "pitch": 41,
+              "start": 28,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "10-cjsc",
+              "partId": "2-0w94",
+              "pitch": 27,
+              "start": 39,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "11-cjsc",
+              "partId": "2-0w94",
+              "pitch": 39,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "12-cjsc",
+              "partId": "2-0w94",
+              "pitch": 39,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "14-cjsc",
+              "partId": "2-0w94",
+              "pitch": 44,
+              "start": 32,
+              "length": 15,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "16-dmak",
+              "partId": "2-0w94",
+              "pitch": 43,
+              "start": 48,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "18-dtrq",
+              "partId": "2-0w94",
+              "pitch": 39,
+              "start": 56,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "19-dvbl",
+              "partId": "2-0w94",
+              "pitch": 38,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1b-ehdb",
+              "partId": "2-0w94",
+              "pitch": 41,
+              "start": 52,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "8d-fam3",
+          "name": "Jack",
+          "lo": 0,
+          "hi": 2,
+          "instrument": "drum",
+          "notes": [
+            {
+              "id": "8e-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8f-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 4,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8g-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8h-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 12,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8i-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8j-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 20,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8k-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8l-fjn1",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8m-fl99",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8n-fl99",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 36,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8o-fl99",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8p-fl99",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 44,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8q-fl99",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8r-fl99",
+              "partId": "8d-fam3",
+              "pitch": 1,
+              "start": 52,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8s-fl99",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8t-fl99",
+              "partId": "8d-fam3",
+              "pitch": 0,
+              "start": 60,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        }
+      ],
+      "mix": {
+        "master": {
+          "vol": 1,
+          "mute": false
+        },
+        "parts": {
+          "3-d7ju": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "2-0w94": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "8d-fam3": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          }
+        }
+      },
+      "annotations": []
+    },
+    {
+      "id": "4s-rn5o",
+      "title": "chorus",
+      "notes": "",
+      "bpm": 103,
+      "scale": {
+        "root": 3,
+        "mode": "major"
+      },
+      "barCount": 8,
+      "parts": [
+        {
+          "id": "4r-rn5o",
+          "name": "Woody",
+          "lo": 53,
+          "hi": 67,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "2k-xcx3",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2l-xcx9",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2m-xcxd",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2n-xdd3",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2o-xdda",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2p-xddg",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2q-xds1",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 8,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2r-xds5",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 8,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2s-xdsa",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 8,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2t-xe6w",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 12,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2u-xe73",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 12,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2v-xe78",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 12,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2w-xem5",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 16,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2x-xema",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 16,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2y-xemg",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 16,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2z-xf1l",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 20,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "30-xf1r",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 20,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "31-xf1x",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 20,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "32-xfhf",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 24,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "33-xfho",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 24,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "34-xfhz",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 24,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "35-xfvq",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 28,
+              "length": 1,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "36-xfvw",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 28,
+              "length": 1,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "37-xfvz",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "38-xg0q",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 29,
+              "length": 3,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "39-xg0t",
+              "partId": "4r-rn5o",
+              "pitch": 57,
+              "start": 29,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3a-xg0x",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 29,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3b-xgcu",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3c-xgd0",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3d-xgd2",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3e-xgs2",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3f-xgs5",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3g-xgsc",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3h-xh71",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3i-xh74",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3j-xh76",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 40,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3k-xhme",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3l-xhmn",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3m-xhmp",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 44,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "d-0xkz",
+              "partId": "4r-rn5o",
+              "pitch": 67,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "e-0xlf",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "f-0xlm",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 48,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "g-0xt6",
+              "partId": "4r-rn5o",
+              "pitch": 65,
+              "start": 50,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "h-0xtc",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 50,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "i-0xtf",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 50,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "j-0y0l",
+              "partId": "4r-rn5o",
+              "pitch": 67,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "k-0y0w",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "l-0y0y",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 52,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "m-0y84",
+              "partId": "4r-rn5o",
+              "pitch": 65,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "n-0y8e",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "o-0y8r",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 54,
+              "length": 0,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "p-0yg2",
+              "partId": "4r-rn5o",
+              "pitch": 65,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "q-0yg5",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "r-0ygb",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "s-0yv7",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 60,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "t-0yva",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 60,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "u-0yvf",
+              "partId": "4r-rn5o",
+              "pitch": 65,
+              "start": 60,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "v-125i",
+              "partId": "4r-rn5o",
+              "pitch": 67,
+              "start": 56,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "w-1353",
+              "partId": "4r-rn5o",
+              "pitch": 67,
+              "start": 60,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "28-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 64,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "29-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 64,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2a-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 64,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2b-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 68,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2c-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 68,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2d-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 68,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2e-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 72,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2f-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 72,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2g-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 72,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2h-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 76,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2i-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 76,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2j-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 53,
+              "start": 76,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2k-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 80,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2l-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 80,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2m-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 80,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2n-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 84,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2o-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 55,
+              "start": 84,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2p-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 84,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2q-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 88,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2r-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 88,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2s-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 54,
+              "start": 88,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2t-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 58,
+              "start": 92,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2u-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 54,
+              "start": 92,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2v-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 92,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2w-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 96,
+              "length": 2,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2x-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 96,
+              "length": 2,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2y-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 96,
+              "length": 2,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "2z-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 100,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "30-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 100,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "31-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 100,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "32-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 104,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "33-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 104,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "34-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 104,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "35-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 108,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "36-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 108,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "37-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 108,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "38-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 112,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "39-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 112,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3a-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 112,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3b-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 116,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3c-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 62,
+              "start": 116,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3d-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 116,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3e-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 120,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3f-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 63,
+              "start": 120,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3g-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 60,
+              "start": 120,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3h-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 65,
+              "start": 124,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3i-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 59,
+              "start": 124,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3j-zguw",
+              "partId": "4r-rn5o",
+              "pitch": 56,
+              "start": 124,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "1d-knww",
+          "name": "Joe",
+          "lo": 36,
+          "hi": 43,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "1e-obsm",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 0,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1f-p55s",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 8,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1g-p7tj",
+              "partId": "1d-knww",
+              "pitch": 39,
+              "start": 16,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1h-pc1p",
+              "partId": "1d-knww",
+              "pitch": 39,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1i-pn0p",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 29,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1j-q548",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 6,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1k-qj44",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 14,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1l-rucv",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 32,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1m-rucv",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 40,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1n-rucv",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 38,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1o-rucv",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 46,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1p-skaq",
+              "partId": "1d-knww",
+              "pitch": 43,
+              "start": 48,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1q-sr68",
+              "partId": "1d-knww",
+              "pitch": 41,
+              "start": 52,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1r-tcm9",
+              "partId": "1d-knww",
+              "pitch": 39,
+              "start": 56,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "1t-tj4v",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3y-1mg0",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 64,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "3z-1mg0",
+              "partId": "1d-knww",
+              "pitch": 38,
+              "start": 72,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "40-1mg0",
+              "partId": "1d-knww",
+              "pitch": 39,
+              "start": 80,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "42-1mg0",
+              "partId": "1d-knww",
+              "pitch": 42,
+              "start": 88,
+              "length": 7,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "43-1mg0",
+              "partId": "1d-knww",
+              "pitch": 36,
+              "start": 70,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "8v-fom8",
+          "name": "Jack",
+          "lo": 0,
+          "hi": 2,
+          "instrument": "drum",
+          "notes": [
+            {
+              "id": "8w-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8x-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 4,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8y-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "8z-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 12,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "90-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "91-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 20,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "92-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "93-fxs7",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "94-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "95-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 36,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "96-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "97-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 44,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "98-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "99-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 52,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "9a-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "9b-fzfy",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 60,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "49-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 64,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4a-66eh",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 68,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4b-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 72,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4c-66eh",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 76,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4d-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 80,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4e-66eh",
+              "partId": "8v-fom8",
+              "pitch": 1,
+              "start": 84,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4f-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 88,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4g-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 92,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4h-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 96,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4i-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 100,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4j-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 104,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4k-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 108,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4l-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 112,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4m-66eh",
+              "partId": "8v-fom8",
+              "pitch": 0,
+              "start": 116,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        }
+      ],
+      "mix": {
+        "master": {
+          "vol": 1,
+          "mute": false
+        },
+        "parts": {
+          "4r-rn5o": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "1d-knww": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "8v-fom8": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          }
+        }
+      },
+      "annotations": []
+    },
+    {
+      "id": "42-ygbo",
+      "title": "outro",
+      "notes": "",
+      "bpm": 103,
+      "scale": {
+        "root": 3,
+        "mode": "major"
+      },
+      "barCount": 4,
+      "parts": [
+        {
+          "id": "41-ygbo",
+          "name": "Woody",
+          "lo": 55,
+          "hi": 65,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "43-z4p6",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "44-z4ph",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "45-z4pr",
+              "partId": "41-ygbo",
+              "pitch": 62,
+              "start": 0,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "46-z559",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "47-z55o",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "48-z55q",
+              "partId": "41-ygbo",
+              "pitch": 62,
+              "start": 4,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "49-z5lf",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4a-z5lj",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4b-z5lx",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4c-z5te",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 10,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4d-z5tk",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 10,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4e-z5tu",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 10,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4f-z68v",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 14,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4g-z68z",
+              "partId": "41-ygbo",
+              "pitch": 65,
+              "start": 14,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4h-z699",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 14,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4i-z6vp",
+              "partId": "41-ygbo",
+              "pitch": 65,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "4j-z6vs",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 3
+            },
+            {
+              "id": "4k-z6we",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 20,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 2
+            },
+            {
+              "id": "4l-z7bp",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4m-z7bs",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4n-z7cd",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4o-z7s7",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4p-z7sa",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "4q-z7t0",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 28,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5m-459v",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 32,
+              "length": 3,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5n-459v",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5o-459v",
+              "partId": "41-ygbo",
+              "pitch": 62,
+              "start": 32,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5p-459v",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5q-459v",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5r-459v",
+              "partId": "41-ygbo",
+              "pitch": 62,
+              "start": 36,
+              "length": 3,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5s-459v",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5t-459v",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5u-459v",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5v-459v",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 42,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5w-459v",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 42,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5x-459v",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 42,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5y-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 46,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "5z-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 65,
+              "start": 46,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "60-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 46,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "61-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 65,
+              "start": 51,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 3,
+              "subLength": 2
+            },
+            {
+              "id": "62-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 51,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 3,
+              "subLength": 3
+            },
+            {
+              "id": "63-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 51,
+              "length": 2,
+              "vel": 2,
+              "subOffset": 3,
+              "subLength": 2
+            },
+            {
+              "id": "64-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "65-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "66-4nsq",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6a-5pd5",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 58,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6b-5pd5",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 58,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6c-5pd5",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 58,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6d-5v6r",
+              "partId": "41-ygbo",
+              "pitch": 56,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6e-5v6r",
+              "partId": "41-ygbo",
+              "pitch": 63,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "6f-5v6r",
+              "partId": "41-ygbo",
+              "pitch": 60,
+              "start": 60,
+              "length": 4,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "b7-o7dy",
+          "name": "Joe",
+          "lo": 39,
+          "hi": 46,
+          "instrument": "epiano",
+          "notes": [
+            {
+              "id": "bh-p42v",
+              "partId": "b7-o7dy",
+              "pitch": 44,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bi-p4ba",
+              "partId": "b7-o7dy",
+              "pitch": 41,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bj-p4xz",
+              "partId": "b7-o7dy",
+              "pitch": 41,
+              "start": 14,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bk-p559",
+              "partId": "b7-o7dy",
+              "pitch": 46,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bl-p5t4",
+              "partId": "b7-o7dy",
+              "pitch": 46,
+              "start": 22,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bm-p60f",
+              "partId": "b7-o7dy",
+              "pitch": 39,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bn-p6nn",
+              "partId": "b7-o7dy",
+              "pitch": 39,
+              "start": 30,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bv-sj8r",
+              "partId": "b7-o7dy",
+              "pitch": 44,
+              "start": 6,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bw-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 44,
+              "start": 32,
+              "length": 1,
+              "vel": 3,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bx-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 41,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "by-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 41,
+              "start": 46,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "bz-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 46,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "c0-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 46,
+              "start": 54,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "c1-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 39,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "c2-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 39,
+              "start": 62,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "c3-u0e3",
+              "partId": "b7-o7dy",
+              "pitch": 44,
+              "start": 38,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        },
+        {
+          "id": "ah-jwr7",
+          "name": "Jack",
+          "lo": 0,
+          "hi": 2,
+          "instrument": "drum",
+          "notes": [
+            {
+              "id": "ai-k745",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 0,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "aj-k86l",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 4,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "ak-kban",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 6,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "al-kbxb",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 8,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "am-kcxx",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 12,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "ap-klb1",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 16,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "aq-klb1",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 20,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "ar-klb1",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 22,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "as-klb1",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 24,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "at-klb1",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 28,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "au-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 32,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "av-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 36,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "aw-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 38,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "ax-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 40,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "ay-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 44,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "az-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 48,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b0-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 52,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b1-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 54,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b2-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 56,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b3-ku1n",
+              "partId": "ah-jwr7",
+              "pitch": 1,
+              "start": 60,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b4-lpea",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 30,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            },
+            {
+              "id": "b5-m3kz",
+              "partId": "ah-jwr7",
+              "pitch": 0,
+              "start": 62,
+              "length": 1,
+              "vel": 2,
+              "subOffset": 0,
+              "subLength": 0
+            }
+          ]
+        }
+      ],
+      "mix": {
+        "master": {
+          "vol": 1,
+          "mute": false
+        },
+        "parts": {
+          "41-ygbo": {
+            "vol": 0.31,
+            "mute": false,
+            "solo": false
+          },
+          "b7-o7dy": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          },
+          "ah-jwr7": {
+            "vol": 1,
+            "mute": false,
+            "solo": false
+          }
+        }
+      },
+      "annotations": []
+    }
+  ]
+}
