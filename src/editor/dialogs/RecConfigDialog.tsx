@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Sheet } from "../../core/model/types";
 import { QUANTIZE_GRIDS } from "../../core/quantize";
-import type { RecordOptions } from "../hooks/useMidiRecording";
+import { recordOptionsFromConfig, type RecordConfig, type RecordOptions } from "../hooks/useMidiRecording";
 import { Dialog } from "./Dialog";
 import styles from "./Dialog.module.css";
 
@@ -11,21 +11,26 @@ export function RecConfigDialog({
   onClose,
   onStart,
   defaultPartId,
+  config,
+  onConfigChange,
 }: {
   sheet: Sheet;
   open: boolean;
   onClose: () => void;
   onStart: (options: RecordOptions) => void;
   defaultPartId?: string | null;
+  config: RecordConfig;
+  onConfigChange: (config: RecordConfig) => void;
 }) {
   const eligible = sheet.parts;
   const [partId, setPartId] = useState(eligible[0]?.id ?? "");
-  const [posSub, setPosSub] = useState(0);
-  const [lenSub, setLenSub] = useState(0);
-  const [bpm, setBpm] = useState<string>("");
-  const [autoExpandRange, setAutoExpandRange] = useState(false);
-  const [autoAppendBar, setAutoAppendBar] = useState(false);
-  const [playBacking, setPlayBacking] = useState(true);
+  const posSub = config.posQuantizeSub;
+  const lenSub = config.lenQuantizeSub;
+  const bpm = config.bpmText;
+  const autoExpandRange = config.autoExpandRange;
+  const autoAppendBar = config.autoAppendBar;
+  const playBacking = config.playBacking;
+  const patch = (p: Partial<RecordConfig>) => onConfigChange({ ...config, ...p });
 
   // When opened with a specific part (via per-part record button), pre-select it.
   useEffect(() => {
@@ -51,7 +56,7 @@ export function RecConfigDialog({
       </div>
       <div className={styles.row}>
         <label>Quantize start</label>
-        <select value={posSub} onChange={(e) => setPosSub(Number(e.target.value))}>
+        <select value={posSub} onChange={(e) => patch({ posQuantizeSub: Number(e.target.value) })}>
           {QUANTIZE_GRIDS.map((g) => (
             <option key={g.label} value={g.sub}>
               {g.label}
@@ -61,7 +66,7 @@ export function RecConfigDialog({
       </div>
       <div className={styles.row}>
         <label>Quantize length</label>
-        <select value={lenSub} onChange={(e) => setLenSub(Number(e.target.value))}>
+        <select value={lenSub} onChange={(e) => patch({ lenQuantizeSub: Number(e.target.value) })}>
           {QUANTIZE_GRIDS.map((g) => (
             <option key={g.label} value={g.sub}>
               {g.label}
@@ -77,20 +82,20 @@ export function RecConfigDialog({
           placeholder={String(sheet.bpm)}
           style={{ width: 56 }}
           value={bpm}
-          onChange={(e) => setBpm(e.target.value)}
+          onChange={(e) => patch({ bpmText: e.target.value })}
         />
       </div>
       <div className={styles.row}>
         <label>Play backing track</label>
-        <input type="checkbox" checked={playBacking} onChange={(e) => setPlayBacking(e.target.checked)} />
+        <input type="checkbox" checked={playBacking} onChange={(e) => patch({ playBacking: e.target.checked })} />
       </div>
       <div className={styles.row}>
         <label>Auto-expand pitch range</label>
-        <input type="checkbox" checked={autoExpandRange} onChange={(e) => setAutoExpandRange(e.target.checked)} />
+        <input type="checkbox" checked={autoExpandRange} onChange={(e) => patch({ autoExpandRange: e.target.checked })} />
       </div>
       <div className={styles.row}>
         <label>Append bars while recording</label>
-        <input type="checkbox" checked={autoAppendBar} onChange={(e) => setAutoAppendBar(e.target.checked)} />
+        <input type="checkbox" checked={autoAppendBar} onChange={(e) => patch({ autoAppendBar: e.target.checked })} />
       </div>
       <div className={styles.row} style={{ justifyContent: "flex-end" }}>
         <button className={styles.toggle} onClick={onClose}>
@@ -100,9 +105,7 @@ export function RecConfigDialog({
           className={`${styles.toggle} ${styles.on}`}
           disabled={!partId}
           onClick={() => {
-            const parsed = parseInt(bpm, 10);
-            const bpmOverride = Number.isFinite(parsed) && parsed >= 20 && parsed <= 300 ? parsed : 0;
-            onStart({ partId, posQuantizeSub: posSub, lenQuantizeSub: lenSub, bpmOverride, autoExpandRange, autoAppendBar, playBacking });
+            onStart({ partId, ...recordOptionsFromConfig(config) });
             onClose();
           }}
         >

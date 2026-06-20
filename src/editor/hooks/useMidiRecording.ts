@@ -9,6 +9,39 @@ import type { Action } from "../../state/types";
 
 export type RecordPhase = "idle" | "count-in" | "recording";
 
+/** Persistent recording configuration (no per-take partId). */
+export interface RecordConfig {
+  posQuantizeSub: number;
+  lenQuantizeSub: number;
+  /** Raw BPM input text; parsed when starting a take. Empty = use sheet tempo. */
+  bpmText: string;
+  autoExpandRange: boolean;
+  autoAppendBar: boolean;
+  playBacking: boolean;
+}
+
+export const DEFAULT_RECORD_CONFIG: RecordConfig = {
+  posQuantizeSub: 0,
+  lenQuantizeSub: 0,
+  bpmText: "",
+  autoExpandRange: false,
+  autoAppendBar: false,
+  playBacking: true,
+};
+
+export function recordOptionsFromConfig(c: RecordConfig): Omit<RecordOptions, "partId"> {
+  const parsed = parseInt(c.bpmText, 10);
+  const bpmOverride = Number.isFinite(parsed) && parsed >= 20 && parsed <= 300 ? parsed : 0;
+  return {
+    posQuantizeSub: c.posQuantizeSub,
+    lenQuantizeSub: c.lenQuantizeSub,
+    bpmOverride,
+    autoExpandRange: c.autoExpandRange,
+    autoAppendBar: c.autoAppendBar,
+    playBacking: c.playBacking,
+  };
+}
+
 export interface RecordOptions {
   partId: string;
   /** Position quantize grid in sub-steps (0 = off). */
