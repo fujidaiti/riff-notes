@@ -104,7 +104,7 @@ export function barWidth(layout: GridLayout): number {
 }
 
 /** Width of the separator that sits immediately before step boundary `s`. */
-function sepWidthBefore(s: number, layout: GridLayout): number {
+export function sepWidthBefore(s: number, layout: GridLayout): number {
   if (s % STEPS_PER_BAR === 0) return layout.barSepW;
   if (s % 4 === 0) return layout.beatSepW;
   return layout.stepSepW;

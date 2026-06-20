@@ -4,7 +4,7 @@ import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { inScaleSet, noteScaleClass } from "../../core/theory";
 import { noteFracLength, noteFracStart } from "../../core/timing";
-import { type GridLayout, gridTotalWidth, noteWidthPx, stepToX } from "../../core/grid-layout";
+import { type GridLayout, gridTotalWidth, noteWidthPx, sepWidthBefore, stepToX } from "../../core/grid-layout";
 import { computeLabelPlacements } from "../../core/labels";
 import type { CellSelection } from "../../state/types";
 import { Annotations } from "../Annotations";
@@ -217,7 +217,10 @@ function GridImpl({
           />
         )}
 
-      {playheadStep != null && <div className={styles.playhead} style={{ left: stepToX(playheadStep, layout) }} />}
+      {playheadStep != null && (() => {
+        const sepW = Math.max(3, sepWidthBefore(playheadStep, layout));
+        return <div className={styles.playhead} style={{ left: stepToX(playheadStep, layout) - sepW, width: sepW }} />;
+      })()}
 
       {getPlayheadStep && <PlayheadLine getStep={getPlayheadStep} layout={layout} />}
 
