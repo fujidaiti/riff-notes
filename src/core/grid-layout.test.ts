@@ -9,49 +9,44 @@ import {
   xToStepFloor,
 } from "./grid-layout";
 
-const L = makeLayout(30); // { cellW:30, barSepW:8, beatSepW:4, stepSepW:1 }
+const L = makeLayout(30); // { cellW:30, barSepW:7, beatSepW:5, stepSepW:1 }
 
 describe("stepToX", () => {
   it("step 0 is barSepW (leading bar separator)", () => {
-    expect(stepToX(0, L)).toBe(8);
+    expect(stepToX(0, L)).toBe(7);
   });
 
   it("step 1: barSep + cell + stepSep", () => {
-    // 8 + 30 + 1 = 39
-    expect(stepToX(1, L)).toBe(39);
+    // 7 + 30 + 1 = 38
+    expect(stepToX(1, L)).toBe(38);
   });
 
   it("step 4: crosses first beat separator", () => {
-    // 8 + 4*30 + 3*stepSep + 1*beatSep = 8+120+3+4 = 135
+    // 7 + 4*30 + 3*stepSep + 1*beatSep = 7+120+3+5 = 135
     expect(stepToX(4, L)).toBe(135);
   });
 
   it("step 8: crosses two beat separators", () => {
-    // 8 + 8*30 + 6*1 + 2*4 = 8+240+6+8 = 262
-    expect(stepToX(8, L)).toBe(262);
+    // 7 + 8*30 + 6*1 + 2*5 = 7+240+6+10 = 263
+    expect(stepToX(8, L)).toBe(263);
   });
 
   it("step 12: crosses three beat separators", () => {
-    // 8 + 12*30 + 9*1 + 3*4 = 8+360+9+12 = 389
-    expect(stepToX(12, L)).toBe(389);
+    // 7 + 12*30 + 9*1 + 3*5 = 7+360+9+15 = 391
+    expect(stepToX(12, L)).toBe(391);
   });
 
-  it("step 16: one full bar, matches user formula (16*30 + 12*1 + 3*4 + 2*8 = 520)", () => {
-    expect(stepToX(16, L)).toBe(520);
+  it("step 16: one full bar (7 + 16*30 + 1*7 + 3*5 + 12*1 = 521)", () => {
+    expect(stepToX(16, L)).toBe(521);
   });
 
   it("step 32: two full bars", () => {
-    // 2 * (16*30 + 12*1 + 3*4 + 2*8) but bars share no separators — each bar has 2 bar seps
-    // stepToX(32) = 8 + 32*30 + 2*8 + 6*4 + 24*1 = 8+960+16+24+24 = 1032
-    expect(stepToX(32, L)).toBe(1032);
-    // Alternatively: 2 * (16*30 + 12 + 12 + 8) + 8 = 2*(480+32)+8 = 1032 ✓ (shared bar sep at boundary counts once)
-    // Actually: first bar contributes 520 total width.
-    // Second bar starts at X=520 and its content is: [cell*16 + seps] = 480+12+12 = 504, then final bar sep = 8
-    // So total = 520 + 504 + 8 = 1032 ✓
+    // stepToX(32) = 7 + 32*30 + 2*7 + 6*5 + 24*1 = 7+960+14+30+24 = 1035
+    expect(stepToX(32, L)).toBe(1035);
   });
 
   it("fractional step stays within its cell (no separator crossed)", () => {
-    expect(stepToX(0.5, L)).toBe(8 + 0.5 * 30); // 23
+    expect(stepToX(0.5, L)).toBe(7 + 0.5 * 30); // 22
     expect(stepToX(4.25, L)).toBe(135 + 0.25 * 30); // 142.5
   });
 
@@ -64,8 +59,8 @@ describe("stepToX", () => {
 });
 
 describe("gridTotalWidth", () => {
-  it("1 bar = 520px with cellW=30", () => {
-    expect(gridTotalWidth(16, L)).toBe(520);
+  it("1 bar = 521px with cellW=30", () => {
+    expect(gridTotalWidth(16, L)).toBe(521);
   });
   it("equals stepToX(totalSteps)", () => {
     expect(gridTotalWidth(32, L)).toBe(stepToX(32, L));
@@ -80,7 +75,7 @@ describe("xToStepFloor", () => {
   });
 
   it("x within a cell returns that cell's step", () => {
-    // cell 0: [8, 38), cell 1: [39, 69)
+    // cell 0: [7, 37), cell 1: [38, 68)
     expect(xToStepFloor(8, L, 32)).toBe(0);
     expect(xToStepFloor(20, L, 32)).toBe(0);
     expect(xToStepFloor(37, L, 32)).toBe(0);
@@ -89,9 +84,9 @@ describe("xToStepFloor", () => {
   });
 
   it("x inside a separator is attributed to the preceding cell", () => {
-    // step sep between steps 0 and 1 is at x=[38,39)
-    expect(xToStepFloor(38, L, 32)).toBe(0);
-    // beat sep between steps 3 and 4 is at x=[stepToX(4)-beatSepW, stepToX(4)) = [131,135)
+    // step sep between steps 0 and 1 is at x=[37,38)
+    expect(xToStepFloor(37, L, 32)).toBe(0);
+    // beat sep between steps 3 and 4 is at x=[stepToX(4)-beatSepW, stepToX(4)) = [130,135)
     expect(xToStepFloor(131, L, 32)).toBe(3);
     expect(xToStepFloor(134, L, 32)).toBe(3);
   });
@@ -146,15 +141,15 @@ describe("noteWidthPx", () => {
     expect(noteWidthPx(0, 4, L22)).toBe(22 * 4 + 3 * 1); // 91
   });
 
-  it("length=3 crossing a bar sep and a step sep adds 9px", () => {
-    // User example: step 14→17, crosses step15(1px) and bar16(8px), ends before step sep at 17
-    // Internal seps: stepSep at 15, barSep at 16 = 1+8 = 9; final stepSep at 17 excluded
-    expect(noteWidthPx(14, 3, L22)).toBe(22 * 3 + 8 + 1); // 75
+  it("length=3 crossing a bar sep and a step sep adds 8px", () => {
+    // step 14→17, crosses step15(1px) and bar16(7px), ends before step sep at 17
+    // Internal seps: stepSep at 15, barSep at 16 = 1+7 = 8; final stepSep at 17 excluded
+    expect(noteWidthPx(14, 3, L22)).toBe(22 * 3 + 7 + 1); // 74
   });
 
   it("length=16 (full bar) includes all internal seps but not the trailing bar sep", () => {
-    // Internal: 12 step seps + 3 beat seps = 12+12 = 24; trailing bar sep excluded
-    expect(noteWidthPx(0, 16, L22)).toBe(22 * 16 + 12 * 1 + 3 * 4); // 376
+    // Internal: 12 step seps + 3 beat seps = 12+15 = 27; trailing bar sep excluded
+    expect(noteWidthPx(0, 16, L22)).toBe(22 * 16 + 12 * 1 + 3 * 5); // 379
   });
 
   it("sub-step note ending within a cell has no separator in its width", () => {
@@ -182,7 +177,7 @@ describe("noteWidthPx", () => {
 describe("makeLayout / layoutFromCellW", () => {
   it("makeLayout uses default sep widths", () => {
     const l = makeLayout(22);
-    expect(l).toEqual({ cellW: 22, barSepW: 8, beatSepW: 4, stepSepW: 1 });
+    expect(l).toEqual({ cellW: 22, barSepW: 7, beatSepW: 5, stepSepW: 1 });
   });
 
   it("layoutFromCellW produces zero-width seps", () => {

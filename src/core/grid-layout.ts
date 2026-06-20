@@ -8,8 +8,8 @@ export interface GridLayout {
 }
 
 export const DEFAULT_SEP_WIDTHS = {
-  barSepW: 8,
-  beatSepW: 4,
+  barSepW: 7,
+  beatSepW: 5,
   stepSepW: 1,
 } as const;
 

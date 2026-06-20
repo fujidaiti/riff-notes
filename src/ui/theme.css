@@ -11,7 +11,7 @@
   --ink-faint: #aaa;
   --line: #d2d2cc;
   --line-soft: #f0f0ec;
-  --line-strong: #555;
+  --line-strong: #2D2D2D;
   --note: #c97a4a;
   --note-in-scale: #6ba84a;
   --note-sel: #2b6cb0;
@@ -22,8 +22,8 @@
   --panel-hover: #ebebe2;
   --input-bg: #ffffff;
   --placeholder: #c8c8c0;
-  --grid-line: #cdcdc4;
-  --grid-line-soft: #ececea;
+  --grid-line: #6C6C6C;
+  --grid-line-soft: #EBEBEB;
   --playhead: #d97a3a;
   --playhead-line: rgba(217, 122, 58, 0.85);
   --note-inset: rgba(0, 0, 0, 0.15);
