@@ -42,7 +42,7 @@ export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, lay
     const hover = document.createElement("div");
     hover.dataset.testid = "cell-hover";
     hover.style.cssText =
-      "position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid var(--note-sel-outline);border-radius:2px;z-index:1;display:none;";
+      "position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid var(--note-sel-outline);z-index:1;display:none;";
     document.body.append(tip, hover);
 
     let lastNoteEl: HTMLElement | null = null;
