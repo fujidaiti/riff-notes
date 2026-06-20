@@ -347,7 +347,7 @@ test("5-bar sheet: grid is 5 bars wide", async ({ page }) => {
     const nBars  = Math.floor(totalSteps / 16);
     const nBeats = Math.floor(totalSteps / 4) - nBars;
     const nSteps = totalSteps - Math.floor(totalSteps / 4);
-    return 8 + totalSteps * cellW + nBars * 8 + nBeats * 4 + nSteps * 1; // stepToX(totalSteps)
+    return 7 + totalSteps * cellW + nBars * 7 + nBeats * 5 + nSteps * 1; // stepToX(totalSteps)
   });
 
   const gridW = await page.evaluate(() => {
