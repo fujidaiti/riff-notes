@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Annotation, Part } from "../core/model/types";
 import { noteFracLength, noteFracStart } from "../core/timing";
-import { type GridLayout, stepToX } from "../core/grid-layout";
+import { type GridLayout, noteWidthPx, stepToX } from "../core/grid-layout";
 import { ANNOT_MIN_WIDTH, ANNOT_MAX_WIDTH } from "../core/serialize";
 import styles from "./Annotations.module.css";
 
@@ -35,12 +35,11 @@ interface Pt {
  * annotation always belong to one part, by the single-part invariant).
  */
 export function Annotations({ part, annotations, layout, cellH, readOnly = false, renderCards = true, hoveredAnnotationId, onAnnotationHover, onEdit, onMove, onResize, onDelete }: AnnotationsProps) {
-  const { cellW } = layout;
   const noteById = new Map(part.notes.map((n) => [n.id, n]));
   const centerOf = (id: string): Pt | null => {
     const n = noteById.get(id);
     if (!n) return null;
-    return { x: stepToX(noteFracStart(n), layout) + noteFracLength(n) * cellW / 2, y: (part.hi - n.pitch) * cellH + cellH / 2 };
+    return { x: stepToX(noteFracStart(n), layout) + noteWidthPx(noteFracStart(n), noteFracLength(n), layout) / 2, y: (part.hi - n.pitch) * cellH + cellH / 2 };
   };
 
   return (

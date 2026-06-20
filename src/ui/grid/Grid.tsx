@@ -4,7 +4,7 @@ import { RHYTHM_KEYS, VEL_OPACITY } from "../../core/model/constants";
 import { isRhythmPart } from "../../core/model/factory";
 import { inScaleSet, noteScaleClass } from "../../core/theory";
 import { noteFracLength, noteFracStart } from "../../core/timing";
-import { type GridLayout, gridTotalWidth, stepToX } from "../../core/grid-layout";
+import { type GridLayout, gridTotalWidth, noteWidthPx, stepToX } from "../../core/grid-layout";
 import { computeLabelPlacements } from "../../core/labels";
 import type { CellSelection } from "../../state/types";
 import { Annotations } from "../Annotations";
@@ -155,7 +155,7 @@ function GridImpl({
         const style: CSSProperties = {
           left: stepToX(noteFracStart(n), layout),
           top: (part.hi - n.pitch) * cellH,
-          width: noteFracLength(n) * cellW,
+          width: noteWidthPx(noteFracStart(n), noteFracLength(n), layout),
           ["--vel-opacity" as string]: VEL_OPACITY[n.vel],
         };
         return (

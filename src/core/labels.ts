@@ -1,6 +1,6 @@
 import type { Part } from "./model/types";
 import { PITCH_NAMES, STEPS_PER_BAR } from "./model/constants";
-import { type GridLayout, gridTotalWidth, stepToX } from "./grid-layout";
+import { type GridLayout, gridTotalWidth, noteWidthPx, stepToX } from "./grid-layout";
 import { noteFracLength, noteFracStart } from "./timing";
 
 export const LABEL_W = 14;
@@ -50,7 +50,7 @@ export function computeLabelPlacements(part: Part, sheetSteps: number, layout: G
       start: n.start,
       x: stepToX(noteFracStart(n), layout),
       y: (part.hi - n.pitch) * cellH,
-      w: noteFracLength(n) * layout.cellW,
+      w: noteWidthPx(noteFracStart(n), noteFracLength(n), layout),
       h: cellH,
     }));
   boxes.sort((a, b) => a.x - b.x || b.pitch - a.pitch);
