@@ -62,7 +62,7 @@ export function App() {
   const { displaySheet, onNotePointerDown, onGridPointerDown, onSheetPointerDown } = useGridInteraction(sheet, selection, dispatch, layout, cellH, engine);
 
   const sheetRef = useRef<HTMLDivElement>(null);
-  useCellHover(sheetRef, layout, cellH, transport === "stopped" && !recording.recording);
+  useCellHover(sheetRef, layout, cellH, !recording.recording);
 
   const [recConfigOpen, setRecConfigOpen] = useState(false);
   const [recConfigPartId, setRecConfigPartId] = useState<string | null>(null);

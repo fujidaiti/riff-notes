@@ -19,7 +19,7 @@ function formatLengthSteps(steps: number): string {
 /**
  * Hover tooltip + cell-highlight box for the grids. Fully imperative (DOM nodes
  * appended to body, moved on pointermove) so cursor tracking never re-renders
- * React. Active only while `enabled` (suppressed during playback/recording).
+ * React. Active only while `enabled` (suppressed during recording).
  */
 export function useCellHover(scrollRef: React.RefObject<HTMLElement | null>, layout: GridLayout, cellH: number, enabled: boolean) {
   const { cellW } = layout;
