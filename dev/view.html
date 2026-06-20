@@ -76,6 +76,10 @@
         file
         <input id="file" type="text" value="sample" placeholder="project" />
       </label>
+      <label>
+        sheet
+        <select id="sheet" disabled></select>
+      </label>
       <div class="swatches" id="swatches"></div>
     </div>
 
@@ -83,6 +87,7 @@
       const widthInput = document.getElementById("width");
       const heightInput = document.getElementById("height");
       const fileInput = document.getElementById("file");
+      const sheetSelect = document.getElementById("sheet");
       const frame = document.getElementById("frame");
 
       function updateSize() {
@@ -92,14 +97,46 @@
 
       function updateSrc() {
         const file = fileInput.value.trim();
-        frame.src = file
-          ? `../view.html?src=${encodeURIComponent(file)}.json`
-          : `../view.html`;
+        if (!file) { frame.src = `../view.html`; return; }
+        const sheetId = sheetSelect.value;
+        frame.src = sheetId
+          ? `../view.html?src=${encodeURIComponent(file)}.json&sheet=${encodeURIComponent(sheetId)}`
+          : `../view.html?src=${encodeURIComponent(file)}.json`;
+      }
+
+      async function loadSheets(file) {
+        sheetSelect.innerHTML = "";
+        sheetSelect.disabled = true;
+        if (!file) return;
+        try {
+          const res = await fetch(`../${encodeURIComponent(file)}.json`);
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const sheets = Array.isArray(data?.sheets) ? data.sheets : [];
+          if (sheets.length === 0) throw new Error();
+          for (const s of sheets) {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.textContent = s.title || s.id;
+            sheetSelect.appendChild(opt);
+          }
+          sheetSelect.selectedIndex = 0;
+          sheetSelect.disabled = false;
+        } catch {
+          const opt = document.createElement("option");
+          opt.textContent = "—";
+          opt.disabled = true;
+          sheetSelect.appendChild(opt);
+        }
       }
 
       widthInput.addEventListener("change", updateSize);
       heightInput.addEventListener("change", updateSize);
-      fileInput.addEventListener("change", updateSrc);
+      fileInput.addEventListener("change", async () => {
+        await loadSheets(fileInput.value.trim());
+        updateSrc();
+      });
+      sheetSelect.addEventListener("change", updateSrc);
 
       const BG_COLORS = ["#ffffff", "#e0e0e0", "#aaaaaa", "#555555", "#1a1a1a"];
       const swatchContainer = document.getElementById("swatches");
@@ -119,7 +156,7 @@
       });
 
       updateSize();
-      updateSrc();
+      loadSheets(fileInput.value.trim()).then(updateSrc);
     </script>
   </body>
 </html>
