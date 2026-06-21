@@ -9,14 +9,13 @@ import { BAND_SIDE_W } from "../ui/Band";
 import { Grid } from "../ui/grid/Grid";
 import { AnnotationCard } from "../ui/Annotations";
 import { noteFracStart } from "../core/timing";
-import { loadProject } from "./loadProject";
+import { loadProject, readBarsPerPage } from "./loadProject";
 import { useViewerTransport } from "./useViewerTransport";
 import { ViewerMixerDialog } from "./ViewerMixerDialog";
 import styles from "./ViewerApp.module.css";
 
-const BARS_PER_PAGE = 2;
-
 export function ViewerApp() {
+  const barsPerPage = useMemo(readBarsPerPage, []);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [mix, setMix] = useState<Mix | null>(null);
   const [bpm, setBpm] = useState(120);
@@ -54,7 +53,7 @@ export function ViewerApp() {
   const pageBar = page;
 
   const { transport, repeat, setRepeat, play, stop, getPlayheadStep, isLoopingRef } =
-    useViewerTransport(engine, sheet, mix, bpm, pageBar);
+    useViewerTransport(engine, sheet, mix, bpm, pageBar, barsPerPage);
 
   // Hover tooltip + cell highlight. Pass !loading so the enabled flag flips
   // from false→true after the gridArea mounts, triggering the effect to run
@@ -72,7 +71,7 @@ export function ViewerApp() {
   // Mode A (isLoopingRef = false): engine plays the full sheet. The monitor
   // either auto-advances the page or switches to Mode B at the next bar boundary.
   //
-  // Mode B (isLoopingRef = true): engine loops the trimmed 2-bar sheet
+  // Mode B (isLoopingRef = true): engine loops the trimmed page-sized sheet
   // seamlessly via its own internal scheduling. The monitor does nothing unless
   // repeat is turned off, in which case it switches back to Mode A.
   //
@@ -96,12 +95,12 @@ export function ViewerApp() {
         const step = getPlayheadStep();
         if (step !== null) {
           const playheadBar = Math.floor(step / STEPS_PER_BAR);
-          if (playheadBar >= cur + BARS_PER_PAGE) {
+          if (playheadBar >= cur + barsPerPage) {
             if (repeatRef.current) {
               void play(cur); // switch to Mode B (seamless loop from page start)
               // isLoopingRef.current becomes true synchronously inside play()
             } else {
-              const next = Math.min(playheadBar, totalPages - BARS_PER_PAGE);
+              const next = Math.min(playheadBar, totalPages - barsPerPage);
               if (next !== cur) {
                 pageRef.current = next;
                 setPage(next);
@@ -109,7 +108,7 @@ export function ViewerApp() {
             }
           } else if (playheadBar < cur) {
             // Backward jump (e.g. engine restarted from page change).
-            const next = Math.max(0, Math.min(playheadBar, totalPages - BARS_PER_PAGE));
+            const next = Math.max(0, Math.min(playheadBar, totalPages - barsPerPage));
             if (next !== cur) {
               pageRef.current = next;
               setPage(next);
@@ -121,7 +120,7 @@ export function ViewerApp() {
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [getPlayheadStep, isLoopingRef, sheet, paddedBarCount, play]);
+  }, [getPlayheadStep, isLoopingRef, sheet, paddedBarCount, play, barsPerPage]);
 
   // Annotations grouped by part (same logic as SheetView).
   const annotationsByPart = useMemo(() => {
@@ -177,12 +176,12 @@ export function ViewerApp() {
   if (!sheet || !mix) return null;
 
   const sheetSteps = paddedBarCount * STEPS_PER_BAR;
-  const visibleW = gridTotalWidth(Math.min(BARS_PER_PAGE, paddedBarCount) * STEPS_PER_BAR, layout);
+  const visibleW = gridTotalWidth(Math.min(barsPerPage, paddedBarCount) * STEPS_PER_BAR, layout);
   const translateX = -(pageBar * barW);
 
   // Bar numbers shown in the pager for the current page.
   const firstBar = pageBar + 1;
-  const lastBar = Math.min(pageBar + BARS_PER_PAGE, paddedBarCount);
+  const lastBar = Math.min(pageBar + barsPerPage, paddedBarCount);
 
   return (
     <div className={styles.app}>
@@ -232,7 +231,7 @@ export function ViewerApp() {
                     const anchor = noteById.get(a.placement.anchorNoteId);
                     if (!anchor) return null;
                     const anchorStep = noteFracStart(anchor);
-                    if (anchorStep < pageBar * STEPS_PER_BAR || anchorStep >= (pageBar + BARS_PER_PAGE) * STEPS_PER_BAR) return null;
+                    if (anchorStep < pageBar * STEPS_PER_BAR || anchorStep >= (pageBar + barsPerPage) * STEPS_PER_BAR) return null;
                     const x = stepToX(anchorStep, layout) + a.placement.dx + translateX;
                     const y = (part.hi - anchor.pitch) * cellH + a.placement.dy;
                     return (
@@ -288,7 +287,7 @@ export function ViewerApp() {
           />
         </label>
 
-        {paddedBarCount > BARS_PER_PAGE && (
+        {paddedBarCount > barsPerPage && (
           <>
             <div className={styles.toolbarSpacer} />
             <button
@@ -306,8 +305,8 @@ export function ViewerApp() {
             <button
               data-testid="pager-next"
               className={styles.pagerArrow}
-              onClick={() => handlePageChange(Math.min(page + 1, paddedBarCount - BARS_PER_PAGE))}
-              disabled={page >= paddedBarCount - BARS_PER_PAGE}
+              onClick={() => handlePageChange(Math.min(page + 1, paddedBarCount - barsPerPage))}
+              disabled={page >= paddedBarCount - barsPerPage}
               aria-label="Next bars"
             >
               ›

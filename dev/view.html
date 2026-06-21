@@ -85,6 +85,10 @@
         sheet
         <select id="sheet" disabled></select>
       </label>
+      <label>
+        bars
+        <input id="bars" type="number" value="1" min="1" />
+      </label>
       <div class="swatches" id="swatches"></div>
       <button id="copy-iframe">Copy iframe</button>
     </div>
@@ -94,6 +98,7 @@
       const heightInput = document.getElementById("height");
       const fileInput = document.getElementById("file");
       const sheetSelect = document.getElementById("sheet");
+      const barsInput = document.getElementById("bars");
       const frame = document.getElementById("frame");
 
       function updateSize() {
@@ -104,10 +109,16 @@
       function updateSrc() {
         const file = fileInput.value.trim();
         if (!file) { frame.src = `../view.html`; return; }
+        const params = new URLSearchParams();
+        params.set("src", `${file}.json`);
         const sheetId = sheetSelect.value;
-        frame.src = sheetId
-          ? `../view.html?src=${encodeURIComponent(file)}.json&sheet=${encodeURIComponent(sheetId)}`
-          : `../view.html?src=${encodeURIComponent(file)}.json`;
+        if (sheetId) params.set("sheet", sheetId);
+        const barsRaw = barsInput.value.trim();
+        const barsNum = Number(barsRaw);
+        if (barsRaw !== "" && Number.isInteger(barsNum) && barsNum >= 1) {
+          params.set("bars", String(barsNum));
+        }
+        frame.src = `../view.html?${params.toString()}`;
       }
 
       async function loadSheets(file) {
@@ -143,6 +154,7 @@
         updateSrc();
       });
       sheetSelect.addEventListener("change", updateSrc);
+      barsInput.addEventListener("change", updateSrc);
 
       const BG_COLORS = ["#ffffff", "#e0e0e0", "#aaaaaa", "#555555", "#1a1a1a"];
       const swatchContainer = document.getElementById("swatches");

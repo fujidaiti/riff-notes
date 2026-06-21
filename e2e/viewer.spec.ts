@@ -19,7 +19,17 @@ async function routeFixture(page: Page, name: string) {
 /** Navigate to the viewer and wait until at least one note is rendered. */
 async function loadViewer(page: Page) {
   await routeFixture(page, "viewer-test.json");
-  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test.json`);
+  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test.json&bars=2`);
+  await page.locator("[data-note-id]").first().waitFor();
+}
+
+/** Navigate with an explicit bars value (or omit to test the default). */
+async function loadViewerWithBars(page: Page, bars?: string) {
+  await routeFixture(page, "viewer-test.json");
+  const url = bars === undefined
+    ? `${BASE}/view.html?src=${BASE}/viewer-test.json`
+    : `${BASE}/view.html?src=${BASE}/viewer-test.json&bars=${encodeURIComponent(bars)}`;
+  await page.goto(url);
   await page.locator("[data-note-id]").first().waitFor();
 }
 
@@ -342,7 +352,7 @@ test("narrow viewport: pager next/prev still works", async ({ page }) => {
 
 async function load5BarViewer(page: Page) {
   await routeFixture(page, "viewer-test-5bar.json");
-  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test-5bar.json`);
+  await page.goto(`${BASE}/view.html?src=${BASE}/viewer-test-5bar.json&bars=2`);
   await page.locator("[data-note-id]").first().waitFor();
 }
 
@@ -401,3 +411,47 @@ test("5-bar sheet: grid is 5 bars wide", async ({ page }) => {
 
   expect(gridWLastPage).toBe(expectedGridW);
 });
+
+// ── Bars-per-page query param (?bars=) ───────────────────────────────────────
+
+test("default (no ?bars=) shows 1 bar per page", async ({ page }) => {
+  await loadViewerWithBars(page);
+  await expect(page.getByTestId("pager-bars")).toHaveText("1");
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("2");
+});
+
+test("?bars=1 initial label is '1'", async ({ page }) => {
+  await loadViewerWithBars(page, "1");
+  await expect(page.getByTestId("pager-bars")).toHaveText("1");
+});
+
+test("?bars=2 shows the legacy '1 2' label", async ({ page }) => {
+  await loadViewerWithBars(page, "2");
+  await expect(page.getByTestId("pager-bars")).toHaveText("1 2");
+});
+
+test("?bars=3 on 6-bar fixture: paginates by 3 and clamps on last page", async ({ page }) => {
+  await loadViewerWithBars(page, "3");
+  await expect(page.getByTestId("pager-bars")).toHaveText("1 3");
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 4");
+  // 6-bar fixture, bars=3: last page starts at bar 4 (0-indexed 3) → 3 clicks total
+  await page.getByTestId("pager-next").click();
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("4 6");
+  await expect(page.getByTestId("pager-next")).toBeDisabled();
+});
+
+test("?bars=6 on 6-bar fixture: pager is hidden", async ({ page }) => {
+  await loadViewerWithBars(page, "6");
+  await expect(page.getByTestId("pager-prev")).toHaveCount(0);
+  await expect(page.getByTestId("pager-next")).toHaveCount(0);
+});
+
+for (const invalid of ["foo", "0", "-3", "2.5", ""]) {
+  test(`invalid ?bars=${JSON.stringify(invalid)} falls back to 1`, async ({ page }) => {
+    await loadViewerWithBars(page, invalid);
+    await expect(page.getByTestId("pager-bars")).toHaveText("1");
+  });
+}

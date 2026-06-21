@@ -5,8 +5,6 @@ import type { AudioEngine } from "../audio/AudioEngine";
 
 export type TransportState = "stopped" | "playing";
 
-const BARS_PER_PAGE = 2;
-
 /**
  * Returns a copy of the sheet containing only the notes in [startBar, startBar + barCount),
  * with step positions shifted so startBar becomes step 0.
@@ -36,8 +34,8 @@ function trimSheetToBars(sheet: Sheet, mix: Mix, startBar: number, barCount: num
  *   Mode A (repeat off): plays the full sheet from pageBar; the rAF monitor in
  *   ViewerApp auto-advances the page as the playhead progresses.
  *
- *   Mode B (repeat on): plays a 2-bar trimmed sheet with engine repeat:true, so
- *   the engine schedules the next iteration at the precise endStepTime — no
+ *   Mode B (repeat on): plays a page-sized trimmed sheet with engine repeat:true,
+ *   so the engine schedules the next iteration at the precise endStepTime — no
  *   teardown between loops, no audible gap.
  *
  * isLoopingRef records which mode the engine is *actually* running right now
@@ -51,12 +49,13 @@ export function useViewerTransport(
   mix: Mix | null,
   bpm: number,
   pageBar: number,
+  barsPerPage: number,
 ) {
   const [transport, setTransport] = useState<TransportState>("stopped");
   const [repeat, setRepeat] = useState(false);
 
-  const ref = useRef({ sheet, mix, bpm, repeat, pageBar });
-  ref.current = { sheet, mix, bpm, repeat, pageBar };
+  const ref = useRef({ sheet, mix, bpm, repeat, pageBar, barsPerPage });
+  ref.current = { sheet, mix, bpm, repeat, pageBar, barsPerPage };
 
   // Tracks what the engine is actually doing right now (captured at play()-time).
   // Setting it synchronously before the await means the rAF monitor sees the new
@@ -64,7 +63,7 @@ export function useViewerTransport(
   const isLoopingRef = useRef(false);
 
   const play = useCallback(async (pageBarOverride?: number) => {
-    const { sheet, mix, bpm, repeat, pageBar } = ref.current;
+    const { sheet, mix, bpm, repeat, pageBar, barsPerPage } = ref.current;
     if (!sheet || !mix) return;
     const effectivePage = pageBarOverride ?? pageBar;
     const looping = repeat;
@@ -72,7 +71,7 @@ export function useViewerTransport(
     isLoopingRef.current = looping; // set before await so rAF sees it immediately
 
     const sheetToPlay = looping
-      ? trimSheetToBars(sheet, mix, effectivePage, BARS_PER_PAGE)
+      ? trimSheetToBars(sheet, mix, effectivePage, barsPerPage)
       : { ...sheet, mix };
 
     await engine.play(sheetToPlay, {

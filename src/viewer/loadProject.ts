@@ -43,3 +43,14 @@ export async function loadProject(): Promise<LoadedProject> {
 
   return { project, sheet };
 }
+
+/**
+ * Reads the `?bars=` query param. Returns a positive integer, or 1 if the
+ * param is missing, non-numeric, non-integer, or less than 1.
+ */
+export function readBarsPerPage(): number {
+  const raw = new URLSearchParams(window.location.search).get("bars");
+  if (raw === null) return 1;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
