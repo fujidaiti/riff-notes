@@ -18,8 +18,9 @@
 .gridArea {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding: 12px 12px 0;
+  overflow-x: auto;
+  min-width: min-content;
+  padding: 12px 12px 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -113,20 +114,24 @@
 /* ── Toolbar ────────────────────────────────────────────────────────────────── */
 
 .toolbar {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
   display: flex;
   justify-content: center;
   padding: 8px 0;
-  background: transparent;
+  background: var(--bg, transparent);
   border-top: 1px solid var(--line);
-  flex-shrink: 0;
+  z-index: 10;
 }
 
 .toolbarInner {
   display: flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .toolBtn {

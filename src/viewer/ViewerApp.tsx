@@ -187,7 +187,7 @@ export function ViewerApp() {
   return (
     <div className={styles.app}>
       {/* Grid area: part rows */}
-      <div ref={gridRef} className={styles.gridArea}>
+      <div ref={gridRef} className={styles.gridArea} data-testid="grid-area">
         {/* Part rows */}
         {sheet.parts.map((part) => {
           const numRows = part.hi - part.lo + 1;

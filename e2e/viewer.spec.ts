@@ -305,6 +305,39 @@ test("closing the mixer dialog hides it", async ({ page }) => {
   await expect(page.locator("dialog")).not.toBeVisible();
 });
 
+// ── Narrow viewport: horizontal scroll ───────────────────────────────────────
+
+test("narrow viewport: page scrolls horizontally to reach bar 2", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await loadViewer(page);
+
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(scrollWidth).toBeGreaterThan(clientWidth);
+});
+
+test("wide viewport: page does not scroll horizontally", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await loadViewer(page);
+
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(scrollWidth).toBe(clientWidth);
+});
+
+test("narrow viewport: pager next/prev still works", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await loadViewer(page);
+  await page.getByTestId("pager-next").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("2 3");
+  await page.getByTestId("pager-prev").click();
+  await expect(page.getByTestId("pager-bars")).toHaveText("1 2");
+});
+
 // ── Odd bar count: empty bar appended ────────────────────────────────────────
 
 async function load5BarViewer(page: Page) {
