@@ -811,20 +811,10 @@
         {
           "id": "h-7tgq",
           "name": "Joe",
-          "lo": 27,
+          "lo": 39,
           "hi": 44,
           "instrument": "epiano",
           "notes": [
-            {
-              "id": "i-8j48",
-              "partId": "h-7tgq",
-              "pitch": 27,
-              "start": 7,
-              "length": 1,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
             {
               "id": "j-8j48",
               "partId": "h-7tgq",
@@ -871,16 +861,6 @@
               "pitch": 41,
               "start": 28,
               "length": 3,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
-            {
-              "id": "o-8j48",
-              "partId": "h-7tgq",
-              "pitch": 27,
-              "start": 39,
-              "length": 1,
               "vel": 2,
               "subOffset": 0,
               "subLength": 0
@@ -1695,20 +1675,10 @@
         {
           "id": "2-0w94",
           "name": "Joe",
-          "lo": 27,
+          "lo": 38,
           "hi": 44,
           "instrument": "epiano",
           "notes": [
-            {
-              "id": "u-cjsc",
-              "partId": "2-0w94",
-              "pitch": 27,
-              "start": 7,
-              "length": 1,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
             {
               "id": "v-cjsc",
               "partId": "2-0w94",
@@ -1755,16 +1725,6 @@
               "pitch": 41,
               "start": 28,
               "length": 3,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
-            {
-              "id": "10-cjsc",
-              "partId": "2-0w94",
-              "pitch": 27,
-              "start": 39,
-              "length": 1,
               "vel": 2,
               "subOffset": 0,
               "subLength": 0
