@@ -121,8 +121,7 @@
   display: flex;
   justify-content: center;
   padding: 8px 12px;
-  background: var(--bg, transparent);
-  border-top: 1px solid var(--line);
+  background: transparent;
   z-index: 10;
 }
 
