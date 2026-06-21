@@ -54,3 +54,15 @@ export function readBarsPerPage(): number {
   const n = Number(raw);
   return Number.isInteger(n) && n >= 1 ? n : 1;
 }
+
+/**
+ * Reads the `?scale=` query param. Returns a float clamped to [0.5, 1.0],
+ * or 1 if the param is missing or invalid.
+ */
+export function readScale(): number {
+  const raw = new URLSearchParams(window.location.search).get("scale");
+  if (raw === null) return 1;
+  const n = Number(raw);
+  if (isNaN(n)) return 1;
+  return Math.min(1, Math.max(0.5, n));
+}

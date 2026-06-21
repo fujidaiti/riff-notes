@@ -9,13 +9,14 @@ import { BAND_SIDE_W } from "../ui/Band";
 import { Grid } from "../ui/grid/Grid";
 import { AnnotationCard } from "../ui/Annotations";
 import { noteFracStart } from "../core/timing";
-import { loadProject, readBarsPerPage } from "./loadProject";
+import { loadProject, readBarsPerPage, readScale } from "./loadProject";
 import { useViewerTransport } from "./useViewerTransport";
 import { ViewerMixerDialog } from "./ViewerMixerDialog";
 import styles from "./ViewerApp.module.css";
 
 export function ViewerApp() {
   const barsPerPage = useMemo(readBarsPerPage, []);
+  const scale = useMemo(readScale, []);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [mix, setMix] = useState<Mix | null>(null);
   const [bpm, setBpm] = useState(120);
@@ -186,7 +187,7 @@ export function ViewerApp() {
   return (
     <div className={styles.app}>
       {/* Grid area: part rows */}
-      <div ref={gridRef} className={styles.gridArea} data-testid="grid-area">
+      <div ref={gridRef} className={styles.gridArea} data-testid="grid-area" style={{ zoom: scale, paddingBottom: Math.ceil(60 / scale) }}>
         {/* Part rows */}
         {sheet.parts.map((part) => {
           const numRows = part.hi - part.lo + 1;
