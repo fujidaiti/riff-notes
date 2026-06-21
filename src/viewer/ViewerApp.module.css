@@ -120,7 +120,7 @@
   bottom: 0;
   display: flex;
   justify-content: center;
-  padding: 8px 0;
+  padding: 8px 12px;
   background: var(--bg, transparent);
   border-top: 1px solid var(--line);
   z-index: 10;
