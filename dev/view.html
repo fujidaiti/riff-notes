@@ -59,6 +59,11 @@
       .swatches button.active {
         border-color: #555;
       }
+      #copy-iframe {
+        padding: 4px 10px;
+        font: inherit;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -81,6 +86,7 @@
         <select id="sheet" disabled></select>
       </label>
       <div class="swatches" id="swatches"></div>
+      <button id="copy-iframe">Copy iframe</button>
     </div>
 
     <script>
@@ -153,6 +159,14 @@
           activeSwatch = btn;
         });
         swatchContainer.appendChild(btn);
+      });
+
+      document.getElementById("copy-iframe").addEventListener("click", () => {
+        const src = frame.src;
+        const w = widthInput.value;
+        const h = heightInput.value;
+        const code = `<iframe src="${src}" width="${w}" height="${h}" frameborder="0"></iframe>`;
+        navigator.clipboard.writeText(code);
       });
 
       updateSize();
