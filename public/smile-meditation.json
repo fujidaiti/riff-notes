@@ -3608,7 +3608,26 @@
           }
         }
       },
-      "annotations": []
+      "annotations": [
+        {
+          "id": "2-5ud5",
+          "text": "The same shape as the pre-chorus, but the G is lifted up an octave",
+          "noteIds": [
+            "p-0yg2",
+            "r-0ygb",
+            "t-0yva",
+            "u-0yvf",
+            "v-125i",
+            "w-1353"
+          ],
+          "shrunkWidth": 228.42578125,
+          "placement": {
+            "anchorNoteId": "p-0yg2",
+            "dx": -37.75390625,
+            "dy": 48.94140625
+          }
+        }
+      ]
     },
     {
       "id": "42-ygbo",
