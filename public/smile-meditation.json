@@ -2527,17 +2527,7 @@
             {
               "id": "p-0yg2",
               "partId": "4r-rn5o",
-              "pitch": 65,
-              "start": 56,
-              "length": 3,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
-            {
-              "id": "q-0yg5",
-              "partId": "4r-rn5o",
-              "pitch": 62,
+              "pitch": 63,
               "start": 56,
               "length": 3,
               "vel": 2,
@@ -2549,16 +2539,6 @@
               "partId": "4r-rn5o",
               "pitch": 59,
               "start": 56,
-              "length": 3,
-              "vel": 2,
-              "subOffset": 0,
-              "subLength": 0
-            },
-            {
-              "id": "s-0yv7",
-              "partId": "4r-rn5o",
-              "pitch": 62,
-              "start": 60,
               "length": 3,
               "vel": 2,
               "subOffset": 0,
