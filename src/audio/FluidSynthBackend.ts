@@ -1,12 +1,30 @@
 import * as JSSynth from "js-synthesizer";
 import type { Sheet } from "../core/model/types";
 import { VEL_MIDI, RHYTHM_KEYS } from "../core/model/constants";
-import { isRhythmPart } from "../core/model/factory";
 import { effectivePartGain } from "../core/mixer";
 import type { VoiceBackend } from "./VoiceBackend";
 
-// GM Electric Piano 1 (bank 0, program 4). Confirmed playable in Phase 0 spike.
-const EPIANO_PROGRAM = 4;
+// SoundFont bank/program for each instrument ID.
+// Drum kits use bank 128 (FluidSynth's internal percussion bank, which maps to
+// SF2 bank 120). Pitched instruments use their standard GM/GS bank and program.
+const GM_PRESETS: Record<string, { bank: number; program: number; drum: boolean }> = {
+  piano:     { bank: 0,   program: 0,  drum: false },
+  epiano:    { bank: 0,   program: 4,  drum: false },
+  clav:      { bank: 0,   program: 7,  drum: false },
+  organ:     { bank: 0,   program: 18, drum: false },
+  bass:      { bank: 0,   program: 33, drum: false },
+  synthbass: { bank: 0,   program: 39, drum: false },
+  choir:     { bank: 0,   program: 52, drum: false },
+  sax:       { bank: 0,   program: 65, drum: false },
+  flute:     { bank: 0,   program: 73, drum: false },
+  whistle:   { bank: 0,   program: 78, drum: false },
+  guitar12:  { bank: 8,   program: 25, drum: false },
+  guitar:    { bank: 12,  program: 27, drum: false },
+  drum:      { bank: 120, program: 0,  drum: true  },
+  kit808:    { bank: 120, program: 25, drum: true  },
+  jazzkit:   { bank: 120, program: 32, drum: true  },
+};
+const DEFAULT_PRESET = GM_PRESETS.epiano;
 
 // GM percussion note numbers
 const DRUM_GM: Record<string, number> = {
@@ -85,9 +103,9 @@ export class FluidSynthBackend implements VoiceBackend {
       const part = parts[i];
       const ch = i;
       this.channelMap.set(part.id, ch);
-      const drum = isRhythmPart(part);
-      this.synth.midiSetChannelType(ch, drum);
-      this.synth.midiProgramSelect(ch, this.sfontId, drum ? 128 : 0, drum ? 0 : EPIANO_PROGRAM);
+      const preset = GM_PRESETS[part.instrument] ?? DEFAULT_PRESET;
+      this.synth.midiSetChannelType(ch, preset.drum);
+      this.synth.midiProgramSelect(ch, this.sfontId, preset.bank, preset.program);
     }
 
     // Apply initial CC7 per channel before audio starts.
@@ -158,10 +176,12 @@ export class FluidSynthBackend implements VoiceBackend {
   // any play() call has established the channel map.
   private seedDefaultChannels(): void {
     if (!this.synth || this.sfontId === null) return;
-    this.synth.midiSetChannelType(0, false);
-    this.synth.midiProgramSelect(0, this.sfontId, 0, EPIANO_PROGRAM);
-    this.synth.midiSetChannelType(1, true);
-    this.synth.midiProgramSelect(1, this.sfontId, 128, 0);
+    const epiano = GM_PRESETS.epiano;
+    const drum = GM_PRESETS.drum;
+    this.synth.midiSetChannelType(0, epiano.drum);
+    this.synth.midiProgramSelect(0, this.sfontId, epiano.bank, epiano.program);
+    this.synth.midiSetChannelType(1, drum.drum);
+    this.synth.midiProgramSelect(1, this.sfontId, drum.bank, drum.program);
     this.channelMap.set("__default_epiano__", 0);
     this.channelMap.set("__default_drum__", 1);
   }
