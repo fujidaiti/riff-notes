@@ -69,6 +69,9 @@ export function useViewerTransport(
     const looping = repeat;
 
     isLoopingRef.current = looping; // set before await so rAF sees it immediately
+    // Optimistic: flip the button to "Stop" before the async engine.play() resolves
+    // so that a quick second click correctly calls stop() rather than play() again.
+    setTransport("playing");
 
     const sheetToPlay = looping
       ? trimSheetToBars(sheet, mix, effectivePage, barsPerPage)
@@ -83,7 +86,8 @@ export function useViewerTransport(
         setTransport("stopped");
       },
     });
-    setTransport("playing");
+    // If stop() was called during the await, engine.isPlaying is false; revert.
+    if (!engine.isPlaying) setTransport("stopped");
   }, [engine]);
 
   const stop = useCallback(() => {

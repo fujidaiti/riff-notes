@@ -1,12 +1,10 @@
-import type { Mix, Note, Part, Sheet } from "../core/model/types";
+import type { Mix, Note, Sheet } from "../core/model/types";
 import { RHYTHM_KEYS } from "../core/model/constants";
 import { isRhythmPart, totalSteps } from "../core/model/factory";
-import { effectiveMasterValue, effectivePartGain } from "../core/mixer";
+import { effectiveMasterValue } from "../core/mixer";
 import { noteFracLength, noteFracStart } from "../core/timing";
-
-// Velocity -> oscillator peak gain. Audio-only concern, so it lives here rather
-// than in core (which keeps VEL_OPACITY, the visual counterpart).
-const VEL_GAIN = [0.08, 0.16, 0.3, 0.5, 0.75];
+import type { VoiceBackend } from "./VoiceBackend";
+import { FluidSynthBackend } from "./FluidSynthBackend";
 
 export interface PlayOptions {
   fromStep?: number;
@@ -19,22 +17,25 @@ export interface PlayOptions {
 }
 
 /**
- * Encapsulates all WebAudio: a lazily-created AudioContext, master + per-part
- * gain nodes, oscillator/drum synthesis, and seamless looping. Interaction-free
- * so it could be reused by the embed for playback. The playhead is reported
- * out-of-band via currentStep(): callers poll it from their own rAF loop so
- * per-frame updates never re-render React note trees.
+ * Orchestrates playback timing, looping, pause/resume, and audition via a
+ * pluggable VoiceBackend. Currently uses FluidSynthBackend (SoundFont via WASM).
+ *
+ * The playhead is reported out-of-band via currentStep(): callers poll it from
+ * their own rAF loop so per-frame updates never re-render React note trees.
+ * Although FluidSynth's sequencer is the scheduling clock, currentStep() uses
+ * ctx.currentTime - t0 as an equivalent synchronous estimate (sequencer tick
+ * readback is async and would stall rAF).
  */
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private partGains = new Map<string, GainNode>();
-  private stops: Array<() => void> = [];
-  private stopTimer: ReturnType<typeof setTimeout> | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
   private keeper: AudioNode | null = null;
+  private backend: VoiceBackend = new FluidSynthBackend();
+  private backendConnected = false;
 
   private playingSheetId: string | null = null;
+  // Incremented by stop()/pause() so play() can detect cancellation mid-await.
+  private playGen = 0;
   // Tracks the most-recent mix pushed via syncMix so the repeat loop restarts
   // with the user's current mixer state rather than the snapshot from play().
   private liveMix: Mix | null = null;
@@ -42,6 +43,10 @@ export class AudioEngine {
   private startStep = 0;
   private secPerStep = 0;
   private totalStepsCount = 0;
+  private stopTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** True once the AudioWorklet and SoundFont have finished loading. */
+  isReady = false;
 
   private async ensureContext(masterValue: number): Promise<void> {
     if (!this.ctx) {
@@ -73,165 +78,23 @@ export class AudioEngine {
       src.start();
       this.keeper = gain;
     }
-  }
-
-  private getNoiseBuffer(ctx: AudioContext): AudioBuffer {
-    if (this.noiseBuffer && this.noiseBuffer.sampleRate === ctx.sampleRate) return this.noiseBuffer;
-    const len = Math.floor(ctx.sampleRate * 0.5);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const ch = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
-    this.noiseBuffer = buf;
-    return buf;
-  }
-
-  private ensurePartGains(sheet: Sheet): void {
-    const ctx = this.ctx;
-    const master = this.master;
-    if (!ctx || !master) return;
-    const ids = new Set(sheet.parts.map((p) => p.id));
-    for (const [id, node] of this.partGains) {
-      if (!ids.has(id)) {
-        try {
-          node.disconnect();
-        } catch {
-          /* already gone */
-        }
-        this.partGains.delete(id);
-      }
-    }
-    for (const p of sheet.parts) {
-      if (!this.partGains.has(p.id)) {
-        const g = ctx.createGain();
-        g.gain.value = effectivePartGain(sheet.mix, p.id);
-        g.connect(master);
-        this.partGains.set(p.id, g);
-      }
+    // Connect the backend once — loads WASM worklet and SoundFont.
+    if (!this.backendConnected) {
+      this.backendConnected = true;
+      await this.backend.connect(this.ctx, this.master);
+      this.isReady = true;
     }
   }
 
   /** Push live mixer changes (mute/solo/volume) to the running graph. */
   syncMix(sheet: Sheet): void {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.master) return;
     this.liveMix = sheet.mix;
-    if (this.master) this.master.gain.setTargetAtTime(effectiveMasterValue(sheet.mix), this.ctx.currentTime, 0.01);
-    for (const p of sheet.parts) {
-      this.partGains.get(p.id)?.gain.setTargetAtTime(effectivePartGain(sheet.mix, p.id), this.ctx.currentTime, 0.01);
-    }
+    this.master.gain.setTargetAtTime(effectiveMasterValue(sheet.mix), this.ctx.currentTime, 0.01);
+    this.backend.syncMix(sheet);
   }
 
-  private destFor(part: Part | undefined): AudioNode {
-    if (part) {
-      const node = this.partGains.get(part.id);
-      if (node) return node;
-    }
-    return this.master ?? this.ctx!.destination;
-  }
-
-  private teardown(): void {
-    for (const fn of this.stops) fn();
-    this.stops = [];
-    if (this.stopTimer) {
-      clearTimeout(this.stopTimer);
-      this.stopTimer = null;
-    }
-    for (const node of this.partGains.values()) {
-      try {
-        node.disconnect();
-      } catch {
-        /* ignore */
-      }
-    }
-    this.partGains.clear();
-  }
-
-  private scheduleNote(when: number, durSec: number, midi: number, vel: number, dest: AudioNode): void {
-    const ctx = this.ctx!;
-    const peak = VEL_GAIN[vel];
-    const freq = 440 * Math.pow(2, (midi - 69) / 12);
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, when);
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(peak, when + 0.005);
-    gain.gain.setValueAtTime(peak, when + Math.max(0.01, durSec - 0.04));
-    gain.gain.linearRampToValueAtTime(0, when + durSec);
-    osc.connect(gain).connect(dest);
-    osc.start(when);
-    osc.stop(when + durSec + 0.02);
-    this.stops.push(() => {
-      try {
-        osc.stop();
-        osc.disconnect();
-        gain.disconnect();
-      } catch {
-        /* already stopped */
-      }
-    });
-  }
-
-  private scheduleDrum(when: number, durSec: number, drumKey: string, vel: number, dest: AudioNode): void {
-    const ctx = this.ctx!;
-    const peak = VEL_GAIN[vel];
-    if (drumKey === "kick") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(180, when);
-      osc.frequency.exponentialRampToValueAtTime(80, when + 0.08);
-      gain.gain.setValueAtTime(0, when);
-      gain.gain.linearRampToValueAtTime(Math.min(1, peak * 1.8), when + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
-      osc.connect(gain).connect(dest);
-      osc.start(when);
-      osc.stop(when + 0.22);
-      this.stops.push(() => safeStop(() => (osc.stop(), osc.disconnect(), gain.disconnect())));
-    } else if (drumKey === "snare") {
-      const src = ctx.createBufferSource();
-      src.buffer = this.getNoiseBuffer(ctx);
-      const bp = ctx.createBiquadFilter();
-      bp.type = "bandpass";
-      bp.frequency.value = 1700;
-      bp.Q.value = 0.9;
-      const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0, when);
-      ng.gain.linearRampToValueAtTime(peak * 0.9, when + 0.003);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.14);
-      src.connect(bp).connect(ng).connect(dest);
-      src.start(when);
-      src.stop(when + 0.18);
-      const body = ctx.createOscillator();
-      const bg = ctx.createGain();
-      body.type = "triangle";
-      body.frequency.setValueAtTime(220, when);
-      body.frequency.exponentialRampToValueAtTime(140, when + 0.05);
-      bg.gain.setValueAtTime(0, when);
-      bg.gain.linearRampToValueAtTime(peak * 0.4, when + 0.003);
-      bg.gain.exponentialRampToValueAtTime(0.0001, when + 0.09);
-      body.connect(bg).connect(dest);
-      body.start(when);
-      body.stop(when + 0.12);
-      this.stops.push(() => safeStop(() => (src.stop(), src.disconnect(), bp.disconnect(), ng.disconnect(), body.stop(), body.disconnect(), bg.disconnect())));
-    } else {
-      const src = ctx.createBufferSource();
-      src.buffer = this.getNoiseBuffer(ctx);
-      const hp = ctx.createBiquadFilter();
-      hp.type = "highpass";
-      hp.frequency.value = 7000;
-      const ng = ctx.createGain();
-      const decay = Math.max(0.04, Math.min(0.25, durSec * 0.6));
-      ng.gain.setValueAtTime(0, when);
-      ng.gain.linearRampToValueAtTime(peak * 0.7, when + 0.002);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + decay);
-      src.connect(hp).connect(ng).connect(dest);
-      src.start(when);
-      src.stop(when + decay + 0.02);
-      this.stops.push(() => safeStop(() => (src.stop(), src.disconnect(), hp.disconnect(), ng.disconnect())));
-    }
-  }
-
-  /** A short metronome click; accented on the downbeat. */
+  /** A short metronome click; accented on the downbeat. Stays a plain oscillator. */
   async click(accent: boolean): Promise<void> {
     await this.ensureContext(1);
     const ctx = this.ctx!;
@@ -251,31 +114,33 @@ export class AudioEngine {
   /** Audition a single note immediately (e.g. on click). */
   async auditionNote(sheet: Sheet, note: Note): Promise<void> {
     await this.ensureContext(effectiveMasterValue(sheet.mix));
-    this.ensurePartGains(sheet);
+    const ctx = this.ctx!;
     const secPerStep = 60 / sheet.bpm / 4;
     const dur = secPerStep * 0.95;
-    const when = this.ctx!.currentTime + 0.005;
+    const when = ctx.currentTime + 0.005;
     const part = sheet.parts.find((p) => p.id === note.partId);
-    const dest = this.destFor(part);
     if (part && isRhythmPart(part)) {
       const key = RHYTHM_KEYS[part.hi - note.pitch];
-      if (key) this.scheduleDrum(when, dur, key, note.vel, dest);
+      if (key) this.backend.scheduleDrum(when, dur, key, note.vel, this.master!, note.partId);
     } else {
-      this.scheduleNote(when, dur, note.pitch, note.vel, dest);
+      this.backend.scheduleNote(when, dur, note.pitch, note.vel, this.master!, note.partId);
     }
   }
 
   async play(sheet: Sheet, opts: PlayOptions = {}): Promise<void> {
+    const gen = ++this.playGen;
     await this.ensureContext(effectiveMasterValue(sheet.mix));
+    if (gen !== this.playGen) return; // cancelled by stop()/pause() mid-await
     const ctx = this.ctx!;
-    this.playInternal(sheet, opts, ctx.currentTime + 0.05);
+    const t0 = ctx.currentTime + 0.05;
+    await this.backend.beginPlayback(sheet, t0);
+    if (gen !== this.playGen) return;
+    this.playInternal(sheet, opts, t0);
   }
 
   private playInternal(sheet: Sheet, opts: PlayOptions, t0: number): void {
     const ctx = this.ctx!;
-    this.teardown();
-    this.ensurePartGains(sheet);
-    this.syncMix(sheet);
+    this.cancelScheduled();
     this.playingSheetId = sheet.id;
 
     const secPerStep = 60 / (opts.bpmOverride && opts.bpmOverride > 0 ? opts.bpmOverride : sheet.bpm) / 4;
@@ -286,7 +151,6 @@ export class AudioEngine {
 
     for (const part of sheet.parts) {
       if (part.id === opts.silentPartId) continue;
-      const dest = this.destFor(part);
       for (const n of part.notes) {
         const absStart = noteFracStart(n);
         if (absStart < startStep) continue;
@@ -294,9 +158,9 @@ export class AudioEngine {
         const dur = noteFracLength(n) * secPerStep * 0.95;
         if (isRhythmPart(part)) {
           const key = RHYTHM_KEYS[part.hi - n.pitch];
-          if (key) this.scheduleDrum(when, dur, key, n.vel, dest);
+          if (key) this.backend.scheduleDrum(when, dur, key, n.vel, this.master!, part.id);
         } else {
-          this.scheduleNote(when, dur, n.pitch, n.vel, dest);
+          this.backend.scheduleNote(when, dur, n.pitch, n.vel, this.master!, part.id);
         }
         lastEnd = Math.max(lastEnd, when + dur);
       }
@@ -311,10 +175,11 @@ export class AudioEngine {
     const endTime = Math.max(lastEnd, endStepTime);
     const myId = sheet.id;
     const earlyMs = Math.max(0, (endStepTime - ctx.currentTime) * 1000 - 50);
-    this.stopTimer = setTimeout(() => {
+    this.stopTimer = setTimeout(async () => {
       if (this.playingSheetId !== myId) return;
       if (opts.repeat) {
         const latestSheet = this.liveMix ? { ...sheet, mix: this.liveMix } : sheet;
+        await this.backend.beginPlayback(latestSheet, endStepTime);
         this.playInternal(latestSheet, opts, endStepTime);
       } else {
         const remainingMs = Math.max(100, (endTime - ctx.currentTime) * 1000 + 100);
@@ -333,13 +198,16 @@ export class AudioEngine {
     const elapsed = this.ctx.currentTime - this.t0;
     const step = this.startStep + Math.max(0, elapsed) / this.secPerStep;
     const clamped = Math.max(0, Math.min(this.totalStepsCount - 0.0001, step));
-    this.teardown();
+    this.playGen++;
+    this.cancelScheduled();
     this.playingSheetId = null;
     return clamped;
   }
 
   stop(): void {
-    this.teardown();
+    this.playGen++;
+    this.cancelScheduled();
+    this.backend.teardown();
     this.playingSheetId = null;
     this.liveMix = null;
   }
@@ -355,12 +223,12 @@ export class AudioEngine {
     const cur = this.startStep + Math.max(0, elapsed) / this.secPerStep;
     return Math.min(this.totalStepsCount - 0.0001, cur);
   }
-}
 
-function safeStop(fn: () => void): void {
-  try {
-    fn();
-  } catch {
-    /* already stopped */
+  private cancelScheduled(): void {
+    this.backend.cancelActive();
+    if (this.stopTimer) {
+      clearTimeout(this.stopTimer);
+      this.stopTimer = null;
+    }
   }
 }

@@ -1,5 +1,5 @@
 import type { Project, Sheet } from "../core/model/types";
-import { STEPS_PER_BAR, VEL_LABELS, getInstrument } from "../core/model/constants";
+import { MAX_PARTS, STEPS_PER_BAR, VEL_LABELS, getInstrument } from "../core/model/constants";
 import { defaultPartMix, makePart, makeSheet } from "../core/model/factory";
 import { uid } from "../core/model/uid";
 import { quantizeNotes } from "../core/quantize";
@@ -153,6 +153,7 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case "ADD_PART":
       return commit(state, action.sheetId, (s) => {
+        if (s.parts.length >= MAX_PARTS) return;
         const part = makePart(undefined, action.instrument);
         if (action.insertAt != null && action.insertAt >= 0 && action.insertAt <= s.parts.length) {
           s.parts.splice(action.insertAt, 0, part);

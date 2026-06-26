@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppState, useDispatch } from "../state/context";
 import { activeSheet } from "../state/reducer";
-import { PITCH_NAMES, SCALE_OPTIONS } from "../core/model/constants";
+import { MAX_PARTS, PITCH_NAMES, SCALE_OPTIONS } from "../core/model/constants";
 import { AudioEngine } from "../audio/AudioEngine";
 import { SheetView } from "../ui/SheetView";
 import { useCellSize } from "../ui/useCellSize";
@@ -217,7 +217,7 @@ export function App() {
           }}
           onPartDelete={(partId) => dispatch({ type: "DELETE_PART", sheetId: sheet.id, partId })}
           onPartNameChange={(partId, name) => dispatch({ type: "UPDATE_PART", sheetId: sheet.id, partId, fields: { name } })}
-          onInsertPart={(atIndex) => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano", insertAt: atIndex })}
+          onInsertPart={sheet.parts.length < MAX_PARTS ? (atIndex) => dispatch({ type: "ADD_PART", sheetId: sheet.id, instrument: "epiano", insertAt: atIndex }) : undefined}
           onAnnotationEdit={setEditAnnId}
           onAnnotationMove={(id, dx, dy) => dispatch({ type: "MOVE_ANNOTATION", sheetId: sheet.id, id, dx, dy })}
           onAnnotationResize={(id, shrunkWidth, dx) => dispatch({ type: "RESIZE_ANNOTATION", sheetId: sheet.id, id, shrunkWidth, dx })}

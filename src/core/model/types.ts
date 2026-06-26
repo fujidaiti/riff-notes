@@ -3,7 +3,12 @@
 // / view-only state (selection, playback) lives outside these types, in the
 // state layer, so the serialize boundary stays clean.
 
-export type InstrumentId = "epiano" | "drum";
+export type InstrumentId =
+  | "piano" | "epiano" | "clav" | "organ"
+  | "bass" | "synthbass"
+  | "choir" | "sax" | "flute" | "whistle"
+  | "guitar12" | "guitar"
+  | "drum" | "kit808" | "jazzkit";
 
 export type PitchMode = "pitched" | "fixed";
 

@@ -22,6 +22,7 @@ export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { re
 
   const play = useCallback(async () => {
     const fromStep = cursorStep.current;
+    setTransport("playing");
     await engine.play(ref.current.sheet, {
       fromStep,
       repeat: ref.current.repeat,
@@ -31,7 +32,7 @@ export function useTransport(engine: AudioEngine, sheet: Sheet, recording?: { re
         setTransport("stopped");
       },
     });
-    setTransport("playing");
+    if (!engine.isPlaying) setTransport("stopped");
   }, [engine]);
 
   const pause = useCallback(() => {

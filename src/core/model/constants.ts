@@ -1,5 +1,8 @@
 import type { Instrument, InstrumentId } from "./types";
 
+// Maximum MIDI channels available; caps the number of parts per sheet.
+export const MAX_PARTS = 16;
+
 // Grid timing.
 export const STEPS_PER_BAR = 16;
 export const SUB_PER_STEP = 4;
@@ -59,12 +62,38 @@ export const RHYTHM_KEYS = ["hihat", "snare", "kick"] as const;
 // pitchMode "pitched" means the part exposes the full MIDI range and notes have
 // user-chosen pitches; "fixed" means an instrument-defined row layout (drums).
 export const INSTRUMENTS: Record<InstrumentId, Instrument> = {
-  epiano: { id: "epiano", label: "E-piano", pitchMode: "pitched", defaultLo: 60, defaultHi: 72, defaultName: "Part" },
-  drum: { id: "drum", label: "Drums", pitchMode: "fixed", defaultLo: 0, defaultHi: 2, defaultName: "Drums" },
+  piano:     { id: "piano",     label: "Piano",        pitchMode: "pitched", defaultLo: 48, defaultHi: 84, defaultName: "Piano" },
+  epiano:    { id: "epiano",    label: "E-Piano",      pitchMode: "pitched", defaultLo: 60, defaultHi: 72, defaultName: "E-Piano" },
+  clav:      { id: "clav",      label: "Clavinet",     pitchMode: "pitched", defaultLo: 48, defaultHi: 84, defaultName: "Clavinet" },
+  organ:     { id: "organ",     label: "Organ",        pitchMode: "pitched", defaultLo: 48, defaultHi: 84, defaultName: "Organ" },
+  bass:      { id: "bass",      label: "Bass",         pitchMode: "pitched", defaultLo: 28, defaultHi: 60, defaultName: "Bass" },
+  synthbass: { id: "synthbass", label: "Synth Bass",   pitchMode: "pitched", defaultLo: 28, defaultHi: 60, defaultName: "Synth Bass" },
+  choir:     { id: "choir",     label: "Choir",        pitchMode: "pitched", defaultLo: 48, defaultHi: 81, defaultName: "Choir" },
+  sax:       { id: "sax",       label: "Alto Sax",     pitchMode: "pitched", defaultLo: 49, defaultHi: 80, defaultName: "Alto Sax" },
+  flute:     { id: "flute",     label: "Flute",        pitchMode: "pitched", defaultLo: 60, defaultHi: 96, defaultName: "Flute" },
+  whistle:   { id: "whistle",   label: "Whistle",      pitchMode: "pitched", defaultLo: 60, defaultHi: 96, defaultName: "Whistle" },
+  guitar12:  { id: "guitar12",  label: "12-Str Guitar",pitchMode: "pitched", defaultLo: 40, defaultHi: 76, defaultName: "12-Str Guitar" },
+  guitar:    { id: "guitar",    label: "Clean Guitar", pitchMode: "pitched", defaultLo: 40, defaultHi: 76, defaultName: "Clean Guitar" },
+  drum:      { id: "drum",      label: "Drums",        pitchMode: "fixed",   defaultLo: 0,  defaultHi: 2,  defaultName: "Drums" },
+  kit808:    { id: "kit808",    label: "808/909 Kit",  pitchMode: "fixed",   defaultLo: 0,  defaultHi: 2,  defaultName: "808/909" },
+  jazzkit:   { id: "jazzkit",   label: "Jazz Kit",     pitchMode: "fixed",   defaultLo: 0,  defaultHi: 2,  defaultName: "Jazz Kit" },
 };
 export const INSTRUMENT_OPTIONS: ReadonlyArray<readonly [InstrumentId, string]> = [
-  ["epiano", "E-piano"],
-  ["drum", "Drums"],
+  ["piano",     "Piano"],
+  ["epiano",    "E-Piano"],
+  ["clav",      "Clavinet"],
+  ["organ",     "Organ"],
+  ["bass",      "Bass"],
+  ["synthbass", "Synth Bass"],
+  ["choir",     "Choir"],
+  ["sax",       "Alto Sax"],
+  ["flute",     "Flute"],
+  ["whistle",   "Whistle"],
+  ["guitar12",  "12-Str Guitar"],
+  ["guitar",    "Clean Guitar"],
+  ["drum",      "Drums"],
+  ["kit808",    "808/909 Kit"],
+  ["jazzkit",   "Jazz Kit"],
 ];
 export const DEFAULT_INSTRUMENT: InstrumentId = "epiano";
 

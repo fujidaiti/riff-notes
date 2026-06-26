@@ -181,7 +181,9 @@ export function deserializeProject(doc: unknown): Project | null {
   const sheets: Sheet[] = (doc.sheets as Raw[]).map((s) => {
     const barCount = Math.max(1, Number.isInteger(s.barCount) ? (s.barCount as number) : 1);
     const rawParts = Array.isArray(s.parts) && s.parts.length ? (s.parts as Raw[]) : [makePart("Part 1")];
-    const parts = rawParts.map((pt) => deserializePart(pt as Raw));
+    const allParts = rawParts.map((pt) => deserializePart(pt as Raw));
+    if (allParts.length > 16) console.warn(`Sheet "${str(s.title, "Sheet")}" has ${allParts.length} parts; only the first 16 are loaded.`);
+    const parts = allParts.slice(0, 16);
     const scale = isObj(s.scale) ? s.scale : {};
     const sheet: Sheet = {
       id: str(s.id, "") || uid(),
