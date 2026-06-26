@@ -1,5 +1,8 @@
 import type { Instrument, InstrumentId } from "./types";
 
+// Maximum MIDI channels available; caps the number of parts per sheet.
+export const MAX_PARTS = 16;
+
 // Grid timing.
 export const STEPS_PER_BAR = 16;
 export const SUB_PER_STEP = 4;
