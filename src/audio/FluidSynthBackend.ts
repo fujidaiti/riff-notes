@@ -176,6 +176,18 @@ export class FluidSynthBackend implements VoiceBackend {
   // any play() call has established the channel map.
   private seedDefaultChannels(): void {
     if (!this.synth || this.sfontId === null) return;
+    // Initialize every channel to a known-valid preset first. We assign channels
+    // by part index (not GM convention), so any channel a sheet doesn't use is
+    // left in FluidSynth's default state. Channel 9 is special: per General MIDI,
+    // FluidSynth pre-assigns it to percussion bank 128, which GeneralUser GS has
+    // no preset for (its kits live at bank 120), so its program reset logs
+    // "No preset found on channel 9 [bank=128 prog=0]". Seeding all 16 channels
+    // to bank 0 / program 0 neutralizes that; beginPlayback reprograms whichever
+    // channels a sheet actually plays on.
+    for (let ch = 0; ch < 16; ch++) {
+      this.synth.midiSetChannelType(ch, false);
+      this.synth.midiProgramSelect(ch, this.sfontId, 0, 0);
+    }
     const epiano = GM_PRESETS.epiano;
     const drum = GM_PRESETS.drum;
     this.synth.midiSetChannelType(0, epiano.drum);
