@@ -1,0 +1,3 @@
+[submodule "native/TinySoundFont"]
+	path = native/TinySoundFont
+	url = https://github.com/schellingb/TinySoundFont.git

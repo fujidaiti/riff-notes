@@ -4,7 +4,7 @@ import { isRhythmPart, totalSteps } from "../core/model/factory";
 import { effectiveMasterValue } from "../core/mixer";
 import { noteFracLength, noteFracStart } from "../core/timing";
 import type { VoiceBackend } from "./VoiceBackend";
-import { FluidSynthBackend } from "./FluidSynthBackend";
+import { TinySoundFontBackend } from "./TinySoundFontBackend";
 
 export interface PlayOptions {
   fromStep?: number;
@@ -18,19 +18,18 @@ export interface PlayOptions {
 
 /**
  * Orchestrates playback timing, looping, pause/resume, and audition via a
- * pluggable VoiceBackend. Currently uses FluidSynthBackend (SoundFont via WASM).
+ * pluggable VoiceBackend. Currently uses TinySoundFontBackend (SoundFont via WASM).
  *
  * The playhead is reported out-of-band via currentStep(): callers poll it from
  * their own rAF loop so per-frame updates never re-render React note trees.
- * Although FluidSynth's sequencer is the scheduling clock, currentStep() uses
- * ctx.currentTime - t0 as an equivalent synchronous estimate (sequencer tick
- * readback is async and would stall rAF).
+ * currentStep() uses ctx.currentTime - t0, which shares the worklet's sample
+ * clock, so it stays in sync with the audio without any async readback.
  */
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private keeper: AudioNode | null = null;
-  private backend: VoiceBackend = new FluidSynthBackend();
+  private backend: VoiceBackend = new TinySoundFontBackend();
   private backendConnected = false;
 
   private playingSheetId: string | null = null;

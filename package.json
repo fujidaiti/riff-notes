@@ -11,10 +11,10 @@
     "test:watch": "vitest",
     "lint": "eslint src",
     "typecheck": "tsc -b --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:tsf": "emcc native/tsf_wrapper.c -O3 -I native -sSTANDALONE_WASM -sEXPORTED_FUNCTIONS=_tsf_w_load,_tsf_w_set_volume,_tsf_w_set_preset,_tsf_w_note_on,_tsf_w_note_off,_tsf_w_all_off,_tsf_w_cc,_tsf_w_render,_malloc,_free -sALLOW_MEMORY_GROWTH -Wl,--no-entry -o public/audio/tsf.wasm"
   },
   "dependencies": {
-    "js-synthesizer": "^1.13.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
