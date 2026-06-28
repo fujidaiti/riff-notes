@@ -88,5 +88,5 @@ running the app. A server-render smoke test guards that the editor and embed tre
 
 ## Attribution
 
-- Audio rendered with [FluidSynth](https://www.fluidsynth.org/) via [js-synthesizer](https://github.com/jet2jet/js-synthesizer) (WASM).
+- Audio rendered with [TinySoundFont](https://github.com/schellingb/TinySoundFont) by Bernhard Schelling (MIT), compiled to WASM and driven from an AudioWorklet.
 - SoundFont: [GeneralUser GS](https://www.schristiancollins.com/generaluser) by S. Christian Collins (public domain).
